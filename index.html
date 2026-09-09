@@ -3,183 +3,122 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>منصة المساعد الذكي للمتاجر | لوحة التحكم</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <title>منصة المساعد الذكي للمتاجر</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Tajawal', sans-serif; }
+        body { font-family: 'Cairo', sans-serif; }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen p-4 md:p-8 text-gray-800">
-    
-    <header class="max-w-6xl mx-auto mb-8 flex justify-between items-center border-b pb-4">
-        <div>
-            <h1 class="text-3xl font-extrabold text-indigo-600">SmartAgent SaaS</h1>
-            <p class="text-sm text-gray-500">منصة إنشاء وتخصيص مساعدي المبيعات الذكية للمتاجر الإلكترونية</p>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between">
+
+    <header class="bg-white shadow-sm border-b border-slate-100 py-4 px-6">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold text-indigo-600">منصة المساعد الذكي</h1>
+            <span class="text-xs bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full font-medium">SaaS WhatsApp Bot</span>
         </div>
-        <span class="bg-indigo-100 text-indigo-700 text-xs font-bold px-3 py-1 rounded-full">Multi-Tenant Engine</span>
     </header>
 
-    <main class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
-        
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6">
-            <h2 class="text-xl font-bold text-gray-800 border-b pb-3 flex items-center gap-2">
-                <span>⚙️</span> إعدادات وبيانات المتجر
-            </h2>
-            
-            <form id="registerStoreForm" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">اسم المتجر / الشركة *</label>
-                    <input type="text" id="storeName" placeholder="مثال: متجر العود الفريد" required class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition">
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">رابط الموقع</label>
-                        <input type="url" id="storeUrl" placeholder="https://store.com" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">رقم الواتساب الرسمي</label>
-                        <input type="text" id="whatsappNumber" placeholder="+966500000000" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition">
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">تعليمات المساعد الذكي</label>
-                    <textarea id="agentNotes" rows="3" placeholder="أدخل قواعد الرد، العروض المتاحة، وسلوك المساعد..." class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition"></textarea>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">كتالوج المنتجات أو الأسعار (PDF)</label>
-                    <input type="file" id="pdfFile" accept=".pdf" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition">
-                </div>
-
-                <button type="submit" id="submitBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl transition flex justify-center items-center gap-2">
-                    <span>حفظ وإنشاء معرف المتجر (Store ID)</span>
-                </button>
-            </form>
-
-            <div id="embedSection" class="hidden mt-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-3">
-                <div class="flex justify-between items-center">
-                    <span class="text-emerald-800 font-bold text-sm">🎉 كود التضمين الخاص بمتجرك:</span>
-                    <button onclick="copyWidgetCode()" class="bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-emerald-700 transition">نسخ الكود</button>
-                </div>
-                <textarea id="widgetCodeBox" readonly rows="3" class="w-full p-2.5 bg-white border border-emerald-300 rounded-lg text-xs font-mono text-emerald-900 outline-none" dir="ltr"></textarea>
-            </div>
+    <main class="max-w-2xl mx-auto w-full p-6 my-8 bg-white rounded-2xl shadow-sm border border-slate-100">
+        <div class="mb-6">
+            <h2 class="text-2xl font-bold text-slate-900 mb-2">تسجيل متجر جديد</h2>
+            <p class="text-sm text-slate-500">أدخل تفاصيل متجرك وارفع كتالوج المنتجات لتفعيل مساعد الواتساب الذكي فوراً.</p>
         </div>
 
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-[650px]">
-            <div class="border-b pb-3 flex justify-between items-center">
-                <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
-                    <span>💬</span> تجربة الشات المباشرة
-                </h2>
-                <span id="activeStoreBadge" class="text-xs bg-gray-100 text-gray-600 font-bold px-2.5 py-1 rounded-md">لم يتم اختيار متجر بعد</span>
-            </div>
-            
-            <div id="chatBox" class="flex-1 overflow-y-auto my-4 p-4 bg-slate-50 rounded-xl space-y-4 text-sm">
-                <div class="bg-indigo-50 text-indigo-900 p-3.5 rounded-2xl max-w-[85%] border border-indigo-100">
-                    أهلاً بك! احفظ بيانات متجرك على اليمين لتتمكن من تجربة المساعد الذكي واختبار إجاباته هنا مباشرة.
-                </div>
+        <form id="storeForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-semibold mb-1 text-slate-700">اسم المتجر *</label>
+                <input type="text" id="store_name" required class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-indigo-500 text-sm">
             </div>
 
-            <div class="flex gap-2 border-t pt-3">
-                <input type="text" id="userInput" placeholder="اكتب سؤالك هنا..." onkeypress="if(event.key==='Enter') sendMessage()" class="flex-1 p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition">
-                <button onclick="sendMessage()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-xl transition">
-                    إرسال
-                </button>
+            <div>
+                <label class="block text-sm font-semibold mb-1 text-slate-700">رابط المتجر (اختياري)</label>
+                <input type="url" id="store_url" placeholder="https://example.com" class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-indigo-500 text-sm">
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold mb-1 text-slate-700">رقم الواتساب (مع رمز الدولة)</label>
+                <input type="text" id="whatsapp_number" placeholder="+967XXXXXXXXX" class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-indigo-500 text-sm">
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold mb-1 text-slate-700">تعليمات المساعد الذكي (Prompt Notes)</label>
+                <textarea id="agent_notes" rows="3" placeholder="مثال: كن ودوداً، ركز على بيع المنتجات التقنية..." class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-indigo-500 text-sm"></textarea>
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold mb-1 text-slate-700">كتالوج المنتجات والأسعار (ملف PDF)</label>
+                <input type="file" id="pdf_file" accept=".pdf" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer">
+            </div>
+
+            <button type="submit" id="submitBtn" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 transition duration-200 text-sm shadow-sm">
+                تسجيل وتفعيل المتجر
+            </button>
+        </form>
+
+        <div id="resultBox" class="hidden mt-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+            <h3 class="text-emerald-800 font-bold mb-2">تم بنجاح!</h3>
+            <p id="resultMessage" class="text-xs text-emerald-700 mb-3"></p>
+            <div id="qrContainer" class="text-center my-3 hidden">
+                <p class="text-xs font-semibold text-slate-600 mb-2">امسح كود الواتساب لربط الحساب:</p>
+                <img id="qrCodeImg" src="" alt="WhatsApp QR Code" class="mx-auto max-w-[200px] rounded-lg border border-slate-200">
+            </div>
+            <div class="mt-3">
+                <label class="block text-xs font-bold text-slate-600 mb-1">كود الودجت للموقع:</label>
+                <input type="text" id="widgetCodeOutput" readonly class="w-full bg-white px-3 py-2 rounded border border-slate-200 text-xs select-all text-slate-600">
             </div>
         </div>
-
     </main>
 
-    <script>
-        let currentStoreId = null;
+    <footer class="text-center py-4 text-xs text-slate-400">
+        جميع الحقوق محفوظة &copy; 2026
+    </footer>
 
-        document.getElementById('registerStoreForm').addEventListener('submit', async (e) => {
+    <script>
+        document.getElementById('storeForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const submitBtn = document.getElementById('submitBtn');
-            submitBtn.disabled = true;
-            submitBtn.innerText = 'جاري المعالجة...';
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.textContent = 'جاري المعالجة والتسجيل...';
 
             const formData = new FormData();
-            formData.append('store_name', document.getElementById('storeName').value);
-            formData.append('store_url', document.getElementById('storeUrl').value);
-            formData.append('whatsapp_number', document.getElementById('whatsappNumber').value);
-            formData.append('agent_notes', document.getElementById('agentNotes').value);
-
-            const pdfFile = document.getElementById('pdfFile').files[0];
-            if (pdfFile) formData.append('pdf_file', pdfFile);
+            formData.append('store_name', document.getElementById('store_name').value);
+            formData.append('store_url', document.getElementById('store_url').value);
+            formData.append('whatsapp_number', document.getElementById('whatsapp_number').value);
+            formData.append('agent_notes', document.getElementById('agent_notes').value);
+            
+            const pdfFile = document.getElementById('pdf_file').files[0];
+            if (pdfFile) {
+                formData.append('pdf_file', pdfFile);
+            }
 
             try {
-                const res = await fetch('/api/register-store', { method: 'POST', body: formData });
-                const data = await res.json();
+                const response = await fetch('/api/register-store', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
 
-                if (res.ok) {
-                    currentStoreId = data.store_id;
-                    document.getElementById('embedSection').classList.remove('hidden');
-                    document.getElementById('widgetCodeBox').value = data.widget_code;
-                    document.getElementById('activeStoreBadge').innerText = 'المتجر النشط: ' + document.getElementById('storeName').value;
-                    document.getElementById('activeStoreBadge').className = 'text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-md';
+                if (data.status === 'success') {
+                    document.getElementById('resultBox').classList.remove('hidden');
+                    document.getElementById('resultMessage').textContent = data.message;
+                    document.getElementById('widgetCodeOutput').value = data.widget_code;
+
+                    if (data.qr_code) {
+                        document.getElementById('qrContainer').classList.remove('hidden');
+                        document.getElementById('qrCodeImg').src = data.qr_code;
+                    }
                 } else {
-                    alert('خطأ: ' + (data.detail || 'فشل الحفظ'));
+                    alert('حدث خطأ أثناء التسجيل');
                 }
-            } catch (err) {
-                alert('تعذر الاتصال بالسيرفر');
+            } catch (error) {
+                console.error(error);
+                alert('فشل الاتصال بالخادم');
             } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerText = 'حفظ وإنشاء معرف المتجر (Store ID)';
+                btn.disabled = false;
+                btn.textContent = 'تسجيل وتفعيل المتجر';
             }
         });
-
-        function copyWidgetCode() {
-            const codeBox = document.getElementById('widgetCodeBox');
-            codeBox.select();
-            document.execCommand('copy');
-            alert('تم نسخ الكود بنجاح!');
-        }
-
-        async function sendMessage() {
-            if (!currentStoreId) {
-                alert('يرجى حفظ إعدادات المتجر أولاً لتفعيل الشات!');
-                return;
-            }
-
-            const input = document.getElementById('userInput');
-            const chatBox = document.getElementById('chatBox');
-            const message = input.value.trim();
-
-            if (!message) return;
-
-            chatBox.innerHTML += `<div class="bg-gray-200 text-gray-800 p-3 rounded-2xl max-w-[80%] mr-auto">${message}</div>`;
-            input.value = '';
-            chatBox.scrollTop = chatBox.scrollHeight;
-
-            const loadingId = 'loading-' + Date.now();
-            chatBox.innerHTML += `<div id="${loadingId}" class="bg-indigo-50 text-indigo-900 p-3 rounded-2xl max-w-[80%] animate-pulse">جاري الاستجابة...</div>`;
-            chatBox.scrollTop = chatBox.scrollHeight;
-
-            try {
-                const res = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ store_id: currentStoreId, message: message })
-                });
-
-                const data = await res.json();
-                document.getElementById(loadingId).remove();
-
-                if (res.ok) {
-                    chatBox.innerHTML += `<div class="bg-indigo-100 text-indigo-900 p-3 rounded-2xl max-w-[80%]">${data.response}</div>`;
-                } else {
-                    chatBox.innerHTML += `<div class="bg-red-100 text-red-900 p-3 rounded-2xl max-w-[80%]">خطأ: ${data.detail}</div>`;
-                }
-            } catch (err) {
-                document.getElementById(loadingId).remove();
-                chatBox.innerHTML += `<div class="bg-red-100 text-red-900 p-3 rounded-2xl max-w-[80%]">تعذر الاتصال بالسيرفر.</div>`;
-            }
-
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
     </script>
 </body>
 </html>
