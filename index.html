@@ -3,183 +3,362 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>منصة المساعد الذكي للمتاجر | لوحة التحكم</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <title>منصة إدارة المتاجر والمساعد الذكي</title>
     <style>
-        body { font-family: 'Tajawal', sans-serif; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 650px;
+            margin: 40px auto;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+        h2 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 25px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #34495e;
+        }
+        input[type="text"], textarea, input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #dcdde1;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        input[type="text"]:focus, textarea:focus {
+            border-color: #3498db;
+        }
+        textarea {
+            resize: vertical;
+            height: 100px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        #result-section {
+            margin-top: 25px;
+            padding: 20px;
+            background: #e8f8f5;
+            border: 1px solid #a3e4d7;
+            border-radius: 8px;
+            display: none;
+        }
+        .code-box {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 12px;
+            border-radius: 5px;
+            font-family: monospace;
+            word-break: break-all;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+        .whatsapp-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px dashed #a3e4d7;
+            text-align: center;
+            display: none;
+        }
+        .qr-container {
+            margin: 15px auto;
+            padding: 10px;
+            background: white;
+            display: inline-block;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .qr-container img {
+            max-width: 200px;
+            height: auto;
+            display: block;
+        }
+        .chat-simulation {
+            margin-top: 25px;
+            border: 1px solid #dcdde1;
+            border-radius: 8px;
+            background: #fff;
+            overflow: hidden;
+            display: none;
+        }
+        .chat-header {
+            background: #2c3e50;
+            color: white;
+            padding: 10px 15px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .chat-body {
+            height: 200px;
+            overflow-y: auto;
+            padding: 15px;
+            background: #fdfefe;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .message {
+            padding: 8px 12px;
+            border-radius: 6px;
+            max-width: 80%;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        .message.user {
+            background: #3498db;
+            color: white;
+            align-self: flex-start;
+        }
+        .message.bot {
+            background: #e5e8e8;
+            color: #333;
+            align-self: flex-end;
+        }
+        .chat-footer {
+            display: flex;
+            border-top: 1px solid #dcdde1;
+        }
+        .chat-footer input {
+            border: none;
+            border-radius: 0;
+            padding: 10px;
+        }
+        .chat-footer button {
+            width: auto;
+            border-radius: 0;
+            padding: 10px 20px;
+        }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen p-4 md:p-8 text-gray-800">
+<body>
+
+<div class="container">
+    <h2>تسجيل متجر جديد وربط المساعد الذكي</h2>
     
-    <header class="max-w-6xl mx-auto mb-8 flex justify-between items-center border-b pb-4">
-        <div>
-            <h1 class="text-3xl font-extrabold text-indigo-600">SmartAgent SaaS</h1>
-            <p class="text-sm text-gray-500">منصة إنشاء وتخصيص مساعدي المبيعات الذكية للمتاجر الإلكترونية</p>
+    <form id="storeForm" onsubmit="registerStore(event)">
+        <div class="form-group">
+            <label for="store_name">اسم المتجر:</label>
+            <input type="text" id="store_name" required placeholder="مثال: متجر الإلكترونيات الحديثة">
         </div>
-        <span class="bg-indigo-100 text-indigo-700 text-xs font-bold px-3 py-1 rounded-full">Multi-Tenant Engine</span>
-    </header>
 
-    <main class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="form-group">
+            <label for="store_url">رابط المتجر (اختياري):</label>
+            <input type="text" id="store_url" placeholder="https://example.com">
+        </div>
+
+        <div class="form-group">
+            <label for="whatsapp_number">رقم الواتساب (مثال: 966500000000+):</label>
+            <input type="text" id="whatsapp_number" placeholder="+9665xxxxxxxx">
+        </div>
+
+        <div class="form-group">
+            <label for="agent_notes">تعليمات المساعد الذكي (System Prompt):</label>
+            <textarea id="agent_notes" placeholder="اكتب هنا كيف يجب أن يتعامل المساعد مع العملاء، سياسة الأسعار، إلخ..."></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="pdf_file">ملف الكتالوج (PDF):</label>
+            <input type="file" id="pdf_file" accept=".pdf">
+        </div>
+
+        <button type="submit" id="submitBtn">إنشاء المتجر وتوليد الكود</button>
+    </form>
+
+    <div id="result-section">
+        <h3 style="color: #16a085; margin-top: 0;">تم إنشاء المتجر بنجاح!</h3>
+        <p>قم بنسخ كود الـ Widget التالي وضعه في موقعك:</p>
+        <div class="code-box" id="widgetCodeOutput"></div>
+
+        <div class="whatsapp-section" id="whatsappSection">
+            <h4 style="color: #27ae60; margin: 0 0 10px 0;">ربط واتساب البوت (QR Code)</h4>
+            <p id="qrStatusText" style="font-size: 13px; color: #555;">جاري تجهيز اتصال الواتساب وجلب الـ QR Code...</p>
+            <div class="qr-container" id="qrContainer"></div>
+            <br>
+            <button type="button" onclick="fetchWhatsAppQR()" style="background-color: #27ae60; width: auto; padding: 8px 15px; font-size: 13px; margin-top: 10px;">إعادة محاولة جلب الكود</button>
+        </div>
+
+        <div class="chat-simulation" id="chatSimulation" style="display: block;">
+            <div class="chat-header">تجربة المساعد الذكي (محادثة تجريبية)</div>
+            <div class="chat-body" id="chatBody">
+                <div class="message bot">مرحباً بك! أنا مساعدك الذكي، كيف يمكنني مساعدتك اليوم بخصوص متجرك أو منتجاتك؟</div>
+            </div>
+            <div class="chat-footer">
+                <input type="text" id="chatInput" placeholder="اكتب رسالة تجريبية للمساعد..." onkeypress="handleKeyPress(event)">
+                <button type="button" onclick="sendTestMessage()">إرسال</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentStoreId = null;
+
+    async function registerStore(event) {
+        event.preventDefault();
         
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6">
-            <h2 class="text-xl font-bold text-gray-800 border-b pb-3 flex items-center gap-2">
-                <span>⚙️</span> إعدادات وبيانات المتجر
-            </h2>
-            
-            <form id="registerStoreForm" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">اسم المتجر / الشركة *</label>
-                    <input type="text" id="storeName" placeholder="مثال: متجر العود الفريد" required class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition">
-                </div>
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'جاري المعالجة والحفظ...';
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">رابط الموقع</label>
-                        <input type="url" id="storeUrl" placeholder="https://store.com" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">رقم الواتساب الرسمي</label>
-                        <input type="text" id="whatsappNumber" placeholder="+966500000000" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition">
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">تعليمات المساعد الذكي</label>
-                    <textarea id="agentNotes" rows="3" placeholder="أدخل قواعد الرد، العروض المتاحة، وسلوك المساعد..." class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition"></textarea>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">كتالوج المنتجات أو الأسعار (PDF)</label>
-                    <input type="file" id="pdfFile" accept=".pdf" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition">
-                </div>
-
-                <button type="submit" id="submitBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl transition flex justify-center items-center gap-2">
-                    <span>حفظ وإنشاء معرف المتجر (Store ID)</span>
-                </button>
-            </form>
-
-            <div id="embedSection" class="hidden mt-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-3">
-                <div class="flex justify-between items-center">
-                    <span class="text-emerald-800 font-bold text-sm">🎉 كود التضمين الخاص بمتجرك:</span>
-                    <button onclick="copyWidgetCode()" class="bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-emerald-700 transition">نسخ الكود</button>
-                </div>
-                <textarea id="widgetCodeBox" readonly rows="3" class="w-full p-2.5 bg-white border border-emerald-300 rounded-lg text-xs font-mono text-emerald-900 outline-none" dir="ltr"></textarea>
-            </div>
-        </div>
-
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-[650px]">
-            <div class="border-b pb-3 flex justify-between items-center">
-                <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
-                    <span>💬</span> تجربة الشات المباشرة
-                </h2>
-                <span id="activeStoreBadge" class="text-xs bg-gray-100 text-gray-600 font-bold px-2.5 py-1 rounded-md">لم يتم اختيار متجر بعد</span>
-            </div>
-            
-            <div id="chatBox" class="flex-1 overflow-y-auto my-4 p-4 bg-slate-50 rounded-xl space-y-4 text-sm">
-                <div class="bg-indigo-50 text-indigo-900 p-3.5 rounded-2xl max-w-[85%] border border-indigo-100">
-                    أهلاً بك! احفظ بيانات متجرك على اليمين لتتمكن من تجربة المساعد الذكي واختبار إجاباته هنا مباشرة.
-                </div>
-            </div>
-
-            <div class="flex gap-2 border-t pt-3">
-                <input type="text" id="userInput" placeholder="اكتب سؤالك هنا..." onkeypress="if(event.key==='Enter') sendMessage()" class="flex-1 p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition">
-                <button onclick="sendMessage()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-xl transition">
-                    إرسال
-                </button>
-            </div>
-        </div>
-
-    </main>
-
-    <script>
-        let currentStoreId = null;
-
-        document.getElementById('registerStoreForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const submitBtn = document.getElementById('submitBtn');
-            submitBtn.disabled = true;
-            submitBtn.innerText = 'جاري المعالجة...';
-
-            const formData = new FormData();
-            formData.append('store_name', document.getElementById('storeName').value);
-            formData.append('store_url', document.getElementById('storeUrl').value);
-            formData.append('whatsapp_number', document.getElementById('whatsappNumber').value);
-            formData.append('agent_notes', document.getElementById('agentNotes').value);
-
-            const pdfFile = document.getElementById('pdfFile').files[0];
-            if (pdfFile) formData.append('pdf_file', pdfFile);
-
-            try {
-                const res = await fetch('/api/register-store', { method: 'POST', body: formData });
-                const data = await res.json();
-
-                if (res.ok) {
-                    currentStoreId = data.store_id;
-                    document.getElementById('embedSection').classList.remove('hidden');
-                    document.getElementById('widgetCodeBox').value = data.widget_code;
-                    document.getElementById('activeStoreBadge').innerText = 'المتجر النشط: ' + document.getElementById('storeName').value;
-                    document.getElementById('activeStoreBadge').className = 'text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-md';
-                } else {
-                    alert('خطأ: ' + (data.detail || 'فشل الحفظ'));
-                }
-            } catch (err) {
-                alert('تعذر الاتصال بالسيرفر');
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerText = 'حفظ وإنشاء معرف المتجر (Store ID)';
-            }
-        });
-
-        function copyWidgetCode() {
-            const codeBox = document.getElementById('widgetCodeBox');
-            codeBox.select();
-            document.execCommand('copy');
-            alert('تم نسخ الكود بنجاح!');
+        const formData = new FormData();
+        formData.append('store_name', document.getElementById('store_name').value);
+        formData.append('store_url', document.getElementById('store_url').value);
+        const whatsappNum = document.getElementById('whatsapp_number').value;
+        formData.append('whatsapp_number', whatsappNum);
+        formData.append('agent_notes', document.getElementById('agent_notes').value);
+        
+        const pdfFile = document.getElementById('pdf_file').files[0];
+        if (pdfFile) {
+            formData.append('pdf_file', pdfFile);
         }
 
-        async function sendMessage() {
-            if (!currentStoreId) {
-                alert('يرجى حفظ إعدادات المتجر أولاً لتفعيل الشات!');
-                return;
-            }
+        try {
+            const response = await fetch('/api/register-store', {
+                method: 'POST',
+                body: formData
+            });
 
-            const input = document.getElementById('userInput');
-            const chatBox = document.getElementById('chatBox');
-            const message = input.value.trim();
+            const data = await response.json();
 
-            if (!message) return;
+            if (response.ok && data.status === 'success') {
+                currentStoreId = data.store_id;
+                document.getElementById('widgetCodeOutput').textContent = data.widget_code;
+                document.getElementById('result-section').style.display = 'block';
 
-            chatBox.innerHTML += `<div class="bg-gray-200 text-gray-800 p-3 rounded-2xl max-w-[80%] mr-auto">${message}</div>`;
-            input.value = '';
-            chatBox.scrollTop = chatBox.scrollHeight;
-
-            const loadingId = 'loading-' + Date.now();
-            chatBox.innerHTML += `<div id="${loadingId}" class="bg-indigo-50 text-indigo-900 p-3 rounded-2xl max-w-[80%] animate-pulse">جاري الاستجابة...</div>`;
-            chatBox.scrollTop = chatBox.scrollHeight;
-
-            try {
-                const res = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ store_id: currentStoreId, message: message })
-                });
-
-                const data = await res.json();
-                document.getElementById(loadingId).remove();
-
-                if (res.ok) {
-                    chatBox.innerHTML += `<div class="bg-indigo-100 text-indigo-900 p-3 rounded-2xl max-w-[80%]">${data.response}</div>`;
-                } else {
-                    chatBox.innerHTML += `<div class="bg-red-100 text-red-900 p-3 rounded-2xl max-w-[80%]">خطأ: ${data.detail}</div>`;
+                if (whatsappNum) {
+                    document.getElementById('whatsappSection').style.display = 'block';
+                    // الانتظار 3 ثوانٍ حتى يتم إنشاء الجلسة في السيرفر ثم جلب الـ QR
+                    setTimeout(fetchWhatsAppQR, 3000);
                 }
-            } catch (err) {
-                document.getElementById(loadingId).remove();
-                chatBox.innerHTML += `<div class="bg-red-100 text-red-900 p-3 rounded-2xl max-w-[80%]">تعذر الاتصال بالسيرفر.</div>`;
-            }
 
-            chatBox.scrollTop = chatBox.scrollHeight;
+                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+            } else {
+                alert('حدث خطأ أثناء التسجيل: ' + (data.detail || 'يرجى المحاولة لاحقاً'));
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('تعذر الاتصال بالسيرفر.');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'إنشاء المتجر وتوليد الكود';
         }
-    </script>
+    }
+
+    async function fetchWhatsAppQR() {
+        if (!currentStoreId) return;
+        const statusText = document.getElementById('qrStatusText');
+        const qrContainer = document.getElementById('qrContainer');
+        
+        statusText.textContent = 'جاري جلب الـ QR Code...';
+
+        try {
+            const qrResponse = await fetch(`/api/whatsapp/connect/${currentStoreId}`);
+            const qrData = await qrResponse.json();
+            
+            const rawData = qrData.evolution_data;
+            // فحص احتمالات مسارات الـ QR في إصدارات Evolution API المختلفة
+            const qrImageSrc = rawData?.base64 || rawData?.qrcode?.base64 || rawData?.code || rawData?.instance?.qrcode;
+
+            if (qrImageSrc) {
+                // التأكد من وضع بادئة الـ base64 إذا كانت غير موجودة
+                let imgSrc = qrImageSrc;
+                if (!imgSrc.startsWith('data:image')) {
+                    imgSrc = `data:image/png;base64,${imgSrc}`;
+                }
+                qrContainer.innerHTML = `<img src="${imgSrc}" alt="WhatsApp QR Code">`;
+                statusText.textContent = 'قم بمسح الكود التالي عبر تطبيق الواتساب لتفعيل الرد الآلي:';
+            } else if (rawData?.state === 'open' || rawData?.instance?.state === 'open') {
+                statusText.textContent = 'الحساب متصل بالفعل بالواتساب بنجاح!';
+                qrContainer.innerHTML = '';
+            } else {
+                statusText.textContent = 'لم يتم توليد الكود بعد، انقر على زر إعادة المحاولة بعد قليلاً.';
+            }
+        } catch (err) {
+            console.error('تعذر جلب الـ QR Code:', err);
+            statusText.textContent = 'حدث خطأ أثناء الاتصال بجلب الـ QR.';
+        }
+    }
+
+    function handleKeyPress(event) {
+        if (event.key === 'Enter') {
+            sendTestMessage();
+        }
+    }
+
+    async function sendTestMessage() {
+        const inputField = document.getElementById('chatInput');
+        const messageText = inputField.value.trim();
+        if (!messageText || !currentStoreId) return;
+
+        const chatBody = document.getElementById('chatBody');
+
+        const userMsg = document.createElement('div');
+        userMsg.className = 'message user';
+        userMsg.textContent = messageText;
+        chatBody.appendChild(userMsg);
+
+        inputField.value = '';
+        chatBody.scrollTop = chatBody.scrollHeight;
+
+        try {
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    store_id: currentStoreId,
+                    message: messageText,
+                    sender_id: 'preview_web_user'
+                })
+            });
+
+            const data = await response.json();
+            const botMsg = document.createElement('div');
+            botMsg.className  = 'message bot';
+            botMsg.textContent = data.response || 'عذراً، لم أتمكن من الرد.';
+            chatBody.appendChild(botMsg);
+            chatBody.scrollTop = chatBody.scrollHeight;
+        } catch (error) {
+            const errorMsg = document.createElement('div');
+            errorMsg.className = 'message bot';
+            errorMsg.style.background = '#f8d7da';
+            errorMsg.style.color = '#721c24';
+            errorMsg.textContent = 'عذراً، حدث خطأ في الاتصال بالخادم.';
+            chatBody.appendChild(errorMsg);
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }
+    }
+</script>
+
 </body>
 </html>
