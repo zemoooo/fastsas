@@ -158,7 +158,12 @@ async def register_store(
                     "qrcode": True,
                     "integration": "WHATSAPP-BAILEYS"
                 }
-                res = await client.post(f"{EVOLUTION_API_URL}/instance/create", json=create_payload, headers=headers, timeout=15.0)
+                res = await client.post(
+                    f"{EVOLUTION_API_URL}/instance/create",
+                    json=create_payload,
+                    headers=headers,
+                    timeout=15.0
+                )
                 
                 qr_raw = None
                 if res.status_code in [200, 201]:
@@ -166,7 +171,11 @@ async def register_store(
                     qr_raw = res_data.get("qrcode", {}).get("base64") or res_data.get("base64")
 
                 if not qr_raw:
-                    connect_res = await client.get(f"{EVOLUTION_API_URL}/instance/connect/{instance_name}", headers=headers, timeout=10.0)
+                    connect_res = await client.get(
+                        f"{EVOLUTION_API_URL}/instance/connect/{instance_name}",
+                        headers=headers,
+                        timeout=10.0
+                    )
                     if connect_res.status_code in [200, 201]:
                         c_data = connect_res.json()
                         qr_raw = c_data.get("base64") or c_data.get("qrcode", {}).get("base64") or c_data.get("code")
@@ -185,7 +194,12 @@ async def register_store(
                         "events": ["MESSAGES-UPSERT"]
                     }
                 }
-                await client.post(f"{EVOLUTION_API_URL}/webhook/set/{instance_name}", json=webhook_payload, headers=headers, timeout=15.0)
+                await client.post(
+                    f"{EVOLUTION_API_URL}/webhook/set/{instance_name}",
+                    json=webhook_payload,
+                    headers=headers,
+                    timeout=15.0
+                )
 
             except Exception as e:
                 print(f"❌ Evolution API Connection Error: {e}")
@@ -330,53 +344,4 @@ async def whatsapp_evolution_webhook(store_id: str, request: Request, db: Sessio
     except Exception as e:
         print(f"❌ Webhook Processing Error: {e}")
 
-    return {"status": "success"}document.getElementById('storeForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn = document.getElementById('submitBtn');
-    btn.disabled = true;
-    btn.textContent = 'جاري معالجة البيانات وإنشاء كود الـ QR...';
-
-    const formData = new FormData();
-    formData.append('store_name', document.getElementById('store_name').value);
-    formData.append('store_url', document.getElementById('store_url').value);
-    formData.append('whatsapp_number', document.getElementById('whatsapp_number').value);
-    formData.append('agent_notes', document.getElementById('agent_notes').value);
-    
-    const pdfFile = document.getElementById('pdf_file').files[0];
-    if (pdfFile) {
-        formData.append('pdf_file', pdfFile);
-    }
-
-    try {
-        const response = await fetch('/api/register-store', {
-            method: 'POST',
-            body: formData
-        });
-        const data = await response.json();
-
-        if (data.status === 'success') {
-            document.getElementById('resultBox').classList.remove('hidden');
-            document.getElementById('resultMessage').textContent = data.message;
-            document.getElementById('widgetCodeOutput').value = data.widget_code;
-
-            const qrContainer = document.getElementById('qrContainer');
-            const qrImg = document.getElementById('qrCodeImg');
-
-            if (data.qr_code) {
-                qrContainer.classList.remove('hidden');
-                qrImg.src = data.qr_code;
-            } else {
-                qrContainer.classList.remove('hidden');
-                qrContainer.innerHTML = '<p class="text-xs text-amber-600 font-semibold py-2">⚠️ لم يتم توليد QR Code. يرجى التأكد من كتابة رقم الواتساب بشكل صحيح وصحة EVOLUTION_GLOBAL_KEY.</p>';
-            }
-        } else {
-            alert('حدث خطأ أثناء التسجيل');
-        }
-    } catch (error) {
-        console.error(error);
-        alert('فشل الاتصال بالخادم');
-    } finally {
-        btn.disabled = false;
-        btn.textContent = 'تسجيل وتفعيل المتجر';
-    }
-});
+    return {"status": "success"}
