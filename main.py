@@ -14,7 +14,6 @@ from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, crea
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, relationship, sessionmaker
 
-# التحقق من متغير قاعدة البيانات أو استخدام SQLite كقيمة افتراضية آمنة
 DATABASE_URL = os.getenv("DATABASE_CONNECTION_URI")
 if not DATABASE_URL or DATABASE_URL.strip() == "":
     DATABASE_URL = "sqlite:///./saas_stores.db"
@@ -111,6 +110,13 @@ async def read_index():
         with open("index.html", "r", encoding="utf-8") as f:
             return f.read()
     return "<h1>مرحباً بك في منصة المساعد الذكي للمتاجر</h1>"
+
+
+@app.get("/widget.js", response_class=FileResponse)
+async def get_widget_script():
+    if os.path.exists("widget.js"):
+        return FileResponse("widget.js", media_type="application/javascript")
+    raise HTTPException(status_code=404, detail="widget.js not found")
 
 
 @app.post("/api/register-store")
