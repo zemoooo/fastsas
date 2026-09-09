@@ -4,86 +4,107 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>منصة المساعد الذكي للمتاجر</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- الخط العربي (Tajawal) -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Cairo', sans-serif; }
+        body {
+            font-family: 'Tajawal', sans-serif;
+        }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between">
+<body class="bg-slate-50 text-slate-800 min-h-screen py-10 px-4">
 
-    <header class="bg-white shadow-sm border-b border-slate-100 py-4 px-6">
-        <div class="max-w-4xl mx-auto flex justify-between items-center">
-            <h1 class="text-xl font-bold text-indigo-600">منصة المساعد الذكي</h1>
-            <span class="text-xs bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full font-medium">SaaS WhatsApp Bot</span>
-        </div>
-    </header>
-
-    <main class="max-w-2xl mx-auto w-full p-6 my-8 bg-white rounded-2xl shadow-sm border border-slate-100">
-        <div class="mb-6">
-            <h2 class="text-2xl font-bold text-slate-900 mb-2">تسجيل متجر جديد</h2>
-            <p class="text-sm text-slate-500">أدخل تفاصيل متجرك وارفع كتالوج المنتجات لتفعيل مساعد الواتساب والودجت الذكي فوراً.</p>
+    <div class="max-w-3xl mx-auto bg-white rounded-2xl shadow-xl p-6 sm:p-10 border border-slate-100">
+        
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-indigo-700 mb-2">🤖 منصة المساعد الذكي للمتاجر</h1>
+            <p class="text-slate-500 text-sm sm:text-base">قم بتسجيل متجرك وتوليد كود الـ QR الخاص بالواتساب وودجت المحادثة فوراً</p>
         </div>
 
-        <form id="storeForm" class="space-y-4">
+        <!-- Form -->
+        <form id="storeForm" class="space-y-5">
+            
             <div>
-                <label class="block text-sm font-semibold mb-1 text-slate-700">اسم المتجر *</label>
-                <input type="text" id="store_name" required class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-indigo-500 text-sm">
+                <label for="store_name" class="block text-sm font-semibold text-slate-700 mb-1">اسم المتجر <span class="text-red-500">*</span></label>
+                <input type="text" id="store_name" name="store_name" required placeholder="مثال: متجر الأناقة" 
+                    class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
             </div>
 
             <div>
-                <label class="block text-sm font-semibold mb-1 text-slate-700">رابط المتجر (اختياري)</label>
-                <input type="url" id="store_url" placeholder="https://example.com" class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-indigo-500 text-sm">
+                <label for="store_url" class="block text-sm font-semibold text-slate-700 mb-1">رابط المتجر الإلكتروني (اختياري)</label>
+                <input type="url" id="store_url" name="store_url" placeholder="https://my-store.com" 
+                    class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-left" dir="ltr">
             </div>
 
             <div>
-                <label class="block text-sm font-semibold mb-1 text-slate-700">رقم الواتساب (مع رمز الدولة)</label>
-                <input type="text" id="whatsapp_number" placeholder="+967XXXXXXXXX" class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-indigo-500 text-sm">
+                <label for="whatsapp_number" class="block text-sm font-semibold text-slate-700 mb-1">رقم الواتساب مع المفتاح الدولي (اختياري)</label>
+                <input type="text" id="whatsapp_number" name="whatsapp_number" placeholder="966500000000" 
+                    class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-left" dir="ltr">
+                <p class="text-xs text-slate-400 mt-1">اكتب الرقم بدون علامة + أو مسافات لتوليد QR Code للربط عبر Evolution API.</p>
             </div>
 
             <div>
-                <label class="block text-sm font-semibold mb-1 text-slate-700">تعليمات المساعد الذكي (Prompt Notes)</label>
-                <textarea id="agent_notes" rows="3" placeholder="مثال: كن ودوداً، ركز على بيع المنتجات التقنية..." class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-indigo-500 text-sm"></textarea>
+                <label for="agent_notes" class="block text-sm font-semibold text-slate-700 mb-1">تعليمات المساعد الذكي (Prompt/Notes)</label>
+                <textarea id="agent_notes" name="agent_notes" rows="3" placeholder="مثال: أجب على استفسارات العملاء بلباقة، وساعات العمل من 9 صباحاً حتى 10 مساءً." 
+                    class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"></textarea>
             </div>
 
             <div>
-                <label class="block text-sm font-semibold mb-1 text-slate-700">كتالوج المنتجات والأسعار (ملف PDF)</label>
-                <input type="file" id="pdf_file" accept=".pdf" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer">
+                <label for="pdf_file" class="block text-sm font-semibold text-slate-700 mb-1">رفع كتالوج المنتجات PDF (اختياري)</label>
+                <input type="file" id="pdf_file" name="pdf_file" accept=".pdf" 
+                    class="w-full px-3 py-2 text-sm text-slate-500 border border-slate-300 rounded-lg cursor-pointer bg-slate-50 focus:outline-none">
             </div>
 
-            <button type="submit" id="submitBtn" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 transition duration-200 text-sm shadow-sm">
+            <button type="submit" id="submitBtn" 
+                class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition duration-200 shadow-md hover:shadow-lg">
                 تسجيل وتفعيل المتجر
             </button>
+
         </form>
 
-        <!-- صندوق النتائج وربط الواتساب -->
-        <div id="resultBox" class="hidden mt-6 p-5 bg-emerald-50 border border-emerald-200 rounded-xl">
-            <h3 class="text-emerald-800 font-bold text-base mb-1">تم تسجيل المتجر بنجاح!</h3>
-            <p id="resultMessage" class="text-xs text-emerald-700 mb-4"></p>
+        <!-- Result Box (Hidden by default) -->
+        <div id="resultBox" class="hidden mt-8 pt-8 border-t border-slate-200 space-y-6">
             
-            <!-- خانة عرض QR Code الخاصة بالواتساب -->
-            <div id="qrContainer" class="hidden text-center my-4 p-4 bg-white rounded-xl border border-emerald-100 shadow-sm">
-                <p class="text-xs font-bold text-slate-700 mb-2">📸 امسح رمز الاستجابة السريعة (QR Code) عبر تطبيق الواتساب لربط الحساب:</p>
-                <img id="qrCodeImg" src="" alt="WhatsApp QR Code" class="mx-auto max-w-[220px] rounded-lg border border-slate-200 p-2 bg-white">
+            <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-center font-medium" id="resultMessage">
+                تم تسجيل المتجر بنجاح!
             </div>
 
-            <div class="mt-4">
-                <label class="block text-xs font-bold text-slate-700 mb-1">كود الودجت للموقع الإلكتروني:</label>
-                <input type="text" id="widgetCodeOutput" readonly class="w-full bg-white px-3 py-2 rounded-lg border border-slate-200 text-xs select-all text-slate-600 font-mono">
+            <!-- QR Code Section -->
+            <div id="qrContainer" class="hidden flex flex-col items-center justify-center p-6 bg-slate-100 rounded-xl border border-slate-200 text-center">
+                <h3 class="text-lg font-bold text-slate-800 mb-2">📱 امسح الـ QR Code لربط الواتساب</h3>
+                <p class="text-xs text-slate-500 mb-4">افتح تطبيق الواتساب > الأجهزة المرتبطة > ربط جهاز، واقشر الكود أدناه:</p>
+                <div class="bg-white p-4 rounded-xl shadow-md border border-slate-200">
+                    <img id="qrCodeImg" src="" alt="WhatsApp QR Code" class="w-64 h-64 object-contain mx-auto" />
+                </div>
             </div>
+
+            <!-- Widget Code Section -->
+            <div id="widgetContainer" class="space-y-2">
+                <label class="block text-sm font-semibold text-slate-700">كود الودجت لربطه بموقعك الإلكتروني:</label>
+                <div class="relative">
+                    <textarea id="widgetCodeOutput" readonly rows="3" 
+                        class="w-full p-3 bg-slate-900 text-emerald-400 font-mono text-xs sm:text-sm rounded-lg border border-slate-700 text-left outline-none" dir="ltr"></textarea>
+                    <button type="button" id="copyWidgetBtn" onclick="copyWidgetCode()" 
+                        class="absolute top-2 right-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded transition">
+                        نسخ الكود
+                    </button>
+                </div>
+            </div>
+
         </div>
-    </main>
 
-    <footer class="text-center py-4 text-xs text-slate-400">
-        جميع الحقوق محفوظة &copy; 2026
-    </footer>
+    </div>
 
+    <!-- JavaScript Logic -->
     <script>
         document.getElementById('storeForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('submitBtn');
             btn.disabled = true;
-            btn.textContent = 'جاري معالجة الكتالوج وإنشاء جلسة الواتساب...';
+            btn.textContent = 'جاري معالجة البيانات وإنشاء كود الـ QR...';
 
             const formData = new FormData();
             formData.append('store_name', document.getElementById('store_name').value);
@@ -104,15 +125,21 @@
                 const data = await response.json();
 
                 if (data.status === 'success') {
+                    // إظهار صندوق النتائج
                     document.getElementById('resultBox').classList.remove('hidden');
                     document.getElementById('resultMessage').textContent = data.message;
                     document.getElementById('widgetCodeOutput').value = data.widget_code;
 
+                    // معالجة عرض QR Code
+                    const qrContainer = document.getElementById('qrContainer');
+                    const qrImg = document.getElementById('qrCodeImg');
+
                     if (data.qr_code) {
-                        document.getElementById('qrContainer').classList.remove('hidden');
-                        document.getElementById('qrCodeImg').src = data.qr_code;
+                        qrContainer.classList.remove('hidden');
+                        qrImg.src = data.qr_code;
                     } else {
-                        document.getElementById('qrContainer').classList.add('hidden');
+                        qrContainer.classList.remove('hidden');
+                        qrContainer.innerHTML = '<p class="text-xs text-amber-600 font-semibold py-2">⚠️ لم يتم توليد QR Code. يرجى التأكد من كتابة رقم الواتساب بصيغة صحيحة بدون + والتأكد من إعدادات المفاتيح (EVOLUTION_GLOBAL_KEY).</p>';
                     }
                 } else {
                     alert('حدث خطأ أثناء التسجيل');
@@ -125,6 +152,21 @@
                 btn.textContent = 'تسجيل وتفعيل المتجر';
             }
         });
+
+        function copyWidgetCode() {
+            const widgetCodeText = document.getElementById('widgetCodeOutput');
+            widgetCodeText.select();
+            document.execCommand('copy');
+            
+            const copyBtn = document.getElementById('copyWidgetBtn');
+            copyBtn.textContent = 'تم النسخ! ✓';
+            copyBtn.classList.replace('bg-indigo-600', 'bg-emerald-600');
+            
+            setTimeout(() => {
+                copyBtn.textContent = 'نسخ الكود';
+                copyBtn.classList.replace('bg-emerald-600', 'bg-indigo-600');
+            }, 2000);
+        }
     </script>
 </body>
 </html>
