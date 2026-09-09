@@ -1,65 +1,123 @@
-(function() {
+(function () {
     const scriptTag = document.currentScript;
+    if (!scriptTag) return;
     const storeId = scriptTag.getAttribute('data-store-id');
+    if (!storeId) return;
 
-    if (!storeId) {
-        console.error("AI Widget Error: Missing data-store-id");
-        return;
-    }
+    // استخراج الدومين الأساسي للسيرفر من رابط السكريبت
+    const scriptSrc = scriptTag.src;
+    const baseUrl = new URL(scriptSrc).origin;
 
-    const widgetContainer = document.createElement('div');
-    widgetContainer.style.position = 'fixed';
-    widgetContainer.style.bottom = '20px';
-    widgetContainer.style.right = '20px';
-    widgetContainer.style.zIndex = '999999';
+    // إنشاء وتصميم عناصر الـ Widget
+    const container = document.createElement('div');
+    container.innerHTML = `
+        <div id="ai-chat-widget-root" style="position: fixed; bottom: 20px; right: 20px; z-index: 999999; font-family: 'Cairo', sans-serif; direction: rtl;">
+            <!-- زر فتح الدردشة -->
+            <button id="ai-chat-toggle-btn" style="background-color: #4f46e5; color: white; border: none; border-radius: 50px; width: 60px; height: 60px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; transition: transform 0.2s;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            </button>
 
-    widgetContainer.innerHTML = `
-        <div id="ai-chat-window" style="display:none; width: 340px; height: 480px; background: #fff; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); flex-direction: column; overflow: hidden; font-family: sans-serif; direction: rtl;">
-            <div style="background: #4f46e5; color: white; padding: 14px; font-weight: bold; text-align: center;">مساعد المتجر الذكي</div>
-            <div id="ai-messages" style="flex: 1; padding: 12px; overflow-y: auto; background: #f9fafb; display: flex; flex-direction: column; gap: 8px;"></div>
-            <div style="display: flex; border-top: 1px solid #eee; padding: 8px; background: #fff;">
-                <input type="text" id="ai-input" placeholder="اكتب سؤالك هنا..." style="flex:1; border: 1px solid #ccc; padding: 8px 12px; border-radius: 8px; outline: none; font-size: 14px;">
-                <button id="ai-send-btn" style="background: #4f46e5; color: white; border: none; padding: 8px 14px; margin-right: 6px; border-radius: 8px; cursor: pointer; font-weight: bold;">إرسال</button>
+            <!-- نافذة المحادثة -->
+            <div id="ai-chat-box" style="display: none; position: absolute; bottom: 75px; right: 0; width: 340px; height: 480px; background: white; border-radius: 16px; box-shadow: 0 5px 25px rgba(0,0,0,0.15); border: 1px solid #e2e8f0; flex-direction: column; overflow: hidden;">
+                <!-- رأس النافذة -->
+                <div style="background: #4f46e5; color: white; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 700; font-size: 15px;">المساعد الذكي للمتجر</span>
+                    <button id="ai-chat-close-btn" style="background: none; border: none; color: white; font-size: 18px; cursor: pointer;">&times;</button>
+                </div>
+
+                <!-- صندوق الرسائل -->
+                <div id="ai-chat-messages" style="flex: 1; padding: 16px; overflow-y: auto; background: #f8fafc; display: flex; flex-direction: column; gap: 10px; font-size: 13px;">
+                    <div style="background: white; padding: 10px 14px; border-radius: 12px; border: 1px solid #e2e8f0; align-self: flex-start; max-width: 80%; color: #334155;">
+                        مرحباً بك! كيف يمكنني مساعدتك في منتجات المتجر اليوم؟
+                    </div>
+                </div>
+
+                <!-- شريط الإدخال -->
+                <div style="padding: 12px; background: white; border-top: 1px solid #e2e8f0; display: flex; gap: 8px;">
+                    <input type="text" id="ai-chat-input" placeholder="اكتب رسالتك هنا..." style="flex: 1; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; outline: none; font-size: 13px;">
+                    <button id="ai-chat-send-btn" style="background: #4f46e5; color: white; border: none; padding: 0 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px;">إرسال</button>
+                </div>
             </div>
         </div>
-        <button id="ai-toggle-btn" style="width: 56px; height: 56px; border-radius: 50%; background: #4f46e5; color: white; border: none; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); font-size: 24px; display: flex; align-items: center; justify-content: center; margin-left: auto;">💬</button>
     `;
+    document.body.appendChild(container);
 
-    document.body.appendChild(widgetContainer);
+    const toggleBtn = document.getElementById('ai-chat-toggle-btn');
+    const closeBtn = document.getElementById('ai-chat-close-btn');
+    const chatBox = document.getElementById('ai-chat-box');
+    const sendBtn = document.getElementById('ai-chat-send-btn');
+    const inputField = document.getElementById('ai-chat-input');
+    const messagesContainer = document.getElementById('ai-chat-messages');
 
-    const toggleBtn = document.getElementById('ai-toggle-btn');
-    const chatWindow = document.getElementById('ai-chat-window');
-    const sendBtn = document.getElementById('ai-send-btn');
-    const input = document.getElementById('ai-input');
-    const messages = document.getElementById('ai-messages');
+    // توليد معرف فريد للمتصفح الحالي لجلسة المحادثة
+    let senderId = localStorage.getItem('ai_chat_sender_id');
+    if (!senderId) {
+        senderId = 'web_user_' + Math.random().toString(36).substring(2, 9);
+        localStorage.setItem('ai_chat_sender_id', senderId);
+    }
 
-    toggleBtn.onclick = () => {
-        chatWindow.style.display = chatWindow.style.display === 'none' ? 'flex' : 'none';
-    };
+    toggleBtn.addEventListener('click', () => {
+        chatBox.style.display = chatBox.style.display === 'flex' ? 'none' : 'flex';
+    });
+
+    closeBtn.addEventListener('click', () => {
+        chatBox.style.display = 'none';
+    });
 
     async function sendMessage() {
-        const text = input.value.trim();
+        const text = inputField.value.trim();
         if (!text) return;
 
-        messages.innerHTML += `<div style="background: #e5e7eb; padding: 8px 12px; border-radius: 10px; max-width: 80%; align-self: flex-start;">${text}</div>`;
-        input.value = '';
-        messages.scrollTop = messages.scrollHeight;
+        // إضافة رسالة المستخدم للواجهة
+        appendMessage(text, 'user');
+        inputField.value = '';
+
+        // رسالة انتظار الرد
+        const loadingId = 'loading_' + Date.now();
+        appendMessage('جاري الرد...', 'bot', loadingId);
 
         try {
-            const res = await fetch('http://localhost:8000/api/chat', {
+            const response = await fetch(`${baseUrl}/api/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ store_id: storeId, message: text })
+                body: JSON.stringify({
+                    store_id: storeId,
+                    message: text,
+                    sender_id: senderId
+                })
             });
+            const data = await response.json();
 
-            const data = await res.json();
-            messages.innerHTML += `<div style="background: #e0e7ff; color: #3730a3; padding: 8px 12px; border-radius: 10px; max-width: 80%; align-self: flex-end;">${data.response}</div>`;
-            messages.scrollTop = messages.scrollHeight;
-        } catch (e) {
-            messages.innerHTML += `<div style="background: #fee2e2; color: #991b1b; padding: 8px 12px; border-radius: 10px; max-width: 80%;">حدث خطأ في الاتصال.</div>`;
+            // إزالة رسالة الانتظار
+            document.getElementById(loadingId)?.remove();
+
+            if (data.reply) {
+                appendMessage(data.reply, 'bot');
+            } else {
+                appendMessage('عذراً، حدث خطأ في الرد.', 'bot');
+            }
+        } catch (err) {
+            document.getElementById(loadingId)?.remove();
+            appendMessage('فشل الاتصال بالخادم.', 'bot');
         }
     }
 
-    sendBtn.onclick = sendMessage;
-    input.onkeypress = (e) => { if (e.key === 'Enter') sendMessage(); };
+    function appendMessage(text, sender, customId = null) {
+        const msgDiv = document.createElement('div');
+        if (customId) msgDiv.id = customId;
+
+        if (sender === 'user') {
+            msgDiv.style.cssText = "background: #4f46e5; color: white; padding: 10px 14px; border-radius: 12px; align-self: flex-end; max-width: 80%; word-break: break-word;";
+        } else {
+            msgDiv.style.cssText = "background: white; color: #334155; padding: 10px 14px; border-radius: 12px; border: 1px solid #e2e8f0; align-self: flex-start; max-width: 80%; word-break: break-word;";
+        }
+        msgDiv.textContent = text;
+        messagesContainer.appendChild(msgDiv);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    inputField.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    });
 })();
