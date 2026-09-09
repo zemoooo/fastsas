@@ -8,26 +8,26 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel
 import pypdf
-import requests
+import httpx
 import anthropic
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, relationship, sessionmaker
 
 DATABASE_URL = "sqlite:///./saas_stores.db"
-engine = create_engine(
-    DATABASE_URL, connect_args={"check_same_thread": False}
-)
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "sk-ant-api03-YOUR_CLAUDE_KEY_HERE")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 claude_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
-# تم التحديث ليرتبط بسيرفرك الجديد على Render ومفتاح الحماية الخاص بك
 EVOLUTION_API_URL = os.getenv("EVOLUTION_API_URL", "https://evolution-api-render-1-nsvq.onrender.com")
-EVOLUTION_GLOBAL_KEY = os.getenv("EVOLUTION_GLOBAL_KEY", "114477azaz@@")
+EVOLUTION_GLOBAL_KEY = os.getenv("EVOLUTION_GLOBAL_KEY", "")
 WEBHOOK_BASE_URL = os.getenv("WEBHOOK_BASE_URL", "https://twelve-garlics-mix.loca.lt")
+
+print(f"🔑 Evolution Global Key Loaded: {'Yes' if EVOLUTION_GLOBAL_KEY else 'No'}")
+print(f"🔑 Anthropic API Key Loaded: {'Yes' if ANTHROPIC_API_KEY else 'No'}")
 
 
 class StoreModel(Base):
@@ -41,9 +41,7 @@ class StoreModel(Base):
     catalog_text = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    logs = relationship(
-        "ChatLogModel", back_populates="store", cascade="all, delete-orphan"
-    )
+    logs = relationship("ChatLogModel", back_populates="store", cascade="all, delete-orphan")
 
 
 class ChatLogModel(Base):
@@ -106,14 +104,7 @@ async def read_index():
     if os.path.exists("index.html"):
         with open("index.html", "r", encoding="utf-8") as f:
             return f.read()
-    return "<h1>خطأ: ملف index.html غير موجود في مجلد المشروع</h1>"
-
-
-@app.get("/widget.js")
-async def get_widget_js():
-    if os.path.exists("widget.js"):
-        return FileResponse("widget.js", media_type="application/javascript")
-    raise HTTPException(status_code=404, detail="ملف widget.js غير موجود")
+    return "<h1>مرحباً بك في منصة المساعد الذكي للمتاجر</h1>"
 
 
 @app.post("/api/register-store")
@@ -126,7 +117,6 @@ async def register_store(
     db: Session = Depends(get_db),
 ):
     catalog_content = ""
-
     if pdf_file and pdf_file.filename.endswith(".pdf"):
         catalog_content = extract_pdf_text(pdf_file.file)
 
@@ -142,143 +132,48 @@ async def register_store(
     db.commit()
     db.refresh(new_store)
 
+    qr_code_data = None
+
     if whatsapp_number:
-        try:
-            clean_phone = whatsapp_number.replace("+", "")
-            instance_name = f"store_{clean_phone}"
-            headers = {
-                "apikey": EVOLUTION_GLOBAL_KEY,
-                "Content-Type": "application/json"
-            }
-            
-            payload = {
-                "instanceName": instance_name,
-                "qrcode": True,
-                "integration": "WHATSAPP-BAILEYS"
-            }
-            
-            # التعديل هنا: فحص حالة الرد لمعرفة الخطأ الفعلي عند إنشاء الجلسة
-            create_res = requests.post(f"{EVOLUTION_API_URL}/instance/create", json=payload, headers=headers, timeout=10)
-            
-            if create_res.status_code not in [200, 201]:
-                print(f"⚠️ فشل إنشاء الجلسة في Evolution: {create_res.text}")
-            else:
-                print("✅ تم إنشاء الجلسة بنجاح.")
+        clean_phone = whatsapp_number.replace("+", "").strip()
+        instance_name = f"store_{clean_phone}"
+        headers = {
+            "apikey": EVOLUTION_GLOBAL_KEY,
+            "Content-Type": "application/json"
+        }
 
-            webhook_payload = {
-                "webhook": {
-                    "enabled": True,
-                    "url": f"{WEBHOOK_BASE_URL}/api/whatsapp/webhook/{new_store.id}",
-                    "byEvents": False,
-                    "events": ["MESSAGES-UPSERT"]
+        async with httpx.AsyncClient() as client:
+            try:
+                create_payload = {
+                    "instanceName": instance_name,
+                    "qrcode": True,
+                    "integration": "WHATSAPP-BAILEYS"
                 }
-            }
-            
-            # التعديل هنا: إزالة Bypass-Tunnel-Reminder من إعدادات الـ Webhook ومراقبة الأخطاء
-            webhook_res = requests.post(f"{EVOLUTION_API_URL}/webhook/set/{instance_name}", json=webhook_payload, headers=headers, timeout=10)
-            
-            if webhook_res.status_code not in [200, 201]:
-                print(f"⚠️ فشل إعداد الـ Webhook: {webhook_res.text}")
-            else:
-                print("✅ تم ربط الـ Webhook بنجاح.")
+                res = await client.post(f"{EVOLUTION_API_URL}/instance/create", json=create_payload, headers=headers, timeout=15.0)
+                
+                if res.status_code in [200, 201]:
+                    qr_code_data = res.json().get("qrcode", {}).get("base64")
 
-        except Exception as e:
-            print(f"❌ Evolution API Connection Error: {e}")
+                webhook_payload = {
+                    "webhook": {
+                        "enabled": True,
+                        "url": f"{WEBHOOK_BASE_URL}/api/whatsapp/webhook/{new_store.id}",
+                        "byEvents": False,
+                        "events": ["MESSAGES-UPSERT"]
+                    }
+                }
+                await client.post(f"{EVOLUTION_API_URL}/webhook/set/{instance_name}", json=webhook_payload, headers=headers, timeout=15.0)
+
+            except Exception as e:
+                print(f"❌ Evolution API Connection Error: {e}")
 
     return {
         "status": "success",
         "message": "تم تسجيل المتجر بنجاح",
         "store_id": new_store.id,
+        "qr_code": qr_code_data,
         "widget_code": f'<script src="{WEBHOOK_BASE_URL}/widget.js" data-store-id="{new_store.id}"></script>',
     }
-
-
-@app.get("/api/whatsapp/connect/{store_id}")
-async def connect_whatsapp(store_id: str, db: Session = Depends(get_db)):
-    store = db.query(StoreModel).filter(StoreModel.id == store_id).first()
-    if not store or not store.whatsapp_number:
-        raise HTTPException(status_code=404, detail="المتجر أو رقم الواتساب غير موجود")
-
-    clean_phone = store.whatsapp_number.replace("+", "")
-    instance_name = f"store_{clean_phone}"
-    headers = {
-        "apikey": EVOLUTION_GLOBAL_KEY,
-        "Content-Type": "application/json"
-    }
-
-    try:
-        # التعديل هنا: التأكد من نجاح جلب البيانات أو تمرير رسالة الخطأ الواضحة
-        connect_res = requests.get(f"{EVOLUTION_API_URL}/instance/connect/{instance_name}", headers=headers, timeout=10)
-        
-        if connect_res.status_code in [200, 201]:
-            return {"status": "success", "evolution_data": connect_res.json()}
-        
-        qr_res = requests.get(f"{EVOLUTION_API_URL}/qrcode/{instance_name}", headers=headers, timeout=10)
-        
-        if qr_res.status_code in [200, 201]:
-            return {"status": "success", "evolution_data": qr_res.json()}
-        else:
-            raise HTTPException(status_code=qr_res.status_code, detail=f"فشل جلب الباركود: {qr_res.text}")
-            
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"خطأ في الاتصال بـ Evolution API: {str(e)}")
-
-
-@app.get("/api/store/{store_id}")
-async def get_store_info(store_id: str, db: Session = Depends(get_db)):
-    store = db.query(StoreModel).filter(StoreModel.id == store_id).first()
-    if not store:
-        raise HTTPException(status_code=404, detail="المتجر غير موجود")
-    return store
-
-
-@app.post("/api/chat")
-async def chat_endpoint(req: ChatRequest, db: Session = Depends(get_db)):
-    store = db.query(StoreModel).filter(StoreModel.id == req.store_id).first()
-    if not store:
-        raise HTTPException(status_code=404, detail="معرف المتجر غير صالح")
-
-    previous_logs = db.query(ChatLogModel).filter(
-        ChatLogModel.store_id == store.id,
-        ChatLogModel.sender_id == req.sender_id
-    ).order_by(ChatLogModel.created_at.asc()).all()
-
-    chat_history = []
-    for log in previous_logs:
-        chat_history.append({"role": "user", "content": log.user_message})
-        chat_history.append({"role": "assistant", "content": log.bot_response})
-
-    chat_history.append({"role": "user", "content": req.message})
-
-    system_prompt = f"""
-    أنت مساعد مبيعات ذكي يعمل لصالح متجر '{store.store_name}'.
-    رابط الموقع: {store.store_url if store.store_url else 'غير متوفر'}
-    التعليمات: {store.agent_notes if store.agent_notes else 'كن ودوداً، ساعد العملاء واعرض الخدمات بدقة.'}
-    {f"معلومات الكتالوج والأسعار:\n{store.catalog_text}" if store.catalog_text else "لا يوجد كتالوج مرفق."}
-    """
-
-    ai_reply = "أهلاً بك! تم استلام رسالتك."
-    try:
-        response = claude_client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=500,
-            system=system_prompt,
-            messages=chat_history[-10:]
-        )
-        ai_reply = response.content[0].text
-    except Exception as e:
-        print(f"Claude API Error: {e}")
-
-    chat_log = ChatLogModel(
-        store_id=store.id,
-        sender_id=req.sender_id,
-        user_message=req.message,
-        bot_response=ai_reply
-    )
-    db.add(chat_log)
-    db.commit()
-
-    return {"response": ai_reply, "store_id": store.id}
 
 
 @app.post("/api/whatsapp/webhook/{store_id}")
@@ -289,12 +184,13 @@ async def whatsapp_evolution_webhook(store_id: str, request: Request, db: Sessio
 
     try:
         data = await request.json()
-
         msg_data = data.get("data", {})
+        
         if "message" in msg_data:
-            sender_remote_jid = msg_data.get("key", {}).get("remoteJid", "")
-            is_from_me = msg_data.get("key", {}).get("fromMe", False)
-            
+            key = msg_data.get("key", {})
+            sender_remote_jid = key.get("remoteJid", "")
+            is_from_me = key.get("fromMe", False)
+
             if is_from_me or "g.us" in sender_remote_jid:
                 return {"status": "ignored"}
 
@@ -308,7 +204,9 @@ async def whatsapp_evolution_webhook(store_id: str, request: Request, db: Sessio
                 previous_logs = db.query(ChatLogModel).filter(
                     ChatLogModel.store_id == store.id,
                     ChatLogModel.sender_id == sender_remote_jid
-                ).order_by(ChatLogModel.created_at.asc()).all()
+                ).order_by(ChatLogModel.created_at.desc()).limit(5).all()
+
+                previous_logs.reverse()
 
                 chat_history = []
                 for log in previous_logs:
@@ -319,15 +217,16 @@ async def whatsapp_evolution_webhook(store_id: str, request: Request, db: Sessio
 
                 system_prompt = f"""
                 أنت مساعد مبيعات ذكي يعمل لصالح متجر '{store.store_name}' عبر الواتساب.
-                التعليمات: {store.agent_notes if store.agent_notes else 'كن ودوداً وخادماً للعملاء.'}
-                الكتالوج: {store.catalog_text if store.catalog_text else 'لا يوجد كتالوج.'}
+                التعليمات والمهام: {store.agent_notes if store.agent_notes else 'كن ودوداً وخادماً للعملاء.'}
+                كتالوج المنتجات والأسعار: {store.catalog_text if store.catalog_text else 'لا يوجد كتالوج مرفق.'}
+                جاوب باختصار وبشكل واضح ومناسب للمحادثات عبر الواتساب.
                 """
 
                 response = claude_client.messages.create(
-                    model="claude-sonnet-4-5",
+                    model="Claude 4.5 Sonnet",
                     max_tokens=500,
                     system=system_prompt,
-                    messages=chat_history[-10:]
+                    messages=chat_history
                 )
                 reply_text = response.content[0].text
 
@@ -339,19 +238,23 @@ async def whatsapp_evolution_webhook(store_id: str, request: Request, db: Sessio
                 ))
                 db.commit()
 
-                clean_phone = store.whatsapp_number.replace('+', '')
+                clean_phone = store.whatsapp_number.replace('+', '').strip()
                 send_url = f"{EVOLUTION_API_URL}/message/sendText/store_{clean_phone}"
                 headers = {
                     "apikey": EVOLUTION_GLOBAL_KEY,
                     "Content-Type": "application/json"
                 }
+                
+                target_number = sender_remote_jid.split("@")[0]
                 payload = {
-                    "number": sender_remote_jid.split("@")[0],
+                    "number": target_number,
                     "text": reply_text
                 }
-                requests.post(send_url, json=payload, headers=headers, timeout=10)
+
+                async with httpx.AsyncClient() as client:
+                    await client.post(send_url, json=payload, headers=headers, timeout=10.0)
 
     except Exception as e:
-        print(f"Webhook Processing Error: {e}")
+        print(f"❌ Webhook Processing Error: {e}")
 
     return {"status": "success"}
