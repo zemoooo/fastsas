@@ -308,7 +308,7 @@ async def whatsapp_evolution_webhook(store_id: str, request: Request, db: Sessio
                 """
 
                 response = claude_client.messages.create(
-                    model="claude-3-5-sonnet-20241022",
+                    model="claude-sonnet-4-5",
                     max_tokens=500,
                     system=system_prompt,
                     messages=chat_history[-10:]
