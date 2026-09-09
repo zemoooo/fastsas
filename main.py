@@ -21,13 +21,13 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# إعدادات مفاتيح البيئة ونماذج الذكاء الاصطناعي
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "sk-ant-api03-YOUR_CLAUDE_KEY_HERE")
 claude_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
+# تم التحديث ليرتبط بسيرفرك الجديد على Render ومفتاح الحماية الخاص بك
 EVOLUTION_API_URL = os.getenv("EVOLUTION_API_URL", "https://evolution-api-render-1-nsvq.onrender.com")
-EVOLUTION_GLOBAL_KEY = os.getenv("EVOLUTION_GLOBAL_KEY", "ضع_مفتاحك_السري_هنا")
-WEBHOOK_BASE_URL = os.getenv("WEBHOOK_BASE_URL", "https://whatsapp-ai-saas.onrender.com")
+EVOLUTION_GLOBAL_KEY = os.getenv("EVOLUTION_GLOBAL_KEY", "114477azaz@@")
+WEBHOOK_BASE_URL = os.getenv("WEBHOOK_BASE_URL", "https://twelve-garlics-mix.loca.lt")
 
 
 class StoreModel(Base):
@@ -150,13 +150,21 @@ async def register_store(
                 "apikey": EVOLUTION_GLOBAL_KEY,
                 "Content-Type": "application/json"
             }
+            
             payload = {
                 "instanceName": instance_name,
                 "qrcode": True,
                 "integration": "WHATSAPP-BAILEYS"
             }
-            requests.post(f"{EVOLUTION_API_URL}/instance/create", json=payload, headers=headers, timeout=10)
             
+            # التعديل هنا: فحص حالة الرد لمعرفة الخطأ الفعلي عند إنشاء الجلسة
+            create_res = requests.post(f"{EVOLUTION_API_URL}/instance/create", json=payload, headers=headers, timeout=10)
+            
+            if create_res.status_code not in [200, 201]:
+                print(f"⚠️ فشل إنشاء الجلسة في Evolution: {create_res.text}")
+            else:
+                print("✅ تم إنشاء الجلسة بنجاح.")
+
             webhook_payload = {
                 "webhook": {
                     "enabled": True,
@@ -165,13 +173,17 @@ async def register_store(
                     "events": ["MESSAGES-UPSERT"]
                 }
             }
-            webhook_headers = {
-                "apikey": EVOLUTION_GLOBAL_KEY,
-                "Content-Type": "application/json"
-            }
-            requests.post(f"{EVOLUTION_API_URL}/webhook/set/{instance_name}", json=webhook_payload, headers=webhook_headers, timeout=10)
+            
+            # التعديل هنا: إزالة Bypass-Tunnel-Reminder من إعدادات الـ Webhook ومراقبة الأخطاء
+            webhook_res = requests.post(f"{EVOLUTION_API_URL}/webhook/set/{instance_name}", json=webhook_payload, headers=headers, timeout=10)
+            
+            if webhook_res.status_code not in [200, 201]:
+                print(f"⚠️ فشل إعداد الـ Webhook: {webhook_res.text}")
+            else:
+                print("✅ تم ربط الـ Webhook بنجاح.")
+
         except Exception as e:
-            print(f"Evolution API Connection Error: {e}")
+            print(f"❌ Evolution API Connection Error: {e}")
 
     return {
         "status": "success",
@@ -195,15 +207,21 @@ async def connect_whatsapp(store_id: str, db: Session = Depends(get_db)):
     }
 
     try:
+        # التعديل هنا: التأكد من نجاح جلب البيانات أو تمرير رسالة الخطأ الواضحة
         connect_res = requests.get(f"{EVOLUTION_API_URL}/instance/connect/{instance_name}", headers=headers, timeout=10)
-        res_data = connect_res.json()
-        return {"status": "success", "evolution_data": res_data}
-    except Exception as e:
-        try:
-            qr_res = requests.get(f"{EVOLUTION_API_URL}/qrcode/{instance_name}", headers=headers, timeout=10)
+        
+        if connect_res.status_code in [200, 201]:
+            return {"status": "success", "evolution_data": connect_res.json()}
+        
+        qr_res = requests.get(f"{EVOLUTION_API_URL}/qrcode/{instance_name}", headers=headers, timeout=10)
+        
+        if qr_res.status_code in [200, 201]:
             return {"status": "success", "evolution_data": qr_res.json()}
-        except Exception as inner_e:
-            raise HTTPException(status_code=500, detail=f"خطأ في الاتصال بـ Evolution API: {str(e)}")
+        else:
+            raise HTTPException(status_code=qr_res.status_code, detail=f"فشل جلب الباركود: {qr_res.text}")
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"خطأ في الاتصال بـ Evolution API: {str(e)}")
 
 
 @app.get("/api/store/{store_id}")
@@ -243,7 +261,7 @@ async def chat_endpoint(req: ChatRequest, db: Session = Depends(get_db)):
     try:
         response = claude_client.messages.create(
             model="claude-sonnet-4-5",
-            max_tokens=2048,
+            max_tokens=500,
             system=system_prompt,
             messages=chat_history[-10:]
         )
@@ -307,7 +325,7 @@ async def whatsapp_evolution_webhook(store_id: str, request: Request, db: Sessio
 
                 response = claude_client.messages.create(
                     model="claude-sonnet-4-5",
-                    max_tokens=2048,
+                    max_tokens=500,
                     system=system_prompt,
                     messages=chat_history[-10:]
                 )
