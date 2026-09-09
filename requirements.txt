@@ -7,3 +7,4 @@ anthropic
 sqlalchemy
 python-multipart
 httpx
+psycopg2-binary
