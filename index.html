@@ -1,1293 +1,185 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-
 <head>
     <meta charset="UTF-8">
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>منصة إدارة المتاجر والمساعد الذكي</title>
-
+    <title>منصة المساعد الذكي للمتاجر | لوحة التحكم</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family:
-                "Segoe UI",
-                Tahoma,
-                Arial,
-                sans-serif;
-
-            background: #f4f7f6;
-            margin: 0;
-            padding: 20px;
-            color: #333;
-        }
-
-        .container {
-            max-width: 650px;
-            margin: 40px auto;
-            background: #fff;
-            padding: 30px;
-            border-radius: 14px;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, .08);
-        }
-
-        h2 {
-            text-align: center;
-            color: #2c3e50;
-            margin: 0 0 25px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #34495e;
-        }
-
-        input[type="text"],
-        textarea,
-        input[type="file"] {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #dcdde1;
-            border-radius: 7px;
-            font-size: 14px;
-            outline: none;
-            background: #fff;
-        }
-
-        input[type="text"]:focus,
-        textarea:focus {
-            border-color: #3498db;
-            box-shadow: 0 0 0 3px rgba(52, 152, 219, .12);
-        }
-
-        textarea {
-            resize: vertical;
-            min-height: 110px;
-        }
-
-        button {
-            background: #3498db;
-            color: #fff;
-            padding: 13px 20px;
-            border: none;
-            border-radius: 7px;
-            cursor: pointer;
-            width: 100%;
-            font-size: 16px;
-            font-weight: bold;
-        }
-
-        button:hover {
-            background: #2980b9;
-        }
-
-        button:disabled {
-            opacity: .6;
-            cursor: not-allowed;
-        }
-
-        .small-text {
-            font-size: 13px;
-            color: #666;
-            line-height: 1.7;
-        }
-
-        .status-success {
-            color: #27ae60 !important;
-            font-weight: bold;
-        }
-
-        .status-error {
-            color: #c0392b !important;
-            font-weight: bold;
-        }
-
-        .server-status {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            margin-bottom: 20px;
-            padding: 9px;
-            border-radius: 7px;
-            background: #f8f9fa;
-            font-size: 13px;
-        }
-
-        .status-dot {
-            width: 9px;
-            height: 9px;
-            border-radius: 50%;
-            background: #95a5a6;
-        }
-
-        .status-dot.online {
-            background: #27ae60;
-        }
-
-        .status-dot.offline {
-            background: #c0392b;
-        }
-
-        #result-section {
-            margin-top: 25px;
-            padding: 20px;
-            background: #e8f8f5;
-            border: 1px solid #a3e4d7;
-            border-radius: 9px;
-            display: none;
-        }
-
-        .code-box {
-            background: #2c3e50;
-            color: #ecf0f1;
-            padding: 13px;
-            border-radius: 6px;
-            font-family: monospace;
-            word-break: break-all;
-            margin-top: 8px;
-            font-size: 13px;
-            direction: ltr;
-            text-align: left;
-        }
-
-        .copy-button {
-            margin-top: 10px;
-            width: auto;
-            background: #34495e;
-            font-size: 13px;
-            padding: 8px 15px;
-        }
-
-        .copy-button:hover {
-            background: #2c3e50;
-        }
-
-        .whatsapp-section {
-            margin-top: 25px;
-            padding-top: 20px;
-            border-top: 1px dashed #a3e4d7;
-            text-align: center;
-            display: none;
-        }
-
-        .qr-container {
-            margin: 15px auto;
-            padding: 15px;
-            background: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 290px;
-            min-height: 290px;
-            max-width: 330px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, .1);
-        }
-
-        .qr-container img {
-            max-width: 290px;
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-
-        .qr-placeholder {
-            color: #777;
-            font-size: 14px;
-            line-height: 1.7;
-            padding: 20px;
-        }
-
-        .chat-simulation {
-            margin-top: 25px;
-            border: 1px solid #dcdde1;
-            border-radius: 9px;
-            background: #fff;
-            overflow: hidden;
-            display: none;
-        }
-
-        .chat-header {
-            background: #2c3e50;
-            color: #fff;
-            padding: 12px 15px;
-            font-weight: bold;
-            font-size: 14px;
-        }
-
-        .chat-body {
-            height: 300px;
-            overflow-y: auto;
-            padding: 15px;
-            background: #fdfefe;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .message {
-            padding: 9px 12px;
-            border-radius: 8px;
-            max-width: 82%;
-            font-size: 13px;
-            line-height: 1.6;
-            white-space: pre-wrap;
-            word-break: break-word;
-        }
-
-        .message.user {
-            background: #3498db;
-            color: #fff;
-            align-self: flex-start;
-            border-bottom-left-radius: 2px;
-        }
-
-        .message.bot {
-            background: #e5e8e8;
-            color: #333;
-            align-self: flex-end;
-            border-bottom-right-radius: 2px;
-        }
-
-        .message.error {
-            background: #f8d7da;
-            color: #721c24;
-            align-self: flex-end;
-        }
-
-        .chat-footer {
-            display: flex;
-            border-top: 1px solid #dcdde1;
-        }
-
-        .chat-footer input {
-            border: none;
-            border-radius: 0;
-            padding: 12px;
-            flex: 1;
-            min-width: 0;
-            outline: none;
-        }
-
-        .chat-footer button {
-            width: auto;
-            border-radius: 0;
-            padding: 10px 20px;
-        }
-
-        .info-box {
-            margin-top: 12px;
-            padding: 12px;
-            border-radius: 7px;
-            background: #f8f9fa;
-            font-size: 13px;
-            line-height: 1.7;
-        }
-
-        @media (max-width: 600px) {
-            body {
-                padding: 10px;
-            }
-
-            .container {
-                margin: 10px auto;
-                padding: 20px;
-            }
-
-            .qr-container {
-                min-width: 250px;
-                min-height: 250px;
-            }
-
-            .qr-container img {
-                max-width: 250px;
-            }
-        }
+        body { font-family: 'Tajawal', sans-serif; }
     </style>
 </head>
-
-<body>
-
-<div class="container">
-
-    <h2>تسجيل متجر جديد وربط المساعد الذكي</h2>
-
-    <div id="serverStatus" class="server-status">
-        <span id="statusDot" class="status-dot"></span>
-
-        <span id="statusText">
-            جاري فحص حالة الخادم...
-        </span>
-    </div>
-
-    <form id="storeForm">
-
-        <div class="form-group">
-            <label for="store_name">
-                اسم المتجر:
-            </label>
-
-            <input
-                type="text"
-                id="store_name"
-                required
-                placeholder="مثال: متجر الإلكترونيات الحديثة"
-            >
+<body class="bg-slate-50 min-h-screen p-4 md:p-8 text-gray-800">
+    
+    <header class="max-w-6xl mx-auto mb-8 flex justify-between items-center border-b pb-4">
+        <div>
+            <h1 class="text-3xl font-extrabold text-indigo-600">SmartAgent SaaS</h1>
+            <p class="text-sm text-gray-500">منصة إنشاء وتخصيص مساعدي المبيعات الذكية للمتاجر الإلكترونية</p>
         </div>
+        <span class="bg-indigo-100 text-indigo-700 text-xs font-bold px-3 py-1 rounded-full">Multi-Tenant Engine</span>
+    </header>
 
-        <div class="form-group">
-            <label for="store_url">
-                رابط المتجر:
-            </label>
+    <main class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6">
+            <h2 class="text-xl font-bold text-gray-800 border-b pb-3 flex items-center gap-2">
+                <span>⚙️</span> إعدادات وبيانات المتجر
+            </h2>
+            
+            <form id="registerStoreForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">اسم المتجر / الشركة *</label>
+                    <input type="text" id="storeName" placeholder="مثال: متجر العود الفريد" required class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition">
+                </div>
 
-            <input
-                type="text"
-                id="store_url"
-                placeholder="https://example.com"
-            >
-        </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">رابط الموقع</label>
+                        <input type="url" id="storeUrl" placeholder="https://store.com" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">رقم الواتساب الرسمي</label>
+                        <input type="text" id="whatsappNumber" placeholder="+966500000000" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition">
+                    </div>
+                </div>
 
-        <div class="form-group">
-            <label for="whatsapp_number">
-                رقم الواتساب:
-            </label>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">تعليمات المساعد الذكي</label>
+                    <textarea id="agentNotes" rows="3" placeholder="أدخل قواعد الرد، العروض المتاحة، وسلوك المساعد..." class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition"></textarea>
+                </div>
 
-            <input
-                type="text"
-                id="whatsapp_number"
-                placeholder="+9677xxxxxxxx"
-            >
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">كتالوج المنتجات أو الأسعار (PDF)</label>
+                    <input type="file" id="pdfFile" accept=".pdf" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition">
+                </div>
 
-            <div class="small-text">
-                استخدم الرقم بصيغة دولية.
-                مثال اليمن: +9677xxxxxxxx
+                <button type="submit" id="submitBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl transition flex justify-center items-center gap-2">
+                    <span>حفظ وإنشاء معرف المتجر (Store ID)</span>
+                </button>
+            </form>
+
+            <div id="embedSection" class="hidden mt-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-emerald-800 font-bold text-sm">🎉 كود التضمين الخاص بمتجرك:</span>
+                    <button onclick="copyWidgetCode()" class="bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-emerald-700 transition">نسخ الكود</button>
+                </div>
+                <textarea id="widgetCodeBox" readonly rows="3" class="w-full p-2.5 bg-white border border-emerald-300 rounded-lg text-xs font-mono text-emerald-900 outline-none" dir="ltr"></textarea>
             </div>
         </div>
 
-        <div class="form-group">
-            <label for="agent_notes">
-                تعليمات المساعد الذكي:
-            </label>
-
-            <textarea
-                id="agent_notes"
-                placeholder="اكتب هنا طريقة تعامل المساعد مع العملاء وسياسة المتجر..."
-            ></textarea>
-        </div>
-
-        <div class="form-group">
-            <label for="pdf_file">
-                ملف الكتالوج PDF:
-            </label>
-
-            <input
-                type="file"
-                id="pdf_file"
-                accept=".pdf,application/pdf"
-            >
-
-            <div class="small-text">
-                يمكنك رفع ملف PDF يحتوي على المنتجات والأسعار.
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-[650px]">
+            <div class="border-b pb-3 flex justify-between items-center">
+                <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <span>💬</span> تجربة الشات المباشرة
+                </h2>
+                <span id="activeStoreBadge" class="text-xs bg-gray-100 text-gray-600 font-bold px-2.5 py-1 rounded-md">لم يتم اختيار متجر بعد</span>
             </div>
-        </div>
-
-        <button
-            type="submit"
-            id="submitBtn"
-        >
-            إنشاء المتجر وتوليد الاتصال
-        </button>
-
-    </form>
-
-
-    <div id="result-section">
-
-        <h3 style="color:#16a085;margin-top:0;">
-            تم إنشاء المتجر بنجاح
-        </h3>
-
-        <p>رقم المتجر:</p>
-
-        <div
-            class="code-box"
-            id="storeIdOutput"
-        ></div>
-
-
-        <p>كود Widget:</p>
-
-        <div
-            class="code-box"
-            id="widgetCodeOutput"
-        ></div>
-
-        <button
-            type="button"
-            class="copy-button"
-            id="copyWidgetBtn"
-        >
-            نسخ كود Widget
-        </button>
-
-
-        <div
-            class="whatsapp-section"
-            id="whatsappSection"
-        >
-
-            <h4 style="color:#27ae60;margin:0 0 10px;">
-                ربط واتساب البوت
-            </h4>
-
-            <p
-                id="qrStatusText"
-                class="small-text"
-            >
-                جاري تجهيز اتصال الواتساب...
-            </p>
-
-            <div
-                class="qr-container"
-                id="qrContainer"
-            >
-                <div class="qr-placeholder">
-                    جاري تحميل رمز الاتصال...
+            
+            <div id="chatBox" class="flex-1 overflow-y-auto my-4 p-4 bg-slate-50 rounded-xl space-y-4 text-sm">
+                <div class="bg-indigo-50 text-indigo-900 p-3.5 rounded-2xl max-w-[85%] border border-indigo-100">
+                    أهلاً بك! احفظ بيانات متجرك على اليمين لتتمكن من تجربة المساعد الذكي واختبار إجاباته هنا مباشرة.
                 </div>
             </div>
 
-            <p
-                id="connectionInfo"
-                class="small-text"
-            ></p>
-
-            <button
-                type="button"
-                id="retryWhatsappBtn"
-                style="
-                    background:#27ae60;
-                    width:auto;
-                    padding:9px 16px;
-                    font-size:13px;
-                    margin-top:10px;
-                "
-            >
-                إعادة المحاولة
-            </button>
-
-            <div class="info-box">
-                بعد ظهور QR Code:
-                افتح WhatsApp ثم الأجهزة المرتبطة
-                ثم ربط جهاز وامسح الرمز.
-            </div>
-
-        </div>
-
-
-        <div
-            class="chat-simulation"
-            id="chatSimulation"
-        >
-
-            <div class="chat-header">
-                تجربة المساعد الذكي
-            </div>
-
-            <div
-                class="chat-body"
-                id="chatBody"
-            >
-
-                <div class="message bot">
-                    مرحباً بك! أنا مساعدك الذكي.
-                    اكتب رسالة لتجربة المساعد.
-                </div>
-
-            </div>
-
-            <div class="chat-footer">
-
-                <input
-                    type="text"
-                    id="chatInput"
-                    placeholder="اكتب رسالة تجريبية..."
-                >
-
-                <button
-                    type="button"
-                    id="chatSendBtn"
-                >
+            <div class="flex gap-2 border-t pt-3">
+                <input type="text" id="userInput" placeholder="اكتب سؤالك هنا..." onkeypress="if(event.key==='Enter') sendMessage()" class="flex-1 p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                <button onclick="sendMessage()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-xl transition">
                     إرسال
                 </button>
-
             </div>
-
         </div>
 
-    </div>
+    </main>
 
-</div>
+    <script>
+        let currentStoreId = null;
 
+        document.getElementById('registerStoreForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerText = 'جاري المعالجة...';
 
-<script>
+            const formData = new FormData();
+            formData.append('store_name', document.getElementById('storeName').value);
+            formData.append('store_url', document.getElementById('storeUrl').value);
+            formData.append('whatsapp_number', document.getElementById('whatsappNumber').value);
+            formData.append('agent_notes', document.getElementById('agentNotes').value);
 
-    "use strict";
-
-    let currentStoreId = null;
-    let currentQrCode = null;
-    let currentInstanceName = null;
-
-
-    // ==========================================
-    // HEALTH
-    // ==========================================
-
-    async function checkServerHealth() {
-
-        const statusText =
-            document.getElementById("statusText");
-
-        const statusDot =
-            document.getElementById("statusDot");
-
-        try {
-
-            const response =
-                await fetch(
-                    "/health",
-                    {
-                        method: "GET",
-                        cache: "no-store"
-                    }
-                );
-
-            const data =
-                await response.json();
-
-            if (
-                response.ok &&
-                data.status === "ok"
-            ) {
-
-                statusDot.className =
-                    "status-dot online";
-
-                statusText.textContent =
-                    "الخادم يعمل بنجاح";
-
-            } else {
-
-                statusDot.className =
-                    "status-dot offline";
-
-                statusText.textContent =
-                    "الخادم يعمل ولكن توجد مشكلة في الإعدادات";
-            }
-
-        } catch (error) {
-
-            statusDot.className =
-                "status-dot offline";
-
-            statusText.textContent =
-                "تعذر الاتصال بالخادم";
-
-            console.error(
-                "Health error:",
-                error
-            );
-        }
-    }
-
-
-    // ==========================================
-    // REGISTER
-    // ==========================================
-
-    async function registerStore(event) {
-
-        event.preventDefault();
-
-        const submitBtn =
-            document.getElementById("submitBtn");
-
-        const storeName =
-            document.getElementById("store_name")
-                .value
-                .trim();
-
-        const storeUrl =
-            document.getElementById("store_url")
-                .value
-                .trim();
-
-        const whatsappNum =
-            document.getElementById("whatsapp_number")
-                .value
-                .trim();
-
-        const agentNotes =
-            document.getElementById("agent_notes")
-                .value
-                .trim();
-
-        const pdfFile =
-            document.getElementById("pdf_file")
-                .files[0];
-
-
-        if (!storeName) {
-
-            alert("يرجى إدخال اسم المتجر.");
-
-            return;
-        }
-
-
-        submitBtn.disabled = true;
-
-        submitBtn.textContent =
-            "جاري إنشاء المتجر...";
-
-
-        const formData =
-            new FormData();
-
-
-        formData.append(
-            "store_name",
-            storeName
-        );
-
-        formData.append(
-            "store_url",
-            storeUrl
-        );
-
-        formData.append(
-            "whatsapp_number",
-            whatsappNum
-        );
-
-        formData.append(
-            "agent_notes",
-            agentNotes
-        );
-
-
-        if (pdfFile) {
-
-            formData.append(
-                "pdf_file",
-                pdfFile
-            );
-        }
-
-
-        try {
-
-            const response =
-                await fetch(
-                    "/api/register-store",
-                    {
-                        method: "POST",
-                        body: formData
-                    }
-                );
-
-
-            let data = {};
+            const pdfFile = document.getElementById('pdfFile').files[0];
+            if (pdfFile) formData.append('pdf_file', pdfFile);
 
             try {
+                const res = await fetch('/api/register-store', { method: 'POST', body: formData });
+                const data = await res.json();
 
-                data =
-                    await response.json();
+                if (res.ok) {
+                    currentStoreId = data.store_id;
+                    document.getElementById('embedSection').classList.remove('hidden');
+                    document.getElementById('widgetCodeBox').value = data.widget_code;
+                    document.getElementById('activeStoreBadge').innerText = 'المتجر النشط: ' + document.getElementById('storeName').value;
+                    document.getElementById('activeStoreBadge').className = 'text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-md';
+                } else {
+                    alert('خطأ: ' + (data.detail || 'فشل الحفظ'));
+                }
+            } catch (err) {
+                alert('تعذر الاتصال بالسيرفر');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = 'حفظ وإنشاء معرف المتجر (Store ID)';
+            }
+        });
 
-            } catch (error) {
+        function copyWidgetCode() {
+            const codeBox = document.getElementById('widgetCodeBox');
+            codeBox.select();
+            document.execCommand('copy');
+            alert('تم نسخ الكود بنجاح!');
+        }
 
-                throw new Error(
-                    "الخادم أعاد استجابة غير صحيحة."
-                );
+        async function sendMessage() {
+            if (!currentStoreId) {
+                alert('يرجى حفظ إعدادات المتجر أولاً لتفعيل الشات!');
+                return;
             }
 
+            const input = document.getElementById('userInput');
+            const chatBox = document.getElementById('chatBox');
+            const message = input.value.trim();
 
-            if (
-                response.ok &&
-                data.status === "success"
-            ) {
+            if (!message) return;
 
-                currentStoreId =
-                    data.store_id || null;
+            chatBox.innerHTML += `<div class="bg-gray-200 text-gray-800 p-3 rounded-2xl max-w-[80%] mr-auto">${message}</div>`;
+            input.value = '';
+            chatBox.scrollTop = chatBox.scrollHeight;
 
-                currentQrCode =
-                    data.qr_code || null;
+            const loadingId = 'loading-' + Date.now();
+            chatBox.innerHTML += `<div id="${loadingId}" class="bg-indigo-50 text-indigo-900 p-3 rounded-2xl max-w-[80%] animate-pulse">جاري الاستجابة...</div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
 
-                currentInstanceName =
-                    data.instance_name || null;
-
-
-                document.getElementById(
-                    "storeIdOutput"
-                ).textContent =
-                    currentStoreId || "غير متوفر";
-
-
-                document.getElementById(
-                    "widgetCodeOutput"
-                ).textContent =
-                    data.widget_code || "";
-
-
-                document.getElementById(
-                    "result-section"
-                ).style.display =
-                    "block";
-
-
-                document.getElementById(
-                    "chatSimulation"
-                ).style.display =
-                    "block";
-
-
-                if (whatsappNum) {
-
-                    document.getElementById(
-                        "whatsappSection"
-                    ).style.display =
-                        "block";
-
-                    showQRCode(
-                        currentQrCode
-                    );
-                }
-
-
-                document.getElementById(
-                    "result-section"
-                ).scrollIntoView({
-                    behavior: "smooth",
-                    block: "start"
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ store_id: currentStoreId, message: message })
                 });
 
-            } else {
-
-                const message =
-                    data.detail ||
-                    data.message ||
-                    data.error ||
-                    "حدث خطأ أثناء إنشاء المتجر.";
-
-                alert(message);
-
-                console.error(
-                    "Register error:",
-                    data
-                );
-            }
-
-        } catch (error) {
-
-            console.error(
-                "Register error:",
-                error
-            );
-
-            alert(
-                error.message ||
-                "تعذر الاتصال بالسيرفر."
-            );
-
-        } finally {
-
-            submitBtn.disabled = false;
-
-            submitBtn.textContent =
-                "إنشاء المتجر وتوليد الاتصال";
-        }
-    }
-
-
-    // ==========================================
-    // QR
-    // ==========================================
-
-    function showQRCode(qrData) {
-
-        const statusText =
-            document.getElementById(
-                "qrStatusText"
-            );
-
-        const qrContainer =
-            document.getElementById(
-                "qrContainer"
-            );
-
-        const connectionInfo =
-            document.getElementById(
-                "connectionInfo"
-            );
-
-
-        qrContainer.innerHTML = "";
-
-        connectionInfo.textContent = "";
-
-
-        if (!qrData) {
-
-            qrContainer.innerHTML = `
-                <div class="qr-placeholder">
-                    لم يتم استلام QR Code من Evolution API.
-                    <br><br>
-                    تحقق من إعداد Evolution API وRedis
-                    وقاعدة البيانات.
-                </div>
-            `;
-
-            statusText.textContent =
-                "لم يتم استلام QR Code.";
-
-            statusText.className =
-                "small-text status-error";
-
-            return;
-        }
-
-
-        let imageSource =
-            String(qrData).trim();
-
-
-        if (
-            !imageSource.startsWith(
-                "data:image"
-            )
-        ) {
-
-            imageSource =
-                "data:image/png;base64," +
-                imageSource;
-        }
-
-
-        const img =
-            document.createElement("img");
-
-
-        img.src = imageSource;
-
-        img.alt =
-            "WhatsApp QR Code";
-
-
-        img.onload = function () {
-
-            statusText.textContent =
-                "تم تجهيز QR Code. امسحه من WhatsApp.";
-
-            statusText.className =
-                "small-text status-success";
-
-            connectionInfo.textContent =
-                "WhatsApp ← الأجهزة المرتبطة ← ربط جهاز ← امسح الكود";
-        };
-
-
-        img.onerror = function () {
-
-            qrContainer.innerHTML = `
-                <div class="qr-placeholder">
-                    البيانات المستلمة من Evolution API
-                    ليست QR Code صالحاً للعرض.
-                </div>
-            `;
-
-            statusText.textContent =
-                "تعذر عرض QR Code.";
-
-            statusText.className =
-                "small-text status-error";
-        };
-
-
-        qrContainer.appendChild(img);
-    }
-
-
-    // ==========================================
-    // RETRY
-    // ==========================================
-
-    async function retryWhatsApp() {
-
-        const statusText =
-            document.getElementById(
-                "qrStatusText"
-            );
-
-
-        if (!currentStoreId) {
-
-            statusText.textContent =
-                "لا يوجد متجر حالي.";
-
-            statusText.className =
-                "small-text status-error";
-
-            return;
-        }
-
-
-        if (currentQrCode) {
-
-            showQRCode(
-                currentQrCode
-            );
-
-            return;
-        }
-
-
-        statusText.textContent =
-            "لم يتم استلام QR Code من Evolution API.";
-
-        statusText.className =
-            "small-text status-error";
-
-        alert(
-            "Evolution API لم ترسل QR Code. يجب فحص اتصال Evolution API وRedis."
-        );
-    }
-
-
-    // ==========================================
-    // COPY
-    // ==========================================
-
-    async function copyWidgetCode() {
-
-        const code =
-            document.getElementById(
-                "widgetCodeOutput"
-            ).textContent.trim();
-
-
-        if (!code) {
-
-            alert(
-                "لا يوجد كود Widget."
-            );
-
-            return;
-        }
-
-
-        try {
-
-            if (
-                navigator.clipboard &&
-                window.isSecureContext
-            ) {
-
-                await navigator.clipboard.writeText(
-                    code
-                );
-
-            } else {
-
-                const textarea =
-                    document.createElement(
-                        "textarea"
-                    );
-
-                textarea.value = code;
-
-                textarea.style.position =
-                    "fixed";
-
-                textarea.style.opacity =
-                    "0";
-
-                document.body.appendChild(
-                    textarea
-                );
-
-                textarea.select();
-
-                document.execCommand(
-                    "copy"
-                );
-
-                textarea.remove();
-            }
-
-
-            alert(
-                "تم نسخ كود Widget بنجاح."
-            );
-
-        } catch (error) {
-
-            console.error(
-                "Copy error:",
-                error
-            );
-
-            alert(
-                "تعذر نسخ الكود."
-            );
-        }
-    }
-
-
-    // ==========================================
-    // CHAT
-    // ==========================================
-
-    async function sendTestMessage() {
-
-        const input =
-            document.getElementById(
-                "chatInput"
-            );
-
-        const sendButton =
-            document.getElementById(
-                "chatSendBtn"
-            );
-
-        const messageText =
-            input.value.trim();
-
-
-        if (
-            !messageText ||
-            !currentStoreId
-        ) {
-            return;
-        }
-
-
-        addChatMessage(
-            messageText,
-            "user"
-        );
-
-
-        input.value = "";
-
-        input.disabled = true;
-
-        sendButton.disabled = true;
-
-
-        const loading =
-            addChatMessage(
-                "جاري التفكير...",
-                "bot"
-            );
-
-
-        try {
-
-            const response =
-                await fetch(
-                    "/api/chat",
-                    {
-                        method: "POST",
-
-                        headers: {
-                            "Content-Type":
-                                "application/json"
-                        },
-
-                        body:
-                            JSON.stringify({
-                                store_id:
-                                    currentStoreId,
-
-                                message:
-                                    messageText,
-
-                                sender_id:
-                                    "preview_web_user"
-                            })
-                    }
-                );
-
-
-            let data = {};
-
-            try {
-
-                data =
-                    await response.json();
-
-            } catch (error) {
-
-                throw new Error(
-                    "استجابة غير صحيحة من الخادم."
-                );
-            }
-
-
-            loading.remove();
-
-
-            if (
-                response.ok &&
-                data.status === "success"
-            ) {
-
-                addChatMessage(
-                    data.reply ||
-                    data.response ||
-                    "لم يصل رد من المساعد.",
-                    "bot"
-                );
-
-            } else {
-
-                addChatMessage(
-                    data.detail ||
-                    data.message ||
-                    data.error ||
-                    "حدث خطأ أثناء معالجة الرسالة.",
-                    "error"
-                );
-            }
-
-        } catch (error) {
-
-            loading.remove();
-
-            console.error(
-                "Chat error:",
-                error
-            );
-
-            addChatMessage(
-                "تعذر الاتصال بخادم المساعد الذكي.",
-                "error"
-            );
-
-        } finally {
-
-            input.disabled = false;
-
-            sendButton.disabled = false;
-
-            input.focus();
-        }
-    }
-
-
-    // ==========================================
-    // ADD MESSAGE
-    // ==========================================
-
-    function addChatMessage(
-        text,
-        type
-    ) {
-
-        const chatBody =
-            document.getElementById(
-                "chatBody"
-            );
-
-        const message =
-            document.createElement(
-                "div"
-            );
-
-        message.className =
-            "message " + type;
-
-        message.textContent =
-            text;
-
-        chatBody.appendChild(
-            message
-        );
-
-        chatBody.scrollTop =
-            chatBody.scrollHeight;
-
-        return message;
-    }
-
-
-    // ==========================================
-    // EVENTS
-    // ==========================================
-
-    document
-        .getElementById("storeForm")
-        .addEventListener(
-            "submit",
-            registerStore
-        );
-
-
-    document
-        .getElementById("copyWidgetBtn")
-        .addEventListener(
-            "click",
-            copyWidgetCode
-        );
-
-
-    document
-        .getElementById("retryWhatsappBtn")
-        .addEventListener(
-            "click",
-            retryWhatsApp
-        );
-
-
-    document
-        .getElementById("chatSendBtn")
-        .addEventListener(
-            "click",
-            sendTestMessage
-        );
-
-
-    document
-        .getElementById("chatInput")
-        .addEventListener(
-            "keydown",
-            function (event) {
-
-                if (
-                    event.key === "Enter"
-                ) {
-
-                    event.preventDefault();
-
-                    sendTestMessage();
+                const data = await res.json();
+                document.getElementById(loadingId).remove();
+
+                if (res.ok) {
+                    chatBox.innerHTML += `<div class="bg-indigo-100 text-indigo-900 p-3 rounded-2xl max-w-[80%]">${data.response}</div>`;
+                } else {
+                    chatBox.innerHTML += `<div class="bg-red-100 text-red-900 p-3 rounded-2xl max-w-[80%]">خطأ: ${data.detail}</div>`;
                 }
+            } catch (err) {
+                document.getElementById(loadingId).remove();
+                chatBox.innerHTML += `<div class="bg-red-100 text-red-900 p-3 rounded-2xl max-w-[80%]">تعذر الاتصال بالسيرفر.</div>`;
             }
-        );
 
-
-    checkServerHealth();
-
-</script>
-
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+    </script>
 </body>
 </html>
