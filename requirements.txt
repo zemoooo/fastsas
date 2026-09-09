@@ -6,3 +6,4 @@ pypdf
 anthropic
 sqlalchemy
 python-multipart
+httpx
