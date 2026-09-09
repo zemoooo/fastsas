@@ -1,5 +1,7 @@
 fastapi
 uvicorn
+pydantic
+requests
 pypdf
+anthropic
 sqlalchemy
-python-multipart
