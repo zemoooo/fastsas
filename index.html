@@ -1,364 +1,1434 @@
+```html
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
     <title>منصة إدارة المتاجر والمساعد الذكي</title>
+
     <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family:
+                'Segoe UI',
+                Tahoma,
+                Geneva,
+                Verdana,
+                sans-serif;
+
             background-color: #f4f7f6;
+
             margin: 0;
+
             padding: 20px;
+
             color: #333;
         }
+
+
         .container {
+
             max-width: 650px;
+
             margin: 40px auto;
+
             background: #ffffff;
+
             padding: 30px;
+
             border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+
+            box-shadow:
+                0 4px 15px rgba(0, 0, 0, 0.05);
         }
+
+
         h2 {
+
             text-align: center;
+
             color: #2c3e50;
+
             margin-bottom: 25px;
         }
+
+
         .form-group {
+
             margin-bottom: 20px;
         }
+
+
         label {
+
             display: block;
+
             margin-bottom: 8px;
+
             font-weight: 600;
+
             color: #34495e;
         }
-        input[type="text"], textarea, input[type="file"] {
+
+
+        input[type="text"],
+        textarea,
+        input[type="file"] {
+
             width: 100%;
+
             padding: 12px;
+
             border: 1px solid #dcdde1;
+
             border-radius: 6px;
-            box-sizing: border-box;
+
             font-size: 14px;
+
             outline: none;
-            transition: border-color 0.3s;
+
+            transition:
+                border-color 0.3s;
         }
-        input[type="text"]:focus, textarea:focus {
+
+
+        input[type="text"]:focus,
+        textarea:focus {
+
             border-color: #3498db;
         }
+
+
         textarea {
+
             resize: vertical;
+
             height: 100px;
         }
+
+
         button {
+
             background-color: #3498db;
+
             color: white;
+
             padding: 12px 20px;
+
             border: none;
+
             border-radius: 6px;
+
             cursor: pointer;
+
             width: 100%;
+
             font-size: 16px;
+
             font-weight: bold;
-            transition: background-color 0.3s;
+
+            transition:
+                background-color 0.3s;
         }
+
+
         button:hover {
+
             background-color: #2980b9;
         }
+
+
+        button:disabled {
+
+            opacity: 0.6;
+
+            cursor: not-allowed;
+        }
+
+
         #result-section {
+
             margin-top: 25px;
+
             padding: 20px;
+
             background: #e8f8f5;
+
             border: 1px solid #a3e4d7;
+
             border-radius: 8px;
+
             display: none;
         }
+
+
         .code-box {
+
             background: #2c3e50;
+
             color: #ecf0f1;
+
             padding: 12px;
+
             border-radius: 5px;
+
             font-family: monospace;
+
             word-break: break-all;
+
             margin-top: 10px;
+
             font-size: 13px;
         }
+
+
         .whatsapp-section {
+
             margin-top: 20px;
+
             padding-top: 20px;
-            border-top: 1px dashed #a3e4d7;
+
+            border-top:
+                1px dashed #a3e4d7;
+
             text-align: center;
+
             display: none;
         }
+
+
         .qr-container {
+
             margin: 15px auto;
-            padding: 10px;
+
+            padding: 15px;
+
             background: white;
+
             display: inline-block;
+
             border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+
+            box-shadow:
+                0 2px 8px rgba(0,0,0,0.1);
+
+            min-height: 20px;
         }
+
+
         .qr-container img {
-            max-width: 200px;
+
+            max-width: 260px;
+
+            width: 100%;
+
             height: auto;
+
             display: block;
         }
+
+
         .chat-simulation {
+
             margin-top: 25px;
-            border: 1px solid #dcdde1;
+
+            border:
+                1px solid #dcdde1;
+
             border-radius: 8px;
+
             background: #fff;
+
             overflow: hidden;
+
             display: none;
         }
+
+
         .chat-header {
+
             background: #2c3e50;
+
             color: white;
+
             padding: 10px 15px;
+
             font-weight: bold;
+
             font-size: 14px;
         }
+
+
         .chat-body {
-            height: 200px;
+
+            height: 250px;
+
             overflow-y: auto;
+
             padding: 15px;
+
             background: #fdfefe;
+
             display: flex;
+
             flex-direction: column;
+
             gap: 10px;
         }
+
+
         .message {
+
             padding: 8px 12px;
+
             border-radius: 6px;
+
             max-width: 80%;
+
             font-size: 13px;
-            line-height: 1.4;
+
+            line-height: 1.5;
         }
+
+
         .message.user {
+
             background: #3498db;
+
             color: white;
+
             align-self: flex-start;
         }
+
+
         .message.bot {
+
             background: #e5e8e8;
+
             color: #333;
+
             align-self: flex-end;
         }
+
+
         .chat-footer {
+
             display: flex;
-            border-top: 1px solid #dcdde1;
+
+            border-top:
+                1px solid #dcdde1;
         }
+
+
         .chat-footer input {
+
             border: none;
+
             border-radius: 0;
+
             padding: 10px;
+
+            flex: 1;
+
+            min-width: 0;
         }
+
+
         .chat-footer button {
+
             width: auto;
+
             border-radius: 0;
+
             padding: 10px 20px;
         }
+
+
+        .status-success {
+
+            color: #27ae60;
+
+            font-weight: bold;
+        }
+
+
+        .status-error {
+
+            color: #c0392b;
+
+            font-weight: bold;
+        }
+
+
+        .small-text {
+
+            font-size: 13px;
+
+            color: #666;
+
+            line-height: 1.6;
+        }
+
+
+        .copy-button {
+
+            margin-top: 10px;
+
+            width: auto;
+
+            background: #34495e;
+
+            font-size: 13px;
+
+            padding: 8px 15px;
+        }
+
+
+        .copy-button:hover {
+
+            background: #2c3e50;
+        }
+
     </style>
 </head>
+
+
 <body>
 
+
 <div class="container">
-    <h2>تسجيل متجر جديد وربط المساعد الذكي</h2>
-    
-    <form id="storeForm" onsubmit="registerStore(event)">
-        <div class="form-group">
-            <label for="store_name">اسم المتجر:</label>
-            <input type="text" id="store_name" required placeholder="مثال: متجر الإلكترونيات الحديثة">
-        </div>
+
+    <h2>
+        تسجيل متجر جديد وربط المساعد الذكي
+    </h2>
+
+
+    <!-- ============================= -->
+    <!-- STORE FORM -->
+    <!-- ============================= -->
+
+    <form
+        id="storeForm"
+        onsubmit="registerStore(event)"
+    >
 
         <div class="form-group">
-            <label for="store_url">رابط المتجر (اختياري):</label>
-            <input type="text" id="store_url" placeholder="https://example.com">
+
+            <label for="store_name">
+                اسم المتجر:
+            </label>
+
+            <input
+                type="text"
+                id="store_name"
+                required
+                placeholder="مثال: متجر الإلكترونيات الحديثة"
+            >
+
         </div>
+
 
         <div class="form-group">
-            <label for="whatsapp_number">رقم الواتساب (مثال: 966500000000+):</label>
-            <input type="text" id="whatsapp_number" placeholder="+9665xxxxxxxx">
+
+            <label for="store_url">
+                رابط المتجر (اختياري):
+            </label>
+
+            <input
+                type="text"
+                id="store_url"
+                placeholder="https://example.com"
+            >
+
         </div>
+
 
         <div class="form-group">
-            <label for="agent_notes">تعليمات المساعد الذكي (System Prompt):</label>
-            <textarea id="agent_notes" placeholder="اكتب هنا كيف يجب أن يتعامل المساعد مع العملاء، سياسة الأسعار، إلخ..."></textarea>
+
+            <label for="whatsapp_number">
+                رقم الواتساب:
+            </label>
+
+            <input
+                type="text"
+                id="whatsapp_number"
+                placeholder="+9677xxxxxxxx"
+            >
+
+            <div class="small-text">
+                استخدم الرقم بصيغة دولية.
+                مثال اليمن: +9677xxxxxxxx
+            </div>
+
         </div>
+
 
         <div class="form-group">
-            <label for="pdf_file">ملف الكتالوج (PDF):</label>
-            <input type="file" id="pdf_file" accept=".pdf">
+
+            <label for="agent_notes">
+                تعليمات المساعد الذكي:
+            </label>
+
+            <textarea
+                id="agent_notes"
+                placeholder="اكتب هنا كيف يجب أن يتعامل المساعد مع العملاء، سياسة الأسعار، إلخ..."
+            ></textarea>
+
         </div>
 
-        <button type="submit" id="submitBtn">إنشاء المتجر وتوليد الكود</button>
+
+        <div class="form-group">
+
+            <label for="pdf_file">
+                ملف الكتالوج (PDF):
+            </label>
+
+            <input
+                type="file"
+                id="pdf_file"
+                accept=".pdf,application/pdf"
+            >
+
+        </div>
+
+
+        <button
+            type="submit"
+            id="submitBtn"
+        >
+            إنشاء المتجر وتوليد الاتصال
+        </button>
+
     </form>
 
+
+    <!-- ============================= -->
+    <!-- RESULT -->
+    <!-- ============================= -->
+
     <div id="result-section">
-        <h3 style="color: #16a085; margin-top: 0;">تم إنشاء المتجر بنجاح!</h3>
-        <p>قم بنسخ كود الـ Widget التالي وضعه في موقعك:</p>
-        <div class="code-box" id="widgetCodeOutput"></div>
 
-        <div class="whatsapp-section" id="whatsappSection">
-            <h4 style="color: #27ae60; margin: 0 0 10px 0;">ربط واتساب البوت (QR Code)</h4>
-            <p id="qrStatusText" style="font-size: 13px; color: #555;">جاري تجهيز اتصال الواتساب وجلب الـ QR Code...</p>
-            <div class="qr-container" id="qrContainer"></div>
-            <br>
-            <button type="button" onclick="fetchWhatsAppQR()" style="background-color: #27ae60; width: auto; padding: 8px 15px; font-size: 13px; margin-top: 10px;">إعادة محاولة جلب الكود</button>
+
+        <h3
+            style="
+                color:#16a085;
+                margin-top:0;
+            "
+        >
+            تم إنشاء المتجر بنجاح!
+        </h3>
+
+
+        <p>
+            رقم المتجر:
+        </p>
+
+        <div
+            class="code-box"
+            id="storeIdOutput"
+        ></div>
+
+
+        <p>
+            كود الـ Widget:
+        </p>
+
+        <div
+            class="code-box"
+            id="widgetCodeOutput"
+        ></div>
+
+
+        <button
+            type="button"
+            class="copy-button"
+            onclick="copyWidgetCode()"
+        >
+            نسخ كود Widget
+        </button>
+
+
+        <!-- ============================= -->
+        <!-- WHATSAPP -->
+        <!-- ============================= -->
+
+        <div
+            class="whatsapp-section"
+            id="whatsappSection"
+        >
+
+            <h4
+                style="
+                    color:#27ae60;
+                    margin:0 0 10px 0;
+                "
+            >
+                ربط واتساب البوت
+            </h4>
+
+
+            <p
+                id="qrStatusText"
+                class="small-text"
+            >
+                جاري تجهيز اتصال الواتساب...
+            </p>
+
+
+            <div
+                class="qr-container"
+                id="qrContainer"
+            ></div>
+
+
+            <p
+                id="connectionInfo"
+                class="small-text"
+            ></p>
+
+
+            <button
+                type="button"
+                onclick="retryWhatsApp()"
+                style="
+                    background-color:#27ae60;
+                    width:auto;
+                    padding:8px 15px;
+                    font-size:13px;
+                    margin-top:10px;
+                "
+            >
+                إعادة المحاولة
+            </button>
+
         </div>
 
-        <div class="chat-simulation" id="chatSimulation" style="display: block;">
-            <div class="chat-header">تجربة المساعد الذكي (محادثة تجريبية)</div>
-            <div class="chat-body" id="chatBody">
-                <div class="message bot">مرحباً بك! أنا مساعدك الذكي، كيف يمكنني مساعدتك اليوم بخصوص متجرك أو منتجاتك؟</div>
+
+        <!-- ============================= -->
+        <!-- CHAT -->
+        <!-- ============================= -->
+
+        <div
+            class="chat-simulation"
+            id="chatSimulation"
+        >
+
+            <div class="chat-header">
+                تجربة المساعد الذكي
             </div>
+
+
+            <div
+                class="chat-body"
+                id="chatBody"
+            >
+
+                <div class="message bot">
+                    مرحباً بك! أنا مساعدك الذكي،
+                    كيف يمكنني مساعدتك اليوم؟
+                </div>
+
+            </div>
+
+
             <div class="chat-footer">
-                <input type="text" id="chatInput" placeholder="اكتب رسالة تجريبية للمساعد..." onkeypress="handleKeyPress(event)">
-                <button type="button" onclick="sendTestMessage()">إرسال</button>
+
+                <input
+                    type="text"
+                    id="chatInput"
+                    placeholder="اكتب رسالة تجريبية للمساعد..."
+                    onkeypress="handleKeyPress(event)"
+                >
+
+                <button
+                    type="button"
+                    onclick="sendTestMessage()"
+                >
+                    إرسال
+                </button>
+
             </div>
+
         </div>
+
     </div>
+
 </div>
 
+
 <script>
+
+    // ==========================================
+    // GLOBAL STATE
+    // ==========================================
+
     let currentStoreId = null;
 
-    async function registerStore(event) {
-        event.preventDefault();
-        
-        const submitBtn = document.getElementById('submitBtn');
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'جاري المعالجة والحفظ...';
+    let currentQrCode = null;
 
-        const formData = new FormData();
-        formData.append('store_name', document.getElementById('store_name').value);
-        formData.append('store_url', document.getElementById('store_url').value);
-        const whatsappNum = document.getElementById('whatsapp_number').value;
-        formData.append('whatsapp_number', whatsappNum);
-        formData.append('agent_notes', document.getElementById('agent_notes').value);
-        
-        const pdfFile = document.getElementById('pdf_file').files[0];
+
+    // ==========================================
+    // REGISTER STORE
+    // ==========================================
+
+    async function registerStore(event) {
+
+        event.preventDefault();
+
+
+        const submitBtn =
+            document.getElementById(
+                'submitBtn'
+            );
+
+
+        submitBtn.disabled = true;
+
+        submitBtn.textContent =
+            'جاري إنشاء المتجر...';
+
+
+        const formData =
+            new FormData();
+
+
+        const storeName =
+            document.getElementById(
+                'store_name'
+            ).value.trim();
+
+
+        const storeUrl =
+            document.getElementById(
+                'store_url'
+            ).value.trim();
+
+
+        const whatsappNum =
+            document.getElementById(
+                'whatsapp_number'
+            ).value.trim();
+
+
+        const agentNotes =
+            document.getElementById(
+                'agent_notes'
+            ).value.trim();
+
+
+        const pdfFile =
+            document.getElementById(
+                'pdf_file'
+            ).files[0];
+
+
+        formData.append(
+            'store_name',
+            storeName
+        );
+
+
+        formData.append(
+            'store_url',
+            storeUrl
+        );
+
+
+        formData.append(
+            'whatsapp_number',
+            whatsappNum
+        );
+
+
+        formData.append(
+            'agent_notes',
+            agentNotes
+        );
+
+
         if (pdfFile) {
-            formData.append('pdf_file', pdfFile);
+
+            formData.append(
+                'pdf_file',
+                pdfFile
+            );
         }
 
+
         try {
-            const response = await fetch('/api/register-store', {
-                method: 'POST',
-                body: formData
-            });
 
-            const data = await response.json();
+            const response =
+                await fetch(
+                    '/api/register-store',
+                    {
+                        method: 'POST',
+                        body: formData
+                    }
+                );
 
-            if (response.ok && data.status === 'success') {
-                currentStoreId = data.store_id;
-                document.getElementById('widgetCodeOutput').textContent = data.widget_code;
-                document.getElementById('result-section').style.display = 'block';
+
+            const data =
+                await response.json();
+
+
+            if (
+                response.ok &&
+                data.status === 'success'
+            ) {
+
+                currentStoreId =
+                    data.store_id;
+
+
+                currentQrCode =
+                    data.qr_code;
+
+
+                // ------------------------------
+                // STORE ID
+                // ------------------------------
+
+                document.getElementById(
+                    'storeIdOutput'
+                ).textContent =
+                    currentStoreId;
+
+
+                // ------------------------------
+                // WIDGET
+                // ------------------------------
+
+                document.getElementById(
+                    'widgetCodeOutput'
+                ).textContent =
+                    data.widget_code || '';
+
+
+                // ------------------------------
+                // SHOW RESULT
+                // ------------------------------
+
+                document.getElementById(
+                    'result-section'
+                ).style.display =
+                    'block';
+
+
+                // ------------------------------
+                // CHAT
+                // ------------------------------
+
+                document.getElementById(
+                    'chatSimulation'
+                ).style.display =
+                    'block';
+
+
+                // ------------------------------
+                // WHATSAPP
+                // ------------------------------
 
                 if (whatsappNum) {
-                    document.getElementById('whatsappSection').style.display = 'block';
-                    // الانتظار 3 ثوانٍ حتى يتم إنشاء الجلسة في السيرفر ثم جلب الـ QR
-                    setTimeout(fetchWhatsAppQR, 3000);
+
+                    document.getElementById(
+                        'whatsappSection'
+                    ).style.display =
+                        'block';
+
+
+                    showQRCode(
+                        currentQrCode
+                    );
+
                 }
 
-                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+
+                window.scrollTo({
+
+                    top:
+                        document.body.scrollHeight,
+
+                    behavior:
+                        'smooth'
+
+                });
+
+
             } else {
-                alert('حدث خطأ أثناء التسجيل: ' + (data.detail || 'يرجى المحاولة لاحقاً'));
+
+                const message =
+                    data.detail ||
+                    data.message ||
+                    'حدث خطأ أثناء تسجيل المتجر.';
+
+
+                alert(message);
+
             }
+
+
         } catch (error) {
-            console.error('Error:', error);
-            alert('تعذر الاتصال بالسيرفر.');
+
+            console.error(
+                'Register error:',
+                error
+            );
+
+
+            alert(
+                'تعذر الاتصال بالسيرفر. تأكد أن خدمة Render تعمل.'
+            );
+
+
         } finally {
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'إنشاء المتجر وتوليد الكود';
+
+            submitBtn.disabled =
+                false;
+
+
+            submitBtn.textContent =
+                'إنشاء المتجر وتوليد الاتصال';
+
         }
+
     }
 
-    async function fetchWhatsAppQR() {
-        if (!currentStoreId) return;
-        const statusText = document.getElementById('qrStatusText');
-        const qrContainer = document.getElementById('qrContainer');
-        
-        statusText.textContent = 'جاري جلب الـ QR Code...';
+
+    // ==========================================
+    // SHOW QR CODE
+    // ==========================================
+
+    function showQRCode(qrData) {
+
+        const statusText =
+            document.getElementById(
+                'qrStatusText'
+            );
+
+
+        const qrContainer =
+            document.getElementById(
+                'qrContainer'
+            );
+
+
+        const connectionInfo =
+            document.getElementById(
+                'connectionInfo'
+            );
+
+
+        qrContainer.innerHTML =
+            '';
+
+
+        connectionInfo.textContent =
+            '';
+
+
+        if (!qrData) {
+
+            statusText.textContent =
+                'لم يتم استلام QR Code من Evolution API. تأكد من اتصال Evolution API وRedis.';
+
+            statusText.className =
+                'small-text status-error';
+
+            return;
+        }
+
+
+        let imgSrc =
+            qrData;
+
+
+        // ------------------------------
+        // DATA IMAGE
+        // ------------------------------
+
+        if (
+            typeof imgSrc === 'string' &&
+            !imgSrc.startsWith(
+                'data:image'
+            )
+        ) {
+
+            imgSrc =
+                'data:image/png;base64,' +
+                imgSrc;
+        }
+
+
+        const img =
+            document.createElement(
+                'img'
+            );
+
+
+        img.src =
+            imgSrc;
+
+
+        img.alt =
+            'WhatsApp QR Code';
+
+
+        img.onerror =
+            function() {
+
+                qrContainer.innerHTML =
+                    '';
+
+                statusText.textContent =
+                    'تعذر عرض QR Code. البيانات المستلمة من Evolution API غير صالحة.';
+
+                statusText.className =
+                    'small-text status-error';
+
+            };
+
+
+        qrContainer.appendChild(
+            img
+        );
+
+
+        statusText.textContent =
+            'امسح QR Code من تطبيق WhatsApp لربط الرقم.';
+
+
+        statusText.className =
+            'small-text status-success';
+
+
+        connectionInfo.textContent =
+            'افتح WhatsApp ← الأجهزة المرتبطة ← ربط جهاز، ثم امسح الكود.';
+
+    }
+
+
+    // ==========================================
+    // RETRY
+    // ==========================================
+
+    async function retryWhatsApp() {
+
+        if (!currentStoreId) {
+
+            return;
+        }
+
+
+        const statusText =
+            document.getElementById(
+                'qrStatusText'
+            );
+
+
+        statusText.textContent =
+            'جاري إعادة المحاولة...';
+
+
+        statusText.className =
+            'small-text';
+
+
+        /*
+         * لا نستدعي:
+         *
+         * /api/whatsapp/connect
+         *
+         * لأنه غير موجود في main.py الحالي.
+         *
+         * يتم إنشاء QR أثناء register-store.
+         *
+         * لذلك إعادة التوليد تحتاج Endpoint مستقل
+         * في main.py إذا أردناها.
+         */
+
+        if (currentQrCode) {
+
+            showQRCode(
+                currentQrCode
+            );
+
+        } else {
+
+            statusText.textContent =
+                'لا يوجد QR Code متاح حاليًا. أنشئ المتجر مرة أخرى بعد التأكد من Evolution API.';
+
+            statusText.className =
+                'small-text status-error';
+        }
+
+    }
+
+
+    // ==========================================
+    // COPY WIDGET
+    // ==========================================
+
+    async function copyWidgetCode() {
+
+        const code =
+            document.getElementById(
+                'widgetCodeOutput'
+            ).textContent;
+
+
+        if (!code) {
+
+            alert(
+                'لا يوجد كود لنسخه.'
+            );
+
+            return;
+        }
+
 
         try {
-            const qrResponse = await fetch(`/api/whatsapp/connect/${currentStoreId}`);
-            const qrData = await qrResponse.json();
-            
-            const rawData = qrData.evolution_data;
-            // فحص احتمالات مسارات الـ QR في إصدارات Evolution API المختلفة
-            const qrImageSrc = rawData?.base64 || rawData?.qrcode?.base64 || rawData?.code || rawData?.instance?.qrcode;
 
-            if (qrImageSrc) {
-                // التأكد من وضع بادئة الـ base64 إذا كانت غير موجودة
-                let imgSrc = qrImageSrc;
-                if (!imgSrc.startsWith('data:image')) {
-                    imgSrc = `data:image/png;base64,${imgSrc}`;
-                }
-                qrContainer.innerHTML = `<img src="${imgSrc}" alt="WhatsApp QR Code">`;
-                statusText.textContent = 'قم بمسح الكود التالي عبر تطبيق الواتساب لتفعيل الرد الآلي:';
-            } else if (rawData?.state === 'open' || rawData?.instance?.state === 'open') {
-                statusText.textContent = 'الحساب متصل بالفعل بالواتساب بنجاح!';
-                qrContainer.innerHTML = '';
-            } else {
-                statusText.textContent = 'لم يتم توليد الكود بعد، انقر على زر إعادة المحاولة بعد قليلاً.';
-            }
-        } catch (err) {
-            console.error('تعذر جلب الـ QR Code:', err);
-            statusText.textContent = 'حدث خطأ أثناء الاتصال بجلب الـ QR.';
+            await navigator.clipboard.writeText(
+                code
+            );
+
+
+            alert(
+                'تم نسخ كود Widget بنجاح.'
+            );
+
+
+        } catch (error) {
+
+            console.error(
+                'Copy error:',
+                error
+            );
+
+
+            alert(
+                'تعذر النسخ تلقائيًا.'
+            );
+
         }
+
     }
+
+
+    // ==========================================
+    // ENTER KEY
+    // ==========================================
 
     function handleKeyPress(event) {
-        if (event.key === 'Enter') {
+
+        if (
+            event.key === 'Enter'
+        ) {
+
+            event.preventDefault();
+
             sendTestMessage();
+
         }
+
     }
+
+
+    // ==========================================
+    // TEST CHAT
+    // ==========================================
 
     async function sendTestMessage() {
-        const inputField = document.getElementById('chatInput');
-        const messageText = inputField.value.trim();
-        if (!messageText || !currentStoreId) return;
 
-        const chatBody = document.getElementById('chatBody');
+        const inputField =
+            document.getElementById(
+                'chatInput'
+            );
 
-        const userMsg = document.createElement('div');
-        userMsg.className = 'message user';
-        userMsg.textContent = messageText;
-        chatBody.appendChild(userMsg);
 
-        inputField.value = '';
-        chatBody.scrollTop = chatBody.scrollHeight;
+        const messageText =
+            inputField.value.trim();
+
+
+        if (
+            !messageText ||
+            !currentStoreId
+        ) {
+
+            return;
+        }
+
+
+        const chatBody =
+            document.getElementById(
+                'chatBody'
+            );
+
+
+        // ------------------------------
+        // USER MESSAGE
+        // ------------------------------
+
+        const userMsg =
+            document.createElement(
+                'div'
+            );
+
+
+        userMsg.className =
+            'message user';
+
+
+        userMsg.textContent =
+            messageText;
+
+
+        chatBody.appendChild(
+            userMsg
+        );
+
+
+        inputField.value =
+            '';
+
+
+        chatBody.scrollTop =
+            chatBody.scrollHeight;
+
+
+        // ------------------------------
+        // LOADING
+        // ------------------------------
+
+        const loadingMsg =
+            document.createElement(
+                'div'
+            );
+
+
+        loadingMsg.className =
+            'message bot';
+
+
+        loadingMsg.textContent =
+            'جاري التفكير...';
+
+
+        chatBody.appendChild(
+            loadingMsg
+        );
+
+
+        chatBody.scrollTop =
+            chatBody.scrollHeight;
+
 
         try {
-            const response = await fetch('/api/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    store_id: currentStoreId,
-                    message: messageText,
-                    sender_id: 'preview_web_user'
-                })
-            });
 
-            const data = await response.json();
-            const botMsg = document.createElement('div');
-            botMsg.className  = 'message bot';
-            botMsg.textContent = data.response || 'عذراً، لم أتمكن من الرد.';
-            chatBody.appendChild(botMsg);
-            chatBody.scrollTop = chatBody.scrollHeight;
+            const response =
+                await fetch(
+                    '/api/chat',
+                    {
+
+                        method:
+                            'POST',
+
+                        headers: {
+
+                            'Content-Type':
+                                'application/json'
+
+                        },
+
+                        body:
+                            JSON.stringify({
+
+                                store_id:
+                                    currentStoreId,
+
+                                message:
+                                    messageText,
+
+                                sender_id:
+                                    'preview_web_user'
+
+                            })
+
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            loadingMsg.remove();
+
+
+            if (
+                response.ok &&
+                data.status === 'success'
+            ) {
+
+                const botMsg =
+                    document.createElement(
+                        'div'
+                    );
+
+
+                botMsg.className =
+                    'message bot';
+
+
+                // main.py يرجع reply وليس response
+                botMsg.textContent =
+                    data.reply ||
+                    'عذراً، لم أتمكن من الرد.';
+
+
+                chatBody.appendChild(
+                    botMsg
+                );
+
+
+            } else {
+
+                const errorMsg =
+                    document.createElement(
+                        'div'
+                    );
+
+
+                errorMsg.className =
+                    'message bot';
+
+
+                errorMsg.style.background =
+                    '#f8d7da';
+
+
+                errorMsg.style.color =
+                    '#721c24';
+
+
+                errorMsg.textContent =
+                    data.detail ||
+                    data.message ||
+                    'حدث خطأ أثناء معالجة الرسالة.';
+
+
+                chatBody.appendChild(
+                    errorMsg
+                );
+
+            }
+
+
+            chatBody.scrollTop =
+                chatBody.scrollHeight;
+
+
         } catch (error) {
-            const errorMsg = document.createElement('div');
-            errorMsg.className = 'message bot';
-            errorMsg.style.background = '#f8d7da';
-            errorMsg.style.color = '#721c24';
-            errorMsg.textContent = 'عذراً، حدث خطأ في الاتصال بالخادم.';
-            chatBody.appendChild(errorMsg);
-            chatBody.scrollTop = chatBody.scrollHeight;
+
+            console.error(
+                'Chat error:',
+                error
+            );
+
+
+            loadingMsg.remove();
+
+
+            const errorMsg =
+                document.createElement(
+                    'div'
+                );
+
+
+            errorMsg.className =
+                'message bot';
+
+
+            errorMsg.style.background =
+                '#f8d7da';
+
+
+            errorMsg.style.color =
+                '#721c24';
+
+
+            errorMsg.textContent =
+                'تعذر الاتصال بخادم المساعد الذكي.';
+
+
+            chatBody.appendChild(
+                errorMsg
+            );
+
+
+            chatBody.scrollTop =
+                chatBody.scrollHeight;
+
         }
+
     }
+
+
+    // ==========================================
+    // HEALTH CHECK
+    // ==========================================
+
+    async function checkServerHealth() {
+
+        try {
+
+            const response =
+                await fetch(
+                    '/health'
+                );
+
+
+            const data =
+                await response.json();
+
+
+            console.log(
+                'Server health:',
+                data
+            );
+
+
+        } catch (error) {
+
+            console.warn(
+                'Health check failed:',
+                error
+            );
+
+        }
+
+    }
+
+
+    // ==========================================
+    // START
+    // ==========================================
+
+    checkServerHealth();
+
 </script>
+
 
 </body>
 </html>
+```
