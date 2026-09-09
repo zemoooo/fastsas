@@ -21,13 +21,13 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+# إعدادات مفاتيح البيئة ونماذج الذكاء الاصطناعي
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "sk-ant-api03-YOUR_CLAUDE_KEY_HERE")
 claude_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
-# تم التحديث ليرتبط بسيرفرك الجديد على Render ومفتاح الحماية الخاص بك
 EVOLUTION_API_URL = os.getenv("EVOLUTION_API_URL", "https://evolution-api-render-1-nsvq.onrender.com")
-EVOLUTION_GLOBAL_KEY = os.getenv("EVOLUTION_GLOBAL_KEY", "114477azaz@@")
-WEBHOOK_BASE_URL = os.getenv("WEBHOOK_BASE_URL", "https://twelve-garlics-mix.loca.lt")
+EVOLUTION_GLOBAL_KEY = os.getenv("EVOLUTION_GLOBAL_KEY", "ضع_مفتاحك_السري_هنا")
+WEBHOOK_BASE_URL = os.getenv("WEBHOOK_BASE_URL", "https://whatsapp-ai-saas.onrender.com")
 
 
 class StoreModel(Base):
@@ -167,8 +167,7 @@ async def register_store(
             }
             webhook_headers = {
                 "apikey": EVOLUTION_GLOBAL_KEY,
-                "Content-Type": "application/json",
-                "Bypass-Tunnel-Reminder": "true"
+                "Content-Type": "application/json"
             }
             requests.post(f"{EVOLUTION_API_URL}/webhook/set/{instance_name}", json=webhook_payload, headers=webhook_headers, timeout=10)
         except Exception as e:
@@ -192,8 +191,7 @@ async def connect_whatsapp(store_id: str, db: Session = Depends(get_db)):
     instance_name = f"store_{clean_phone}"
     headers = {
         "apikey": EVOLUTION_GLOBAL_KEY,
-        "Content-Type": "application/json",
-        "Bypass-Tunnel-Reminder": "true"
+        "Content-Type": "application/json"
     }
 
     try:
@@ -245,7 +243,7 @@ async def chat_endpoint(req: ChatRequest, db: Session = Depends(get_db)):
     try:
         response = claude_client.messages.create(
             model="claude-sonnet-4-5",
-            max_tokens=500,
+            max_tokens=2048,
             system=system_prompt,
             messages=chat_history[-10:]
         )
@@ -309,7 +307,7 @@ async def whatsapp_evolution_webhook(store_id: str, request: Request, db: Sessio
 
                 response = claude_client.messages.create(
                     model="claude-sonnet-4-5",
-                    max_tokens=500,
+                    max_tokens=2048,
                     system=system_prompt,
                     messages=chat_history[-10:]
                 )
@@ -327,8 +325,7 @@ async def whatsapp_evolution_webhook(store_id: str, request: Request, db: Sessio
                 send_url = f"{EVOLUTION_API_URL}/message/sendText/store_{clean_phone}"
                 headers = {
                     "apikey": EVOLUTION_GLOBAL_KEY,
-                    "Content-Type": "application/json",
-                    "Bypass-Tunnel-Reminder": "true"
+                    "Content-Type": "application/json"
                 }
                 payload = {
                     "number": sender_remote_jid.split("@")[0],
