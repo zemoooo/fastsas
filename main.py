@@ -14,17 +14,23 @@ from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, crea
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, relationship, sessionmaker
 
-DATABASE_URL = ""
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+# التحقق من متغير قاعدة البيانات أو استخدام SQLite كقيمة افتراضية آمنة
+DATABASE_URL = os.getenv("DATABASE_CONNECTION_URI")
+if not DATABASE_URL or DATABASE_URL.strip() == "":
+    DATABASE_URL = "sqlite:///./saas_stores.db"
+
+connect_args = {"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
+
+engine = create_engine(DATABASE_URL, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 claude_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
-EVOLUTION_API_URL = os.getenv("EVOLUTION_API_URL", "")
+EVOLUTION_API_URL = os.getenv("EVOLUTION_API_URL", "https://evolution-api-render-1-nsvq.onrender.com")
 EVOLUTION_GLOBAL_KEY = os.getenv("EVOLUTION_GLOBAL_KEY", "")
-WEBHOOK_BASE_URL = os.getenv("WEBHOOK_BASE_URL", "")
+WEBHOOK_BASE_URL = os.getenv("WEBHOOK_BASE_URL", "https://twelve-garlics-mix.loca.lt")
 
 print(f"🔑 Evolution Global Key Loaded: {'Yes' if EVOLUTION_GLOBAL_KEY else 'No'}")
 print(f"🔑 Anthropic API Key Loaded: {'Yes' if ANTHROPIC_API_KEY else 'No'}")
@@ -176,6 +182,56 @@ async def register_store(
     }
 
 
+@app.post("/api/chat")
+async def widget_chat(payload: ChatRequest, db: Session = Depends(get_db)):
+    store = db.query(StoreModel).filter(StoreModel.id == payload.store_id).first()
+    if not store:
+        raise HTTPException(status_code=404, detail="Store not found")
+
+    try:
+        previous_logs = db.query(ChatLogModel).filter(
+            ChatLogModel.store_id == store.id,
+            ChatLogModel.sender_id == payload.sender_id
+        ).order_by(ChatLogModel.created_at.desc()).limit(5).all()
+
+        previous_logs.reverse()
+
+        chat_history = []
+        for log in previous_logs:
+            chat_history.append({"role": "user", "content": log.user_message})
+            chat_history.append({"role": "assistant", "content": log.bot_response})
+
+        chat_history.append({"role": "user", "content": payload.message})
+
+        system_prompt = f"""
+        أنت مساعد مبيعات ذكي يعمل لصالح متجر '{store.store_name}' عبر الودجت.
+        التعليمات والمهام: {store.agent_notes if store.agent_notes else 'كن ودوداً وخادماً للعملاء.'}
+        كتالوج المنتجات والأسعار: {store.catalog_text if store.catalog_text else 'لا يوجد كتالوج مرفق.'}
+        جاوب باختصار وبشكل واضح.
+        """
+
+        response = claude_client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=500,
+            system=system_prompt,
+            messages=chat_history
+        )
+        reply_text = response.content[0].text
+
+        db.add(ChatLogModel(
+            store_id=store.id,
+            sender_id=payload.sender_id,
+            user_message=payload.message,
+            bot_response=reply_text
+        ))
+        db.commit()
+
+        return {"reply": reply_text}
+    except Exception as e:
+        print(f"❌ Widget Chat Error: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
+
 @app.post("/api/whatsapp/webhook/{store_id}")
 async def whatsapp_evolution_webhook(store_id: str, request: Request, db: Session = Depends(get_db)):
     store = db.query(StoreModel).filter(StoreModel.id == store_id).first()
@@ -222,9 +278,8 @@ async def whatsapp_evolution_webhook(store_id: str, request: Request, db: Sessio
                 جاوب باختصار وبشكل واضح ومناسب للمحادثات عبر الواتساب.
                 """
 
-                # تم ضبط المعرّف بدقة لـ Claude Sonnet 4.5
                 response = claude_client.messages.create(
-                    model="claude-sonnet-4.5",
+                    model="claude-sonnet-4-5",
                     max_tokens=500,
                     system=system_prompt,
                     messages=chat_history
