@@ -27,7 +27,7 @@ Base = declarative_base()
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 claude_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
-EVOLUTION_API_URL = os.getenv("EVOLUTION_API_URL", "https://evolution-api-render-1-nsvq.onrender.com")
+EVOLUTION_API_URL = os.getenv("EVOLUTION_API_URL", "")
 EVOLUTION_GLOBAL_KEY = os.getenv("EVOLUTION_GLOBAL_KEY", "")
 WEBHOOK_BASE_URL = os.getenv("WEBHOOK_BASE_URL", "https://twelve-garlics-mix.loca.lt")
 
@@ -144,15 +144,16 @@ async def register_store(
     qr_code_data = None
 
     if whatsapp_number:
-        clean_phone = whatsapp_number.replace("+", "").replace(" ", "").strip()
+        clean_phone = whatsapp_number.replace("+", "").replace(" ", "").replace("-", "").strip()
         instance_name = f"store_{clean_phone}"
         headers = {
             "apikey": EVOLUTION_GLOBAL_KEY,
             "Content-Type": "application/json"
         }
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             try:
+                # 1. محاولة إنشاء Instance جديدة
                 create_payload = {
                     "instanceName": instance_name,
                     "qrcode": True,
@@ -161,31 +162,36 @@ async def register_store(
                 res = await client.post(
                     f"{EVOLUTION_API_URL}/instance/create",
                     json=create_payload,
-                    headers=headers,
-                    timeout=15.0
+                    headers=headers
                 )
                 
-                qr_raw = None
                 if res.status_code in [200, 201]:
                     res_data = res.json()
-                    qr_raw = res_data.get("qrcode", {}).get("base64") or res_data.get("base64")
+                    qr_raw = (
+                        res_data.get("qrcode", {}).get("base64") or 
+                        res_data.get("base64") or 
+                        res_data.get("code")
+                    )
+                    if qr_raw:
+                        qr_code_data = qr_raw if str(qr_raw).startswith("data:image") else f"data:image/png;base64,{qr_raw}"
 
-                if not qr_raw:
+                # 2. إذا لم نحصل على الكود (مثلاً الجلسة موجودة مسبقاً)، نطلب كود الاتصال مباشرة
+                if not qr_code_data:
                     connect_res = await client.get(
                         f"{EVOLUTION_API_URL}/instance/connect/{instance_name}",
-                        headers=headers,
-                        timeout=10.0
+                        headers=headers
                     )
                     if connect_res.status_code in [200, 201]:
                         c_data = connect_res.json()
-                        qr_raw = c_data.get("base64") or c_data.get("qrcode", {}).get("base64") or c_data.get("code")
+                        qr_raw = (
+                            c_data.get("base64") or 
+                            c_data.get("qrcode", {}).get("base64") or 
+                            c_data.get("code")
+                        )
+                        if qr_raw:
+                            qr_code_data = qr_raw if str(qr_raw).startswith("data:image") else f"data:image/png;base64,{qr_raw}"
 
-                if qr_raw:
-                    if not str(qr_raw).startswith("data:image"):
-                        qr_code_data = f"data:image/png;base64,{qr_raw}"
-                    else:
-                        qr_code_data = qr_raw
-
+                # 3. ضبط الـ Webhook تلقائياً
                 webhook_payload = {
                     "webhook": {
                         "enabled": True,
@@ -197,12 +203,11 @@ async def register_store(
                 await client.post(
                     f"{EVOLUTION_API_URL}/webhook/set/{instance_name}",
                     json=webhook_payload,
-                    headers=headers,
-                    timeout=15.0
+                    headers=headers
                 )
 
             except Exception as e:
-                print(f"❌ Evolution API Connection Error: {e}")
+                print(f"❌ Evolution API Exception: {e}")
 
     return {
         "status": "success",
@@ -325,7 +330,7 @@ async def whatsapp_evolution_webhook(store_id: str, request: Request, db: Sessio
                 ))
                 db.commit()
 
-                clean_phone = store.whatsapp_number.replace('+', '').replace(' ', '').strip()
+                clean_phone = store.whatsapp_number.replace('+', '').replace(' ', '').replace('-', '').strip()
                 send_url = f"{EVOLUTION_API_URL}/message/sendText/store_{clean_phone}"
                 headers = {
                     "apikey": EVOLUTION_GLOBAL_KEY,
