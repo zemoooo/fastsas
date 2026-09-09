@@ -2,69 +2,74 @@ import os
 import uuid
 from datetime import datetime
 from typing import Optional
-from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, status
+
+from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel
 import pypdf
+import httpx
+import anthropic
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, relationship, sessionmaker
 
-# --- 1. إعداد قاعدة البيانات (SQLite) ---
-DATABASE_URL = "sqlite:///./saas_stores.db"
-engine = create_engine(
-    DATABASE_URL, connect_args={"check_same_thread": False}
-)
+DATABASE_URL = ""
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+claude_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+EVOLUTION_API_URL = os.getenv("EVOLUTION_API_URL", "")
+EVOLUTION_GLOBAL_KEY = os.getenv("EVOLUTION_GLOBAL_KEY", "")
+WEBHOOK_BASE_URL = os.getenv("WEBHOOK_BASE_URL", "")
+
+print(f"🔑 Evolution Global Key Loaded: {'Yes' if EVOLUTION_GLOBAL_KEY else 'No'}")
+print(f"🔑 Anthropic API Key Loaded: {'Yes' if ANTHROPIC_API_KEY else 'No'}")
+
 
 class StoreModel(Base):
-  __tablename__ = "stores"
+    __tablename__ = "stores"
 
-  id = Column(
-      String, primary_key=True, default=lambda: str(uuid.uuid4())
-  )  # store_id
-  store_name = Column(String, nullable=False)
-  store_url = Column(String, nullable=True)
-  whatsapp_number = Column(String, nullable=True)
-  agent_notes = Column(Text, nullable=True)
-  catalog_text = Column(Text, nullable=True)
-  created_at = Column(DateTime, default=datetime.utcnow)
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    store_name = Column(String, nullable=False)
+    store_url = Column(String, nullable=True)
+    whatsapp_number = Column(String, nullable=True)
+    agent_notes = Column(Text, nullable=True)
+    catalog_text = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
-  logs = relationship(
-      "ChatLogModel", back_populates="store", cascade="all, delete-orphan"
-  )
+    logs = relationship("ChatLogModel", back_populates="store", cascade="all, delete-orphan")
 
 
 class ChatLogModel(Base):
-  __tablename__ = "chat_logs"
+    __tablename__ = "chat_logs"
 
-  id = Column(Integer, primary_key=True, index=True)
-  store_id = Column(String, ForeignKey("stores.id"))
-  user_message = Column(Text)
-  bot_response = Column(Text)
-  created_at = Column(DateTime, default=datetime.utcnow)
+    id = Column(Integer, primary_key=True, index=True)
+    store_id = Column(String, ForeignKey("stores.id"))
+    sender_id = Column(String, default="default_user")
+    user_message = Column(Text)
+    bot_response = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
-  store = relationship("StoreModel", back_populates="logs")
+    store = relationship("StoreModel", back_populates="logs")
 
 
 Base.metadata.create_all(bind=engine)
 
 
 def get_db():
-  db = SessionLocal()
-  try:
-    yield db
-  finally:
-    db.close()
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
-# --- 2. إعداد تطبيق FastAPI ---
-app = FastAPI(title="AI Store Assistant SaaS Platform")
+app = FastAPI(title="AI Store Assistant SaaS Platform with WhatsApp Integration")
 
-# السماح بالطلبات من أي مصدر (CORS)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -74,49 +79,32 @@ app.add_middleware(
 )
 
 
-# --- 3. نماذج البيانات (Pydantic Models) ---
 class ChatRequest(BaseModel):
-  store_id: str
-  message: str
+    store_id: str
+    message: str
+    sender_id: Optional[str] = "preview_user"
 
 
-# --- 4. وظائف مساعدة ---
 def extract_pdf_text(file_bytes) -> str:
-  """استخراج النص من ملف PDF مرفوع"""
-  try:
-    reader = pypdf.PdfReader(file_bytes)
-    text = ""
-    for page in reader.pages:
-      extracted = page.extract_text()
-      if extracted:
-        text += extracted + "\n"
-    return text.strip()
-  except Exception as e:
-    print(f"Error reading PDF: {e}")
-    return ""
-
-
-# --- 5. مسارات تقديم الملفات (تأمين الواجهة والرابط الرئيسية) ---
+    try:
+        reader = pypdf.PdfReader(file_bytes)
+        text = ""
+        for page in reader.pages:
+            extracted = page.extract_text()
+            if extracted:
+                text += extracted + "\n"
+        return text.strip()
+    except Exception as e:
+        print(f"Error reading PDF: {e}")
+        return ""
 
 
 @app.get("/", response_class=HTMLResponse)
 async def read_index():
-  """تقديم صفحة index.html على الصفحة الرئيسية للمشروع"""
-  if os.path.exists("index.html"):
-    with open("index.html", "r", encoding="utf-8") as f:
-      return f.read()
-  return "<h1>خطأ: ملف index.html غير موجود في مجلد المشروع</h1>"
-
-
-@app.get("/widget.js")
-async def get_widget_js():
-  """تقديم ملف widget.js لتضمنه المتاجر"""
-  if os.path.exists("widget.js"):
-    return FileResponse("widget.js", media_type="application/javascript")
-  raise HTTPException(status_code=404, detail="ملف widget.js غير موجود")
-
-
-# --- 6. مسارات الـ API ---
+    if os.path.exists("index.html"):
+        with open("index.html", "r", encoding="utf-8") as f:
+            return f.read()
+    return "<h1>مرحباً بك في منصة المساعد الذكي للمتاجر</h1>"
 
 
 @app.post("/api/register-store")
@@ -128,63 +116,146 @@ async def register_store(
     pdf_file: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
 ):
-  """تسجيل متجر جديد وإنشاء store_id وكود الويدجت"""
-  catalog_content = ""
+    catalog_content = ""
+    if pdf_file and pdf_file.filename.endswith(".pdf"):
+        catalog_content = extract_pdf_text(pdf_file.file)
 
-  if pdf_file and pdf_file.filename.endswith(".pdf"):
-    catalog_content = extract_pdf_text(pdf_file.file)
+    new_store = StoreModel(
+        store_name=store_name,
+        store_url=store_url,
+        whatsapp_number=whatsapp_number,
+        agent_notes=agent_notes,
+        catalog_text=catalog_content,
+    )
 
-  new_store = StoreModel(
-      store_name=store_name,
-      store_url=store_url,
-      whatsapp_number=whatsapp_number,
-      agent_notes=agent_notes,
-      catalog_text=catalog_content,
-  )
+    db.add(new_store)
+    db.commit()
+    db.refresh(new_store)
 
-  db.add(new_store)
-  db.commit()
-  db.refresh(new_store)
+    qr_code_data = None
 
-  return {
-      "status": "success",
-      "message": "تم تسجيل المتجر بنجاح",
-      "store_id": new_store.id,
-      "widget_code": (
-          f'<script src="http://localhost:8000/widget.js"'
-          f' data-store-id="{new_store.id}"></script>'
-      ),
-  }
+    if whatsapp_number:
+        clean_phone = whatsapp_number.replace("+", "").strip()
+        instance_name = f"store_{clean_phone}"
+        headers = {
+            "apikey": EVOLUTION_GLOBAL_KEY,
+            "Content-Type": "application/json"
+        }
+
+        async with httpx.AsyncClient() as client:
+            try:
+                create_payload = {
+                    "instanceName": instance_name,
+                    "qrcode": True,
+                    "integration": "WHATSAPP-BAILEYS"
+                }
+                res = await client.post(f"{EVOLUTION_API_URL}/instance/create", json=create_payload, headers=headers, timeout=15.0)
+                
+                if res.status_code in [200, 201]:
+                    qr_code_data = res.json().get("qrcode", {}).get("base64")
+
+                webhook_payload = {
+                    "webhook": {
+                        "enabled": True,
+                        "url": f"{WEBHOOK_BASE_URL}/api/whatsapp/webhook/{new_store.id}",
+                        "byEvents": False,
+                        "events": ["MESSAGES-UPSERT"]
+                    }
+                }
+                await client.post(f"{EVOLUTION_API_URL}/webhook/set/{instance_name}", json=webhook_payload, headers=headers, timeout=15.0)
+
+            except Exception as e:
+                print(f"❌ Evolution API Connection Error: {e}")
+
+    return {
+        "status": "success",
+        "message": "تم تسجيل المتجر بنجاح",
+        "store_id": new_store.id,
+        "qr_code": qr_code_data,
+        "widget_code": f'<script src="{WEBHOOK_BASE_URL}/widget.js" data-store-id="{new_store.id}"></script>',
+    }
 
 
-@app.get("/api/store/{store_id}")
-async def get_store_info(store_id: str, db: Session = Depends(get_db)):
-  """جلب معلومات المتجر"""
-  store = db.query(StoreModel).filter(StoreModel.id == store_id).first()
-  if not store:
-    raise HTTPException(status_code=404, detail="المتجر غير موجود")
-  return store
+@app.post("/api/whatsapp/webhook/{store_id}")
+async def whatsapp_evolution_webhook(store_id: str, request: Request, db: Session = Depends(get_db)):
+    store = db.query(StoreModel).filter(StoreModel.id == store_id).first()
+    if not store:
+        return {"status": "store_not_found"}
 
+    try:
+        data = await request.json()
+        msg_data = data.get("data", {})
+        
+        if "message" in msg_data:
+            key = msg_data.get("key", {})
+            sender_remote_jid = key.get("remoteJid", "")
+            is_from_me = key.get("fromMe", False)
 
-@app.post("/api/chat")
-async def chat_endpoint(req: ChatRequest, db: Session = Depends(get_db)):
-  """مسار المحادثة المخصص حسب store_id"""
-  store = db.query(StoreModel).filter(StoreModel.id == req.store_id).first()
+            if is_from_me or "g.us" in sender_remote_jid:
+                return {"status": "ignored"}
 
-  if not store:
-    raise HTTPException(status_code=404, detail="معرف المتجر غير صالح")
+            msg_body = msg_data.get("message", {})
+            message_content = (
+                msg_body.get("conversation") or 
+                msg_body.get("extendedTextMessage", {}).get("text") or ""
+            )
 
-  # إجابة تجريبية مخصصة للمتجر (يمكن ربطها مستقبلاً بـ Gemini API)
-  ai_reply = (
-      f"أهلاً بك في {store.store_name}! "
-      f"بناءً على استفسارك: '{req.message}'، يسعدنا تواصلك معنا عبر الواتساب"
-      f" {store.whatsapp_number or ''} لمزيد من التفاصيل."
-  )
+            if message_content and sender_remote_jid:
+                previous_logs = db.query(ChatLogModel).filter(
+                    ChatLogModel.store_id == store.id,
+                    ChatLogModel.sender_id == sender_remote_jid
+                ).order_by(ChatLogModel.created_at.desc()).limit(5).all()
 
-  chat_log = ChatLogModel(
-      store_id=store.id, user_message=req.message, bot_response=ai_reply
-  )
-  db.add(chat_log)
-  db.commit()
+                previous_logs.reverse()
 
-  return {"response": ai_reply, "store_id": store.id}
+                chat_history = []
+                for log in previous_logs:
+                    chat_history.append({"role": "user", "content": log.user_message})
+                    chat_history.append({"role": "assistant", "content": log.bot_response})
+
+                chat_history.append({"role": "user", "content": message_content})
+
+                system_prompt = f"""
+                أنت مساعد مبيعات ذكي يعمل لصالح متجر '{store.store_name}' عبر الواتساب.
+                التعليمات والمهام: {store.agent_notes if store.agent_notes else 'كن ودوداً وخادماً للعملاء.'}
+                كتالوج المنتجات والأسعار: {store.catalog_text if store.catalog_text else 'لا يوجد كتالوج مرفق.'}
+                جاوب باختصار وبشكل واضح ومناسب للمحادثات عبر الواتساب.
+                """
+
+                # تم ضبط المعرّف بدقة لـ Claude Sonnet 4.5
+                response = claude_client.messages.create(
+                    model="claude-sonnet-4.5",
+                    max_tokens=500,
+                    system=system_prompt,
+                    messages=chat_history
+                )
+                reply_text = response.content[0].text
+
+                db.add(ChatLogModel(
+                    store_id=store.id,
+                    sender_id=sender_remote_jid,
+                    user_message=message_content,
+                    bot_response=reply_text
+                ))
+                db.commit()
+
+                clean_phone = store.whatsapp_number.replace('+', '').strip()
+                send_url = f"{EVOLUTION_API_URL}/message/sendText/store_{clean_phone}"
+                headers = {
+                    "apikey": EVOLUTION_GLOBAL_KEY,
+                    "Content-Type": "application/json"
+                }
+                
+                target_number = sender_remote_jid.split("@")[0]
+                payload = {
+                    "number": target_number,
+                    "text": reply_text
+                }
+
+                async with httpx.AsyncClient() as client:
+                    await client.post(send_url, json=payload, headers=headers, timeout=10.0)
+
+    except Exception as e:
+        print(f"❌ Webhook Processing Error: {e}")
+
+    return {"status": "success"}
