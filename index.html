@@ -1,172 +1,442 @@
-<!DOCTYPE html>
+
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
     <title>منصة المساعد الذكي للمتاجر</title>
-    <!-- Tailwind CSS CDN -->
+
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- الخط العربي (Tajawal) -->
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap"
+        rel="stylesheet"
+    >
+
     <style>
         body {
             font-family: 'Tajawal', sans-serif;
         }
     </style>
 </head>
+
 <body class="bg-slate-50 text-slate-800 min-h-screen py-10 px-4">
 
-    <div class="max-w-3xl mx-auto bg-white rounded-2xl shadow-xl p-6 sm:p-10 border border-slate-100">
-        
-        <!-- Header -->
-        <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold text-indigo-700 mb-2">🤖 منصة المساعد الذكي للمتاجر</h1>
-            <p class="text-slate-500 text-sm sm:text-base">قم بتسجيل متجرك وتوليد كود الـ QR الخاص بالواتساب وودجت المحادثة فوراً</p>
+<div class="max-w-3xl mx-auto bg-white rounded-2xl shadow-xl p-6 sm:p-10 border border-slate-100">
+
+    <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-indigo-700 mb-2">
+            🤖 منصة المساعد الذكي للمتاجر
+        </h1>
+
+        <p class="text-slate-500 text-sm sm:text-base">
+            قم بتسجيل متجرك وتوليد QR الخاص بالواتساب وودجت المحادثة.
+        </p>
+    </div>
+
+    <form id="storeForm" class="space-y-5">
+
+        <div>
+            <label
+                for="store_name"
+                class="block text-sm font-semibold text-slate-700 mb-1"
+            >
+                اسم المتجر
+                <span class="text-red-500">*</span>
+            </label>
+
+            <input
+                type="text"
+                id="store_name"
+                name="store_name"
+                required
+                placeholder="مثال: متجر الأناقة"
+                class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+            >
         </div>
 
-        <!-- Form -->
-        <form id="storeForm" class="space-y-5">
-            
-            <div>
-                <label for="store_name" class="block text-sm font-semibold text-slate-700 mb-1">اسم المتجر <span class="text-red-500">*</span></label>
-                <input type="text" id="store_name" name="store_name" required placeholder="مثال: متجر الأناقة" 
-                    class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
+        <div>
+            <label
+                for="store_url"
+                class="block text-sm font-semibold text-slate-700 mb-1"
+            >
+                رابط المتجر الإلكتروني (اختياري)
+            </label>
+
+            <input
+                type="url"
+                id="store_url"
+                name="store_url"
+                placeholder="https://my-store.com"
+                class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-left"
+                dir="ltr"
+            >
+        </div>
+
+        <div>
+            <label
+                for="whatsapp_number"
+                class="block text-sm font-semibold text-slate-700 mb-1"
+            >
+                رقم الواتساب مع المفتاح الدولي
+                <span class="text-red-500">*</span>
+            </label>
+
+            <input
+                type="text"
+                id="whatsapp_number"
+                name="whatsapp_number"
+                required
+                placeholder="9677XXXXXXXX"
+                inputmode="numeric"
+                class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-left"
+                dir="ltr"
+            >
+
+            <p class="text-xs text-slate-400 mt-1">
+                مثال اليمن: 9677XXXXXXXX بدون + أو مسافات.
+            </p>
+        </div>
+
+        <div>
+            <label
+                for="agent_notes"
+                class="block text-sm font-semibold text-slate-700 mb-1"
+            >
+                تعليمات المساعد الذكي
+            </label>
+
+            <textarea
+                id="agent_notes"
+                name="agent_notes"
+                rows="3"
+                placeholder="مثال: أجب بلباقة، اذكر الأسعار من الكتالوج فقط..."
+                class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+            ></textarea>
+        </div>
+
+        <div>
+            <label
+                for="pdf_file"
+                class="block text-sm font-semibold text-slate-700 mb-1"
+            >
+                رفع كتالوج المنتجات PDF (اختياري)
+            </label>
+
+            <input
+                type="file"
+                id="pdf_file"
+                name="pdf_file"
+                accept=".pdf,application/pdf"
+                class="w-full px-3 py-2 text-sm text-slate-500 border border-slate-300 rounded-lg cursor-pointer bg-slate-50"
+            >
+        </div>
+
+        <button
+            type="submit"
+            id="submitBtn"
+            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition shadow-md"
+        >
+            تسجيل وتفعيل المتجر
+        </button>
+
+    </form>
+
+    <div
+        id="resultBox"
+        class="hidden mt-8 pt-8 border-t border-slate-200 space-y-6"
+    >
+
+        <div
+            id="resultMessage"
+            class="p-4 rounded-xl text-center font-medium"
+        ></div>
+
+        <div
+            id="errorBox"
+            class="hidden p-4 bg-red-50 border border-red-200 rounded-xl"
+        >
+            <div class="font-bold text-red-700 mb-2">
+                تفاصيل الخطأ
             </div>
 
-            <div>
-                <label for="store_url" class="block text-sm font-semibold text-slate-700 mb-1">رابط المتجر الإلكتروني (اختياري)</label>
-                <input type="url" id="store_url" name="store_url" placeholder="https://my-store.com" 
-                    class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-left" dir="ltr">
+            <pre
+                id="errorText"
+                class="text-xs text-red-600 whitespace-pre-wrap break-words text-left"
+                dir="ltr"
+            ></pre>
+        </div>
+
+        <div
+            id="qrContainer"
+            class="hidden flex flex-col items-center justify-center p-6 bg-slate-100 rounded-xl border border-slate-200 text-center"
+        >
+
+            <h3 class="text-lg font-bold text-slate-800 mb-2">
+                📱 امسح QR Code لربط الواتساب
+            </h3>
+
+            <p class="text-xs text-slate-500 mb-4">
+                واتساب → الأجهزة المرتبطة → ربط جهاز
+            </p>
+
+            <div class="bg-white p-4 rounded-xl shadow-md border border-slate-200">
+                <img
+                    id="qrCodeImg"
+                    src=""
+                    alt="WhatsApp QR Code"
+                    class="w-64 h-64 object-contain mx-auto"
+                >
             </div>
 
-            <div>
-                <label for="whatsapp_number" class="block text-sm font-semibold text-slate-700 mb-1">رقم الواتساب مع المفتاح الدولي (اختياري)</label>
-                <input type="text" id="whatsapp_number" name="whatsapp_number" placeholder="966500000000" 
-                    class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-left" dir="ltr">
-                <p class="text-xs text-slate-400 mt-1">اكتب الرقم بدون علامة + أو مسافات لتوليد QR Code للربط عبر Evolution API.</p>
-            </div>
-
-            <div>
-                <label for="agent_notes" class="block text-sm font-semibold text-slate-700 mb-1">تعليمات المساعد الذكي (Prompt/Notes)</label>
-                <textarea id="agent_notes" name="agent_notes" rows="3" placeholder="مثال: أجب على استفسارات العملاء بلباقة، وساعات العمل من 9 صباحاً حتى 10 مساءً." 
-                    class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"></textarea>
-            </div>
-
-            <div>
-                <label for="pdf_file" class="block text-sm font-semibold text-slate-700 mb-1">رفع كتالوج المنتجات PDF (اختياري)</label>
-                <input type="file" id="pdf_file" name="pdf_file" accept=".pdf" 
-                    class="w-full px-3 py-2 text-sm text-slate-500 border border-slate-300 rounded-lg cursor-pointer bg-slate-50 focus:outline-none">
-            </div>
-
-            <button type="submit" id="submitBtn" 
-                class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition duration-200 shadow-md hover:shadow-lg">
-                تسجيل وتفعيل المتجر
+            <button
+                type="button"
+                id="refreshQrBtn"
+                class="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg"
+            >
+                تحديث QR
             </button>
 
-        </form>
+        </div>
 
-        <!-- Result Box (Hidden by default) -->
-        <div id="resultBox" class="hidden mt-8 pt-8 border-t border-slate-200 space-y-6">
-            
-            <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-center font-medium" id="resultMessage">
-                تم تسجيل المتجر بنجاح!
-            </div>
+        <div id="widgetContainer" class="space-y-2">
 
-            <!-- QR Code Section -->
-            <div id="qrContainer" class="hidden flex flex-col items-center justify-center p-6 bg-slate-100 rounded-xl border border-slate-200 text-center">
-                <h3 class="text-lg font-bold text-slate-800 mb-2">📱 امسح الـ QR Code لربط الواتساب</h3>
-                <p class="text-xs text-slate-500 mb-4">افتح تطبيق الواتساب > الأجهزة المرتبطة > ربط جهاز، واقشر الكود أدناه:</p>
-                <div class="bg-white p-4 rounded-xl shadow-md border border-slate-200">
-                    <img id="qrCodeImg" src="" alt="WhatsApp QR Code" class="w-64 h-64 object-contain mx-auto" />
-                </div>
-            </div>
+            <label class="block text-sm font-semibold text-slate-700">
+                كود الودجت لموقعك:
+            </label>
 
-            <!-- Widget Code Section -->
-            <div id="widgetContainer" class="space-y-2">
-                <label class="block text-sm font-semibold text-slate-700">كود الودجت لربطه بموقعك الإلكتروني:</label>
-                <div class="relative">
-                    <textarea id="widgetCodeOutput" readonly rows="3" 
-                        class="w-full p-3 bg-slate-900 text-emerald-400 font-mono text-xs sm:text-sm rounded-lg border border-slate-700 text-left outline-none" dir="ltr"></textarea>
-                    <button type="button" id="copyWidgetBtn" onclick="copyWidgetCode()" 
-                        class="absolute top-2 right-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded transition">
-                        نسخ الكود
-                    </button>
-                </div>
-            </div>
+            <textarea
+                id="widgetCodeOutput"
+                readonly
+                rows="3"
+                class="w-full p-3 bg-slate-900 text-emerald-400 font-mono text-xs sm:text-sm rounded-lg border border-slate-700 text-left outline-none"
+                dir="ltr"
+            ></textarea>
+
+            <button
+                type="button"
+                id="copyWidgetBtn"
+                class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded"
+            >
+                نسخ الكود
+            </button>
 
         </div>
 
     </div>
 
-    <!-- JavaScript Logic -->
-    <script>
-        document.getElementById('storeForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('submitBtn');
-            btn.disabled = true;
-            btn.textContent = 'جاري معالجة البيانات وإنشاء كود الـ QR...';
+</div>
 
-            const formData = new FormData();
-            formData.append('store_name', document.getElementById('store_name').value);
-            formData.append('store_url', document.getElementById('store_url').value);
-            formData.append('whatsapp_number', document.getElementById('whatsapp_number').value);
-            formData.append('agent_notes', document.getElementById('agent_notes').value);
-            
-            const pdfFile = document.getElementById('pdf_file').files[0];
-            if (pdfFile) {
-                formData.append('pdf_file', pdfFile);
+<script>
+const form = document.getElementById("storeForm");
+const submitBtn = document.getElementById("submitBtn");
+
+const resultBox = document.getElementById("resultBox");
+const resultMessage = document.getElementById("resultMessage");
+
+const qrContainer = document.getElementById("qrContainer");
+const qrCodeImg = document.getElementById("qrCodeImg");
+const refreshQrBtn = document.getElementById("refreshQrBtn");
+
+const errorBox = document.getElementById("errorBox");
+const errorText = document.getElementById("errorText");
+
+const widgetCodeOutput =
+    document.getElementById("widgetCodeOutput");
+
+const copyWidgetBtn =
+    document.getElementById("copyWidgetBtn");
+
+let currentStoreId = null;
+
+form.addEventListener("submit", async function (event) {
+    event.preventDefault();
+
+    submitBtn.disabled = true;
+    submitBtn.textContent =
+        "جاري إنشاء المتجر وطلب QR...";
+
+    resultBox.classList.remove("hidden");
+    qrContainer.classList.add("hidden");
+    errorBox.classList.add("hidden");
+
+    const formData = new FormData();
+
+    formData.append(
+        "store_name",
+        document.getElementById("store_name").value
+    );
+
+    formData.append(
+        "store_url",
+        document.getElementById("store_url").value
+    );
+
+    formData.append(
+        "whatsapp_number",
+        document.getElementById("whatsapp_number").value
+    );
+
+    formData.append(
+        "agent_notes",
+        document.getElementById("agent_notes").value
+    );
+
+    const pdfFile =
+        document.getElementById("pdf_file").files[0];
+
+    if (pdfFile) {
+        formData.append("pdf_file", pdfFile);
+    }
+
+    try {
+        const response = await fetch(
+            "/api/register-store",
+            {
+                method: "POST",
+                body: formData
             }
+        );
 
-            try {
-                const response = await fetch('/api/register-store', {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await response.json();
+        const data = await response.json();
 
-                if (data.status === 'success') {
-                    // إظهار صندوق النتائج
-                    document.getElementById('resultBox').classList.remove('hidden');
-                    document.getElementById('resultMessage').textContent = data.message;
-                    document.getElementById('widgetCodeOutput').value = data.widget_code;
+        currentStoreId = data.store_id || null;
 
-                    // معالجة عرض QR Code
-                    const qrContainer = document.getElementById('qrContainer');
-                    const qrImg = document.getElementById('qrCodeImg');
+        widgetCodeOutput.value =
+            data.widget_code || "";
 
-                    if (data.qr_code) {
-                        qrContainer.classList.remove('hidden');
-                        qrImg.src = data.qr_code;
-                    } else {
-                        qrContainer.classList.remove('hidden');
-                        qrContainer.innerHTML = '<p class="text-xs text-amber-600 font-semibold py-2">⚠️ لم يتم توليد QR Code. يرجى التأكد من كتابة رقم الواتساب بصيغة صحيحة بدون + والتأكد من إعدادات المفاتيح (EVOLUTION_GLOBAL_KEY).</p>';
-                    }
-                } else {
-                    alert('حدث خطأ أثناء التسجيل');
-                }
-            } catch (error) {
-                console.error(error);
-                alert('فشل الاتصال بالخادم');
-            } finally {
-                btn.disabled = false;
-                btn.textContent = 'تسجيل وتفعيل المتجر';
-            }
-        });
+        if (data.qr_code) {
+            resultMessage.textContent =
+                "تم تسجيل المتجر وتوليد QR Code بنجاح.";
 
-        function copyWidgetCode() {
-            const widgetCodeText = document.getElementById('widgetCodeOutput');
-            widgetCodeText.select();
-            document.execCommand('copy');
-            
-            const copyBtn = document.getElementById('copyWidgetBtn');
-            copyBtn.textContent = 'تم النسخ! ✓';
-            copyBtn.classList.replace('bg-indigo-600', 'bg-emerald-600');
-            
-            setTimeout(() => {
-                copyBtn.textContent = 'نسخ الكود';
-                copyBtn.classList.replace('bg-emerald-600', 'bg-indigo-600');
-            }, 2000);
+            resultMessage.className =
+                "p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-center font-medium";
+
+            showQr(data.qr_code);
+        } else {
+            resultMessage.textContent =
+                "تم تسجيل المتجر، لكن لم يتم استلام QR Code من Evolution API.";
+
+            resultMessage.className =
+                "p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-center font-medium";
+
+            showError(
+                data.evolution_error ||
+                data.evolution_connect_response ||
+                data.evolution_create_response ||
+                "Evolution API لم يرجع QR Code."
+            );
         }
-    </script>
+
+    } catch (error) {
+        console.error(error);
+
+        resultMessage.textContent =
+            "فشل الاتصال بالخادم.";
+
+        resultMessage.className =
+            "p-4 bg-red-50 border border-red-200 rounded-xl text-red-800 text-center font-medium";
+
+        showError(error.message);
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent =
+            "تسجيل وتفعيل المتجر";
+    }
+});
+
+
+refreshQrBtn.addEventListener(
+    "click",
+    async function () {
+        if (!currentStoreId) {
+            return;
+        }
+
+        refreshQrBtn.disabled = true;
+        refreshQrBtn.textContent =
+            "جاري التحديث...";
+
+        try {
+            const response = await fetch(
+                `/api/whatsapp/qr/${currentStoreId}`
+            );
+
+            const data = await response.json();
+
+            if (data.qr_code) {
+                showQr(data.qr_code);
+                errorBox.classList.add("hidden");
+            } else {
+                showError(
+                    data.evolution_response ||
+                    data.message ||
+                    "لم يتم استلام QR Code."
+                );
+            }
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            refreshQrBtn.disabled = false;
+            refreshQrBtn.textContent =
+                "تحديث QR";
+        }
+    }
+);
+
+
+function showQr(qr) {
+    qrContainer.classList.remove("hidden");
+    qrCodeImg.src = qr;
+}
+
+
+function showError(error) {
+    errorBox.classList.remove("hidden");
+
+    if (typeof error === "string") {
+        errorText.textContent = error;
+    } else {
+        try {
+            errorText.textContent =
+                JSON.stringify(error, null, 2);
+        } catch (_) {
+            errorText.textContent =
+                String(error);
+        }
+    }
+}
+
+
+copyWidgetBtn.addEventListener(
+    "click",
+    async function () {
+        const text = widgetCodeOutput.value;
+
+        if (!text) {
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(text);
+        } catch (_) {
+            widgetCodeOutput.select();
+            document.execCommand("copy");
+        }
+
+        copyWidgetBtn.textContent =
+            "تم النسخ ✓";
+
+        setTimeout(function () {
+            copyWidgetBtn.textContent =
+                "نسخ الكود";
+        }, 2000);
+    }
+);
+</script>
+
 </body>
 </html>
