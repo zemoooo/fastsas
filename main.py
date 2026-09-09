@@ -1,7 +1,8 @@
 import os
 import uuid
+import base64
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Any
 
 import anthropic
 import httpx
@@ -55,19 +56,16 @@ WEBHOOK_BASE_URL = os.getenv(
 # STARTUP LOG
 # ============================================================
 
-print("=" * 60)
+print("=" * 70)
 print("AI STORE ASSISTANT STARTING")
-print("=" * 60)
+print("=" * 70)
 
 print(
     "ANTHROPIC_API_KEY:",
     "LOADED" if ANTHROPIC_API_KEY else "MISSING"
 )
 
-print(
-    "ANTHROPIC_MODEL:",
-    ANTHROPIC_MODEL
-)
+print("ANTHROPIC_MODEL:", ANTHROPIC_MODEL)
 
 print(
     "EVOLUTION_API_URL:",
@@ -84,12 +82,9 @@ print(
     WEBHOOK_BASE_URL or "MISSING"
 )
 
-print(
-    "DATABASE_URL:",
-    DATABASE_URL
-)
+print("DATABASE_URL:", DATABASE_URL)
 
-print("=" * 60)
+print("=" * 70)
 
 
 # ============================================================
@@ -105,7 +100,8 @@ if DATABASE_URL.startswith("sqlite"):
 
 engine = create_engine(
     DATABASE_URL,
-    connect_args=connect_args
+    connect_args=connect_args,
+    pool_pre_ping=True
 )
 
 SessionLocal = sessionmaker(
@@ -118,7 +114,7 @@ Base = declarative_base()
 
 
 # ============================================================
-# STORE
+# STORE MODEL
 # ============================================================
 
 class StoreModel(Base):
@@ -168,7 +164,7 @@ class StoreModel(Base):
 
 
 # ============================================================
-# CHAT LOG
+# CHAT LOG MODEL
 # ============================================================
 
 class ChatLogModel(Base):
@@ -211,7 +207,7 @@ class ChatLogModel(Base):
 
 
 # ============================================================
-# CREATE DATABASE TABLES
+# CREATE DATABASE
 # ============================================================
 
 try:
@@ -241,6 +237,7 @@ def get_db():
 claude_client = None
 
 if ANTHROPIC_API_KEY:
+
     try:
         claude_client = anthropic.Anthropic(
             api_key=ANTHROPIC_API_KEY
@@ -249,6 +246,7 @@ if ANTHROPIC_API_KEY:
         print("Anthropic client initialized")
 
     except Exception as e:
+
         print(
             "Anthropic initialization error:",
             str(e)
@@ -261,7 +259,7 @@ if ANTHROPIC_API_KEY:
 
 app = FastAPI(
     title="AI Store Assistant SaaS Platform",
-    version="1.0.0"
+    version="2.0.0"
 )
 
 
@@ -272,19 +270,22 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"]
 )
 
 
 # ============================================================
-# MODELS
+# CHAT REQUEST
 # ============================================================
 
 class ChatRequest(BaseModel):
+
     store_id: str
+
     message: str
+
     sender_id: Optional[str] = "preview_user"
 
 
@@ -293,6 +294,10 @@ class ChatRequest(BaseModel):
 # ============================================================
 
 def clean_phone_number(phone: str) -> str:
+
+    if not phone:
+        return ""
+
     return (
         phone
         .replace("+", "")
@@ -300,15 +305,173 @@ def clean_phone_number(phone: str) -> str:
         .replace("-", "")
         .replace("(", "")
         .replace(")", "")
+        .replace(".", "")
         .strip()
     )
 
 
+def make_instance_name(phone: str) -> str:
+
+    clean_phone = clean_phone_number(phone)
+
+    return f"store_{clean_phone}"
+
+
 def evolution_headers():
+
     return {
         "apikey": EVOLUTION_GLOBAL_KEY,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Accept": "application/json"
     }
+
+
+def safe_json(response: httpx.Response) -> dict:
+
+    try:
+
+        data = response.json()
+
+        if isinstance(data, dict):
+            return data
+
+    except Exception:
+        pass
+
+    return {}
+
+
+def normalize_qr(value: Any) -> Optional[str]:
+
+    if value is None:
+        return None
+
+    if isinstance(value, str):
+
+        value = value.strip()
+
+        if not value:
+            return None
+
+        # Already a data URL
+        if value.startswith("data:image"):
+            return value
+
+        # Base64 PNG/JPG without prefix
+        return "data:image/png;base64," + value
+
+    return None
+
+
+def extract_qr_code(data: Any) -> Optional[str]:
+
+    """
+    Supports multiple Evolution API QR response formats.
+    """
+
+    if not data:
+        return None
+
+    if isinstance(data, dict):
+
+        # ----------------------------------------------------
+        # qrcode object
+        # ----------------------------------------------------
+
+        qrcode = data.get("qrcode")
+
+        if isinstance(qrcode, dict):
+
+            for key in (
+                "base64",
+                "code",
+                "qrcode"
+            ):
+
+                value = qrcode.get(key)
+
+                result = normalize_qr(value)
+
+                if result:
+                    return result
+
+        else:
+
+            result = normalize_qr(qrcode)
+
+            if result:
+                return result
+
+        # ----------------------------------------------------
+        # direct base64
+        # ----------------------------------------------------
+
+        for key in (
+            "base64",
+            "qr",
+            "qrCode",
+            "code"
+        ):
+
+            value = data.get(key)
+
+            result = normalize_qr(value)
+
+            if result:
+                return result
+
+        # ----------------------------------------------------
+        # nested data
+        # ----------------------------------------------------
+
+        nested = data.get("data")
+
+        if nested:
+
+            result = extract_qr_code(nested)
+
+            if result:
+                return result
+
+        # ----------------------------------------------------
+        # nested response
+        # ----------------------------------------------------
+
+        nested = data.get("response")
+
+        if nested:
+
+            result = extract_qr_code(nested)
+
+            if result:
+                return result
+
+    return None
+
+
+def extract_instance_status(data: Any) -> str:
+
+    if not isinstance(data, dict):
+        return "unknown"
+
+    instance = data.get("instance")
+
+    if isinstance(instance, dict):
+
+        status = (
+            instance.get("status")
+            or instance.get("state")
+            or instance.get("connectionStatus")
+        )
+
+        if status:
+            return str(status)
+
+    return str(
+        data.get("status")
+        or data.get("state")
+        or "unknown"
+    )
 
 
 # ============================================================
@@ -316,12 +479,15 @@ def evolution_headers():
 # ============================================================
 
 def extract_pdf_text(file_object) -> str:
+
     try:
+
         reader = pypdf.PdfReader(file_object)
 
         parts = []
 
         for page in reader.pages:
+
             text = page.extract_text()
 
             if text:
@@ -330,6 +496,7 @@ def extract_pdf_text(file_object) -> str:
         return "\n".join(parts).strip()
 
     except Exception as e:
+
         print(
             "PDF extraction error:",
             str(e)
@@ -339,11 +506,67 @@ def extract_pdf_text(file_object) -> str:
 
 
 # ============================================================
+# EVOLUTION REQUEST
+# ============================================================
+
+async def evolution_request(
+    method: str,
+    path: str,
+    json_data: Optional[dict] = None,
+    timeout: int = 30
+):
+
+    if not EVOLUTION_API_URL:
+        raise RuntimeError(
+            "EVOLUTION_API_URL غير مضبوط"
+        )
+
+    if not EVOLUTION_GLOBAL_KEY:
+        raise RuntimeError(
+            "EVOLUTION_GLOBAL_KEY غير مضبوط"
+        )
+
+    url = (
+        EVOLUTION_API_URL.rstrip("/")
+        + "/"
+        + path.lstrip("/")
+    )
+
+    print("Evolution request:", method, url)
+
+    async with httpx.AsyncClient(
+        follow_redirects=True
+    ) as client:
+
+        response = await client.request(
+            method=method.upper(),
+            url=url,
+            json=json_data,
+            headers=evolution_headers(),
+            timeout=timeout
+        )
+
+    print(
+        "Evolution status:",
+        response.status_code
+    )
+
+    if response.text:
+        print(
+            "Evolution response:",
+            response.text[:4000]
+        )
+
+    return response
+
+
+# ============================================================
 # HEALTH
 # ============================================================
 
 @app.get("/health")
 async def health():
+
     return {
         "status": "ok",
         "service": "AI Store Assistant",
@@ -363,15 +586,19 @@ async def health():
 async def home():
 
     if os.path.exists("index.html"):
+
         try:
+
             with open(
                 "index.html",
                 "r",
                 encoding="utf-8"
             ) as file:
+
                 return file.read()
 
         except Exception as e:
+
             print(
                 "index.html error:",
                 str(e)
@@ -382,6 +609,7 @@ async def home():
     <html lang="ar" dir="rtl">
     <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
         <title>AI Store Assistant</title>
     </head>
     <body>
@@ -390,6 +618,330 @@ async def home():
     </body>
     </html>
     """
+
+
+# ============================================================
+# GET STORED INSTANCE INFORMATION
+# ============================================================
+
+@app.get("/api/whatsapp/status/{store_id}")
+async def whatsapp_status(
+    store_id: str,
+    db: Session = Depends(get_db)
+):
+
+    store = (
+        db.query(StoreModel)
+        .filter(StoreModel.id == store_id)
+        .first()
+    )
+
+    if not store:
+
+        raise HTTPException(
+            status_code=404,
+            detail="المتجر غير موجود"
+        )
+
+    if not store.whatsapp_number:
+
+        return {
+            "status": "no_whatsapp"
+        }
+
+    instance_name = make_instance_name(
+        store.whatsapp_number
+    )
+
+    try:
+
+        response = await evolution_request(
+            "GET",
+            f"/instance/connectionState/{instance_name}"
+        )
+
+        data = safe_json(response)
+
+        return {
+            "status": "success"
+            if response.status_code < 300
+            else "failed",
+            "instance_name": instance_name,
+            "connection_status": extract_instance_status(data),
+            "response": data
+        }
+
+    except Exception as e:
+
+        return {
+            "status": "failed",
+            "instance_name": instance_name,
+            "error": str(e)
+        }
+
+
+# ============================================================
+# GET QR
+# ============================================================
+
+@app.get("/api/whatsapp/qr/{store_id}")
+async def whatsapp_qr(
+    store_id: str,
+    db: Session = Depends(get_db)
+):
+
+    store = (
+        db.query(StoreModel)
+        .filter(StoreModel.id == store_id)
+        .first()
+    )
+
+    if not store:
+
+        raise HTTPException(
+            status_code=404,
+            detail="المتجر غير موجود"
+        )
+
+    if not store.whatsapp_number:
+
+        raise HTTPException(
+            status_code=400,
+            detail="لا يوجد رقم WhatsApp للمتجر"
+        )
+
+    instance_name = make_instance_name(
+        store.whatsapp_number
+    )
+
+    # --------------------------------------------------------
+    # Try current Evolution QR endpoint
+    # --------------------------------------------------------
+
+    try:
+
+        response = await evolution_request(
+            "GET",
+            f"/instance/qr/{instance_name}"
+        )
+
+        data = safe_json(response)
+
+        qr_code = extract_qr_code(data)
+
+        if qr_code:
+
+            return {
+                "status": "success",
+                "instance_name": instance_name,
+                "qr_code": qr_code,
+                "response": data
+            }
+
+    except Exception as e:
+
+        print(
+            "QR endpoint attempt 1 failed:",
+            str(e)
+        )
+
+    # --------------------------------------------------------
+    # Try alternate endpoint used by some Evolution builds
+    # --------------------------------------------------------
+
+    try:
+
+        response = await evolution_request(
+            "GET",
+            f"/instance/qr?instanceName={instance_name}"
+        )
+
+        data = safe_json(response)
+
+        qr_code = extract_qr_code(data)
+
+        if qr_code:
+
+            return {
+                "status": "success",
+                "instance_name": instance_name,
+                "qr_code": qr_code,
+                "response": data
+            }
+
+    except Exception as e:
+
+        print(
+            "QR endpoint attempt 2 failed:",
+            str(e)
+        )
+
+    return {
+        "status": "qr_not_available",
+        "instance_name": instance_name,
+        "message": (
+            "لم يتم الحصول على QR Code من Evolution API. "
+            "تحقق من اتصال Evolution وRedis."
+        )
+    }
+
+
+# ============================================================
+# RECONNECT / NEW QR
+# ============================================================
+
+@app.post("/api/whatsapp/connect/{store_id}")
+async def whatsapp_connect(
+    store_id: str,
+    db: Session = Depends(get_db)
+):
+
+    store = (
+        db.query(StoreModel)
+        .filter(StoreModel.id == store_id)
+        .first()
+    )
+
+    if not store:
+
+        raise HTTPException(
+            status_code=404,
+            detail="المتجر غير موجود"
+        )
+
+    if not store.whatsapp_number:
+
+        raise HTTPException(
+            status_code=400,
+            detail="رقم WhatsApp غير موجود"
+        )
+
+    instance_name = make_instance_name(
+        store.whatsapp_number
+    )
+
+    # --------------------------------------------------------
+    # First check existing connection
+    # --------------------------------------------------------
+
+    try:
+
+        state_response = await evolution_request(
+            "GET",
+            f"/instance/connectionState/{instance_name}"
+        )
+
+        state_data = safe_json(state_response)
+
+        state = extract_instance_status(
+            state_data
+        ).lower()
+
+        if state in (
+            "open",
+            "connected"
+        ):
+
+            return {
+                "status": "connected",
+                "instance_name": instance_name,
+                "connection_status": state
+            }
+
+    except Exception as e:
+
+        print(
+            "Connection state check error:",
+            str(e)
+        )
+
+    # --------------------------------------------------------
+    # Try connect endpoint
+    # --------------------------------------------------------
+
+    connect_attempts = [
+        (
+            f"/instance/connect/{instance_name}",
+            {}
+        ),
+        (
+            f"/instance/connect",
+            {
+                "instanceName": instance_name
+            }
+        )
+    ]
+
+    for path, payload in connect_attempts:
+
+        try:
+
+            response = await evolution_request(
+                "GET" if not payload else "POST",
+                path,
+                payload if payload else None
+            )
+
+            data = safe_json(response)
+
+            qr_code = extract_qr_code(data)
+
+            if qr_code:
+
+                return {
+                    "status": "success",
+                    "instance_name": instance_name,
+                    "qr_code": qr_code,
+                    "response": data
+                }
+
+        except Exception as e:
+
+            print(
+                "Connect attempt failed:",
+                path,
+                str(e)
+            )
+
+    # --------------------------------------------------------
+    # If no QR yet, ask QR endpoint
+    # --------------------------------------------------------
+
+    try:
+
+        qr_response = await evolution_request(
+            "GET",
+            f"/instance/qr/{instance_name}"
+        )
+
+        qr_data = safe_json(qr_response)
+
+        qr_code = extract_qr_code(qr_data)
+
+        if qr_code:
+
+            return {
+                "status": "success",
+                "instance_name": instance_name,
+                "qr_code": qr_code,
+                "response": qr_data
+            }
+
+    except Exception as e:
+
+        print(
+            "Final QR request failed:",
+            str(e)
+        )
+
+    return {
+        "status": "qr_not_available",
+        "instance_name": instance_name,
+        "message": (
+            "Evolution API لم ترجع QR Code. "
+            "راجع سجلات Evolution API وRedis."
+        )
+    }
 
 
 # ============================================================
@@ -409,10 +961,17 @@ async def register_store(
     store_name = store_name.strip()
 
     if not store_name:
+
         raise HTTPException(
             status_code=400,
             detail="اسم المتجر مطلوب"
         )
+
+    whatsapp_number = (
+        whatsapp_number.strip()
+        if whatsapp_number
+        else None
+    )
 
     # --------------------------------------------------------
     # Validate Evolution
@@ -421,21 +980,24 @@ async def register_store(
     if whatsapp_number:
 
         if not EVOLUTION_API_URL:
+
             raise HTTPException(
                 status_code=500,
-                detail="EVOLUTION_API_URL غير مضبوط"
+                detail="EVOLUTION_API_URL غير مضبوط في Render"
             )
 
         if not EVOLUTION_GLOBAL_KEY:
+
             raise HTTPException(
                 status_code=500,
-                detail="EVOLUTION_GLOBAL_KEY غير مضبوط"
+                detail="EVOLUTION_GLOBAL_KEY غير مضبوط في Render"
             )
 
         if not WEBHOOK_BASE_URL:
+
             raise HTTPException(
                 status_code=500,
-                detail="WEBHOOK_BASE_URL غير مضبوط"
+                detail="WEBHOOK_BASE_URL غير مضبوط في Render"
             )
 
     # --------------------------------------------------------
@@ -449,12 +1011,13 @@ async def register_store(
         filename = pdf_file.filename or ""
 
         if filename.lower().endswith(".pdf"):
+
             catalog_text = extract_pdf_text(
                 pdf_file.file
             )
 
     # --------------------------------------------------------
-    # Save Store
+    # Create store
     # --------------------------------------------------------
 
     store = StoreModel(
@@ -468,7 +1031,9 @@ async def register_store(
     try:
 
         db.add(store)
+
         db.commit()
+
         db.refresh(store)
 
     except Exception as e:
@@ -487,6 +1052,7 @@ async def register_store(
 
     qr_code = None
     instance_name = None
+    evolution_response = None
 
     # ========================================================
     # EVOLUTION
@@ -494,168 +1060,217 @@ async def register_store(
 
     if whatsapp_number:
 
-        clean_phone = clean_phone_number(
+        instance_name = make_instance_name(
             whatsapp_number
         )
 
-        instance_name = (
-            "store_" + clean_phone
+        webhook_url = (
+            WEBHOOK_BASE_URL
+            + "/api/whatsapp/webhook/"
+            + store.id
         )
 
-        headers = evolution_headers()
+        # ----------------------------------------------------
+        # CREATE INSTANCE
+        # ----------------------------------------------------
 
-        async with httpx.AsyncClient(
-            follow_redirects=True
-        ) as client:
+        create_payload = {
+            "instanceName": instance_name,
+            "qrcode": True,
+            "integration": "WHATSAPP-BAILEYS"
+        }
 
-            # ------------------------------------------------
-            # CREATE INSTANCE
-            # ------------------------------------------------
+        try:
 
-            create_url = (
-                EVOLUTION_API_URL +
-                "/instance/create"
-            )
-
-            create_payload = {
-                "instanceName": instance_name,
-                "qrcode": True,
-                "integration": "WHATSAPP-BAILEYS"
-            }
-
-            try:
-
-                print(
-                    "Creating Evolution instance:",
-                    instance_name
-                )
-
-                response = await client.post(
-                    create_url,
-                    json=create_payload,
-                    headers=headers,
-                    timeout=30
-                )
-
-                print(
-                    "Evolution create status:",
-                    response.status_code
-                )
-
-                if response.status_code in (200, 201):
-
-                    try:
-
-                        result = response.json()
-
-                        qrcode_data = (
-                            result.get("qrcode") or {}
-                        )
-
-                        qr_code = (
-                            qrcode_data.get("base64")
-                        )
-
-                        if not qr_code:
-                            qr_code = result.get(
-                                "base64"
-                            )
-
-                        if qr_code:
-                            print(
-                                "QR code received"
-                            )
-                        else:
-                            print(
-                                "Instance created but QR code missing"
-                            )
-
-                    except Exception as e:
-
-                        print(
-                            "QR parse error:",
-                            str(e)
-                        )
-
-                else:
-
-                    print(
-                        "Evolution create failed:"
-                    )
-
-                    print(
-                        response.text[:3000]
-                    )
-
-            except Exception as e:
-
-                print(
-                    "Evolution connection error:",
-                    str(e)
-                )
-
-            # ------------------------------------------------
-            # WEBHOOK
-            # ------------------------------------------------
-
-            webhook_url = (
-                WEBHOOK_BASE_URL +
-                "/api/whatsapp/webhook/" +
-                store.id
-            )
-
-            webhook_url_api = (
-                EVOLUTION_API_URL +
-                "/webhook/set/" +
+            print(
+                "Creating Evolution instance:",
                 instance_name
             )
 
-            webhook_payload = {
-                "webhook": {
-                    "enabled": True,
-                    "url": webhook_url,
-                    "byEvents": False,
-                    "events": [
-                        "MESSAGES_UPSERT"
-                    ]
-                }
+            response = await evolution_request(
+                "POST",
+                "/instance/create",
+                create_payload
+            )
+
+            evolution_response = safe_json(
+                response
+            )
+
+            # ------------------------------------------------
+            # Existing instance
+            # ------------------------------------------------
+
+            if response.status_code >= 300:
+
+                print(
+                    "Evolution create failed:",
+                    response.text[:4000]
+                )
+
+                # Try getting QR from existing instance
+                try:
+
+                    qr_response = await evolution_request(
+                        "GET",
+                        f"/instance/qr/{instance_name}"
+                    )
+
+                    qr_data = safe_json(
+                        qr_response
+                    )
+
+                    qr_code = extract_qr_code(
+                        qr_data
+                    )
+
+                except Exception as qr_error:
+
+                    print(
+                        "Existing QR lookup failed:",
+                        str(qr_error)
+                    )
+
+            else:
+
+                qr_code = extract_qr_code(
+                    evolution_response
+                )
+
+                print(
+                    "QR after create:",
+                    "RECEIVED"
+                    if qr_code
+                    else "NOT RECEIVED"
+                )
+
+        except Exception as e:
+
+            print(
+                "Evolution create exception:",
+                str(e)
+            )
+
+        # ----------------------------------------------------
+        # WEBHOOK
+        # ----------------------------------------------------
+
+        webhook_payload = {
+            "webhook": {
+                "enabled": True,
+                "url": webhook_url,
+                "byEvents": False,
+                "base64": False,
+                "events": [
+                    "MESSAGES_UPSERT",
+                    "CONNECTION_UPDATE"
+                ]
             }
+        }
+
+        webhook_paths = [
+            f"/webhook/set/{instance_name}",
+            f"/webhook/set/{instance_name}"
+        ]
+
+        webhook_configured = False
+
+        for webhook_path in webhook_paths:
 
             try:
 
                 print(
-                    "Setting webhook:",
+                    "Setting Evolution webhook:",
                     webhook_url
                 )
 
-                webhook_response = await client.post(
-                    webhook_url_api,
-                    json=webhook_payload,
-                    headers=headers,
-                    timeout=30
+                webhook_response = await evolution_request(
+                    "POST",
+                    webhook_path,
+                    webhook_payload
                 )
 
-                print(
-                    "Webhook status:",
-                    webhook_response.status_code
-                )
+                if webhook_response.status_code < 300:
 
-                if webhook_response.status_code >= 300:
-
-                    print(
-                        webhook_response.text[:3000]
-                    )
-
-                else:
+                    webhook_configured = True
 
                     print(
                         "Webhook configured successfully"
                     )
 
+                    break
+
+                print(
+                    "Webhook configuration failed:",
+                    webhook_response.text[:3000]
+                )
+
             except Exception as e:
 
                 print(
-                    "Webhook configuration error:",
+                    "Webhook configuration exception:",
+                    str(e)
+                )
+
+        if not webhook_configured:
+
+            print(
+                "WARNING: Evolution webhook was not configured"
+            )
+
+        # ----------------------------------------------------
+        # If QR missing, try QR endpoint
+        # ----------------------------------------------------
+
+        if not qr_code:
+
+            try:
+
+                qr_response = await evolution_request(
+                    "GET",
+                    f"/instance/qr/{instance_name}"
+                )
+
+                qr_data = safe_json(
+                    qr_response
+                )
+
+                qr_code = extract_qr_code(
+                    qr_data
+                )
+
+            except Exception as e:
+
+                print(
+                    "QR fallback error:",
+                    str(e)
+                )
+
+        # ----------------------------------------------------
+        # Second QR format
+        # ----------------------------------------------------
+
+        if not qr_code:
+
+            try:
+
+                qr_response = await evolution_request(
+                    "GET",
+                    f"/instance/qr?instanceName={instance_name}"
+                )
+
+                qr_data = safe_json(
+                    qr_response
+                )
+
+                qr_code = extract_qr_code(
+                    qr_data
+                )
+
+            except Exception as e:
+
+                print(
+                    "QR alternate fallback error:",
                     str(e)
                 )
 
@@ -669,12 +1284,12 @@ async def register_store(
 
         widget_code = (
             '<script '
-            'src="' +
-            WEBHOOK_BASE_URL +
-            '/widget.js" '
-            'data-store-id="' +
-            store.id +
-            '"></script>'
+            'src="'
+            + WEBHOOK_BASE_URL
+            + '/widget.js" '
+            'data-store-id="'
+            + store.id
+            + '"></script>'
         )
 
     # ========================================================
@@ -683,10 +1298,20 @@ async def register_store(
 
     return {
         "status": "success",
-        "message": "تم تسجيل المتجر بنجاح",
+        "message": (
+            "تم تسجيل المتجر بنجاح"
+            if not whatsapp_number
+            else (
+                "تم تسجيل المتجر وإنشاء اتصال WhatsApp"
+                if qr_code
+                else
+                "تم تسجيل المتجر، لكن QR Code لم يصل من Evolution API"
+            )
+        ),
         "store_id": store.id,
         "instance_name": instance_name,
         "qr_code": qr_code,
+        "qr_available": bool(qr_code),
         "widget_code": widget_code
     }
 
@@ -704,13 +1329,12 @@ async def whatsapp_webhook(
 
     store = (
         db.query(StoreModel)
-        .filter(
-            StoreModel.id == store_id
-        )
+        .filter(StoreModel.id == store_id)
         .first()
     )
 
     if not store:
+
         return {
             "status": "store_not_found"
         }
@@ -724,9 +1348,25 @@ async def whatsapp_webhook(
             store_id
         )
 
-        msg_data = (
-            data.get("data") or {}
+        print(
+            "Webhook event:",
+            data.get("event")
         )
+
+        # ----------------------------------------------------
+        # Evolution normally puts payload in data
+        # ----------------------------------------------------
+
+        msg_data = (
+            data.get("data")
+            or {}
+        )
+
+        if not isinstance(msg_data, dict):
+
+            return {
+                "status": "ignored"
+            }
 
         # ----------------------------------------------------
         # MESSAGE
@@ -734,9 +1374,11 @@ async def whatsapp_webhook(
 
         message_object = (
             msg_data.get("message")
+            or {}
         )
 
         if not message_object:
+
             return {
                 "status": "ignored"
             }
@@ -746,30 +1388,34 @@ async def whatsapp_webhook(
         # ----------------------------------------------------
 
         key = (
-            msg_data.get("key") or {}
+            msg_data.get("key")
+            or {}
         )
 
         sender_jid = (
-            key.get("remoteJid") or ""
+            key.get("remoteJid")
+            or key.get("senderPn")
+            or ""
         )
 
         from_me = bool(
             key.get("fromMe", False)
         )
 
-        # Ignore bot messages
         if from_me:
+
             return {
                 "status": "ignored"
             }
 
-        # Ignore groups
         if "g.us" in sender_jid:
+
             return {
                 "status": "ignored"
             }
 
         if not sender_jid:
+
             return {
                 "status": "ignored"
             }
@@ -778,24 +1424,33 @@ async def whatsapp_webhook(
         # TEXT
         # ----------------------------------------------------
 
-        message_text = (
+        extended_text = (
             message_object.get(
-                "conversation"
+                "extendedTextMessage"
             )
-            or message_object.get(
-                "extendedTextMessage",
-                {}
-            ).get("text")
-            or message_object.get(
-                "imageMessage",
-                {}
-            ).get("caption")
+            or {}
+        )
+
+        image_message = (
+            message_object.get(
+                "imageMessage"
+            )
+            or {}
+        )
+
+        message_text = (
+            message_object.get("conversation")
+            or extended_text.get("text")
+            or image_message.get("caption")
             or ""
         )
 
-        message_text = message_text.strip()
+        message_text = str(
+            message_text
+        ).strip()
 
         if not message_text:
+
             return {
                 "status": "ignored"
             }
@@ -805,10 +1460,6 @@ async def whatsapp_webhook(
         # ----------------------------------------------------
 
         if not claude_client:
-
-            print(
-                "Anthropic is not configured"
-            )
 
             return {
                 "status": "ai_not_configured"
@@ -827,7 +1478,7 @@ async def whatsapp_webhook(
             .order_by(
                 ChatLogModel.created_at.desc()
             )
-            .limit(5)
+            .limit(10)
             .all()
         )
 
@@ -857,7 +1508,7 @@ async def whatsapp_webhook(
         })
 
         # ----------------------------------------------------
-        # SYSTEM PROMPT
+        # SYSTEM
         # ----------------------------------------------------
 
         system_prompt = f"""
@@ -869,30 +1520,41 @@ async def whatsapp_webhook(
 كتالوج المنتجات والأسعار:
 {store.catalog_text or "لا يوجد كتالوج متوفر حالياً."}
 
-قواعد مهمة:
+القواعد:
 - أجب باللغة العربية.
 - كن مختصراً وواضحاً.
 - كن ودوداً ومحترفاً.
-- لا تخترع منتجات أو أسعاراً.
-- لا تخترع معلومات غير موجودة في الكتالوج.
-- إذا لم تجد الإجابة في المعلومات المتوفرة، أخبر العميل بوضوح.
+- لا تخترع منتجات.
+- لا تخترع أسعاراً.
+- لا تخترع معلومات غير موجودة.
+- إذا لم تجد الإجابة في المعلومات المتوفرة، أخبر العميل بذلك.
 - اجعل الرد مناسباً للواتساب.
 """
 
         # ----------------------------------------------------
-        # CLAUDE REQUEST
+        # CLAUDE
         # ----------------------------------------------------
 
-        print(
-            "Sending customer message to Claude..."
-        )
+        try:
 
-        response = claude_client.messages.create(
-            model=ANTHROPIC_MODEL,
-            max_tokens=500,
-            system=system_prompt,
-            messages=messages
-        )
+            response = claude_client.messages.create(
+                model=ANTHROPIC_MODEL,
+                max_tokens=500,
+                system=system_prompt,
+                messages=messages
+            )
+
+        except Exception as e:
+
+            print(
+                "Claude webhook error:",
+                str(e)
+            )
+
+            return {
+                "status": "ai_error",
+                "error": str(e)
+            }
 
         reply_text = ""
 
@@ -939,7 +1601,7 @@ async def whatsapp_webhook(
             )
 
         # ----------------------------------------------------
-        # EVOLUTION CHECK
+        # EVOLUTION
         # ----------------------------------------------------
 
         if not store.whatsapp_number:
@@ -963,34 +1625,23 @@ async def whatsapp_webhook(
                 "reply": reply_text
             }
 
-        # ----------------------------------------------------
-        # INSTANCE
-        # ----------------------------------------------------
-
-        clean_phone = clean_phone_number(
+        instance_name = make_instance_name(
             store.whatsapp_number
         )
 
-        instance_name = (
-            "store_" + clean_phone
-        )
-
-        # ----------------------------------------------------
-        # TARGET NUMBER
-        # ----------------------------------------------------
-
         target_number = (
-            sender_jid.split("@")[0]
+            sender_jid
+            .split("@")[0]
+            .split(":")[0]
         )
 
         # ----------------------------------------------------
-        # SEND MESSAGE
+        # SEND TEXT
         # ----------------------------------------------------
 
         send_url = (
-            EVOLUTION_API_URL +
-            "/message/sendText/" +
-            instance_name
+            "/message/sendText/"
+            + instance_name
         )
 
         payload = {
@@ -1000,47 +1651,32 @@ async def whatsapp_webhook(
 
         try:
 
-            async with httpx.AsyncClient(
-                follow_redirects=True
-            ) as client:
-
-                send_response = await client.post(
-                    send_url,
-                    json=payload,
-                    headers=evolution_headers(),
-                    timeout=30
-                )
-
-            print(
-                "Evolution send status:",
-                send_response.status_code
+            send_response = await evolution_request(
+                "POST",
+                send_url,
+                payload
             )
 
             if send_response.status_code >= 300:
 
-                print(
-                    "Evolution send error:"
-                )
-
-                print(
-                    send_response.text[:3000]
-                )
-
                 return {
                     "status": "send_failed",
-                    "reply": reply_text
+                    "reply": reply_text,
+                    "evolution_status": send_response.status_code,
+                    "evolution_response": send_response.text[:2000]
                 }
 
         except Exception as e:
 
             print(
-                "Evolution send connection error:",
+                "Evolution send error:",
                 str(e)
             )
 
             return {
                 "status": "send_failed",
-                "reply": reply_text
+                "reply": reply_text,
+                "error": str(e)
             }
 
         print(
@@ -1074,6 +1710,15 @@ async def chat_preview(
     request: ChatRequest,
     db: Session = Depends(get_db)
 ):
+
+    message = request.message.strip()
+
+    if not message:
+
+        raise HTTPException(
+            status_code=400,
+            detail="الرسالة فارغة"
+        )
 
     store = (
         db.query(StoreModel)
@@ -1109,7 +1754,8 @@ async def chat_preview(
 القواعد:
 - أجب باللغة العربية.
 - كن مختصراً وواضحاً.
-- لا تخترع أسعاراً أو منتجات.
+- لا تخترع أسعاراً.
+- لا تخترع منتجات.
 - استخدم المعلومات الموجودة في الكتالوج.
 - إذا لم تجد الإجابة أخبر العميل بذلك.
 """
@@ -1123,7 +1769,7 @@ async def chat_preview(
             messages=[
                 {
                     "role": "user",
-                    "content": request.message
+                    "content": message
                 }
             ]
         )
@@ -1159,7 +1805,7 @@ async def chat_preview(
         )
 
     # --------------------------------------------------------
-    # SAVE PREVIEW
+    # SAVE
     # --------------------------------------------------------
 
     try:
@@ -1168,7 +1814,7 @@ async def chat_preview(
             ChatLogModel(
                 store_id=store.id,
                 sender_id=request.sender_id or "preview_user",
-                user_message=request.message,
+                user_message=message,
                 bot_response=reply_text
             )
         )
@@ -1191,17 +1837,343 @@ async def chat_preview(
 
 
 # ============================================================
+# WIDGET
+# ============================================================
+
+@app.get("/widget.js")
+async def widget():
+
+    return HTMLResponse(
+        content="""
+(function () {
+
+    const script =
+        document.currentScript;
+
+    if (!script) return;
+
+    const storeId =
+        script.getAttribute("data-store-id");
+
+    if (!storeId) {
+        console.error(
+            "AI Store Widget: data-store-id missing"
+        );
+        return;
+    }
+
+    if (
+        document.getElementById(
+            "ai-store-chat-widget"
+        )
+    ) {
+        return;
+    }
+
+    const API_BASE =
+        new URL(
+            script.src
+        ).origin;
+
+    const root =
+        document.createElement("div");
+
+    root.id =
+        "ai-store-chat-widget";
+
+    root.innerHTML = `
+        <div id="ai-chat-button"
+             style="
+             position:fixed;
+             bottom:20px;
+             right:20px;
+             width:58px;
+             height:58px;
+             border-radius:50%;
+             background:#111827;
+             color:white;
+             display:flex;
+             align-items:center;
+             justify-content:center;
+             cursor:pointer;
+             z-index:999999;
+             font-size:25px;
+             box-shadow:0 5px 20px rgba(0,0,0,.25);
+             ">
+            💬
+        </div>
+
+        <div id="ai-chat-box"
+             style="
+             display:none;
+             position:fixed;
+             bottom:90px;
+             right:20px;
+             width:340px;
+             max-width:calc(100vw - 40px);
+             height:480px;
+             background:white;
+             border-radius:16px;
+             overflow:hidden;
+             box-shadow:0 10px 40px rgba(0,0,0,.25);
+             z-index:999999;
+             font-family:Arial,sans-serif;
+             direction:rtl;
+             ">
+
+            <div style="
+                background:#111827;
+                color:white;
+                padding:16px;
+                font-weight:bold;
+                ">
+                المساعد الذكي
+            </div>
+
+            <div id="ai-chat-messages"
+                 style="
+                 height:370px;
+                 overflow-y:auto;
+                 padding:12px;
+                 background:#f3f4f6;
+                 "></div>
+
+            <div style="
+                 display:flex;
+                 gap:6px;
+                 padding:10px;
+                 border-top:1px solid #ddd;
+                 ">
+
+                <input
+                    id="ai-chat-input"
+                    type="text"
+                    placeholder="اكتب رسالتك..."
+                    style="
+                    flex:1;
+                    border:1px solid #ddd;
+                    border-radius:10px;
+                    padding:10px;
+                    outline:none;
+                    "
+                />
+
+                <button
+                    id="ai-chat-send"
+                    style="
+                    border:0;
+                    border-radius:10px;
+                    padding:10px 14px;
+                    background:#111827;
+                    color:white;
+                    cursor:pointer;
+                    ">
+                    إرسال
+                </button>
+
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(root);
+
+    const button =
+        document.getElementById(
+            "ai-chat-button"
+        );
+
+    const box =
+        document.getElementById(
+            "ai-chat-box"
+        );
+
+    const input =
+        document.getElementById(
+            "ai-chat-input"
+        );
+
+    const send =
+        document.getElementById(
+            "ai-chat-send"
+        );
+
+    const messages =
+        document.getElementById(
+            "ai-chat-messages"
+        );
+
+    button.onclick = function () {
+
+        box.style.display =
+            box.style.display === "none"
+                ? "block"
+                : "none";
+
+    };
+
+    function addMessage(
+        text,
+        type
+    ) {
+
+        const div =
+            document.createElement("div");
+
+        div.textContent =
+            text;
+
+        div.style.margin =
+            "8px 0";
+
+        div.style.padding =
+            "9px 11px";
+
+        div.style.borderRadius =
+            "10px";
+
+        div.style.maxWidth =
+            "85%";
+
+        div.style.whiteSpace =
+            "pre-wrap";
+
+        if (type === "user") {
+
+            div.style.marginRight =
+                "auto";
+
+            div.style.background =
+                "#dbeafe";
+
+        } else {
+
+            div.style.marginLeft =
+                "auto";
+
+            div.style.background =
+                "#ffffff";
+        }
+
+        messages.appendChild(div);
+
+        messages.scrollTop =
+            messages.scrollHeight;
+    }
+
+    async function sendMessage() {
+
+        const text =
+            input.value.trim();
+
+        if (!text) return;
+
+        addMessage(
+            text,
+            "user"
+        );
+
+        input.value = "";
+
+        send.disabled = true;
+
+        try {
+
+            const response =
+                await fetch(
+                    API_BASE +
+                    "/api/chat",
+                    {
+                        method:"POST",
+                        headers:{
+                            "Content-Type":
+                                "application/json"
+                        },
+                        body:JSON.stringify({
+                            store_id:
+                                String(storeId),
+                            message:
+                                text,
+                            sender_id:
+                                "widget_user"
+                        })
+                    }
+                );
+
+            const data =
+                await response.json();
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.detail ||
+                    "حدث خطأ"
+                );
+            }
+
+            addMessage(
+                data.reply ||
+                data.response ||
+                "لم يصل رد.",
+                "bot"
+            );
+
+        } catch (error) {
+
+            addMessage(
+                "تعذر الاتصال بالمساعد حالياً.",
+                "bot"
+            );
+
+            console.error(
+                "AI Store Widget:",
+                error
+            );
+
+        } finally {
+
+            send.disabled = false;
+            input.focus();
+        }
+    }
+
+    send.onclick =
+        sendMessage;
+
+    input.addEventListener(
+        "keydown",
+        function (event) {
+
+            if (
+                event.key === "Enter"
+            ) {
+                sendMessage();
+            }
+
+        }
+    );
+
+})();
+        """,
+        media_type="application/javascript"
+    )
+
+
+# ============================================================
 # STARTUP
 # ============================================================
 
 @app.on_event("startup")
 async def startup_event():
 
-    print("=" * 60)
+    print("=" * 70)
     print("AI STORE ASSISTANT IS READY")
-    print("=" * 60)
-    print("Health endpoint: /health")
-    print("Register endpoint: /api/register-store")
-    print("Chat endpoint: /api/chat")
-    print("WhatsApp webhook: /api/whatsapp/webhook/{store_id}")
-    print("=" * 60)
+    print("=" * 70)
+    print("Health: /health")
+    print("Register: /api/register-store")
+    print("Chat: /api/chat")
+    print("QR: /api/whatsapp/qr/{store_id}")
+    print("Connect: /api/whatsapp/connect/{store_id}")
+    print("Status: /api/whatsapp/status/{store_id}")
+    print("Webhook: /api/whatsapp/webhook/{store_id}")
+    print("Widget: /widget.js")
+    print("=" * 70)
