@@ -222,8 +222,9 @@ async def whatsapp_evolution_webhook(store_id: str, request: Request, db: Sessio
                 جاوب باختصار وبشكل واضح ومناسب للمحادثات عبر الواتساب.
                 """
 
+                # تم ضبط المعرّف بدقة لـ Claude Sonnet 4.5
                 response = claude_client.messages.create(
-                    model="Claude 4.5 Sonnet",
+                    model="claude-sonnet-4-5",
                     max_tokens=500,
                     system=system_prompt,
                     messages=chat_history
