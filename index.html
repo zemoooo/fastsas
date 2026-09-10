@@ -1,4 +1,4 @@
-
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -251,6 +251,8 @@ const copyWidgetBtn =
     document.getElementById("copyWidgetBtn");
 
 let currentStoreId = null;
+let qrPollTimer = null;
+let qrPollAttempts = 0;
 
 form.addEventListener("submit", async function (event) {
     event.preventDefault();
@@ -329,6 +331,7 @@ form.addEventListener("submit", async function (event) {
                 data.evolution_create_response ||
                 "Evolution API لم يرجع QR Code."
             );
+            startQrPolling();
         }
 
     } catch (error) {
@@ -370,11 +373,12 @@ refreshQrBtn.addEventListener(
             if (data.qr_code) {
                 showQr(data.qr_code);
                 errorBox.classList.add("hidden");
+                stopQrPolling();
             } else {
                 showError(
                     data.evolution_response ||
                     data.message ||
-                    "لم يتم استلام QR Code."
+                    `لم يتم استلام QR Code (HTTP ${response.status}).`
                 );
             }
         } catch (error) {
@@ -391,6 +395,62 @@ refreshQrBtn.addEventListener(
 function showQr(qr) {
     qrContainer.classList.remove("hidden");
     qrCodeImg.src = qr;
+}
+
+function stopQrPolling() {
+    if (qrPollTimer) {
+        clearInterval(qrPollTimer);
+        qrPollTimer = null;
+    }
+}
+
+function startQrPolling() {
+    stopQrPolling();
+
+    if (!currentStoreId) {
+        return;
+    }
+
+    qrPollAttempts = 0;
+
+    qrPollTimer = setInterval(async function () {
+        qrPollAttempts += 1;
+
+        if (qrPollAttempts > 30) {
+            stopQrPolling();
+            return;
+        }
+
+        try {
+            const response = await fetch(
+                `/api/whatsapp/qr/${currentStoreId}`,
+                { cache: "no-store" }
+            );
+
+            const data = await response.json();
+
+            if (data.qr_code) {
+                showQr(data.qr_code);
+                errorBox.classList.add("hidden");
+                resultMessage.textContent =
+                    "تم توليد QR Code بنجاح. امسحه من واتساب.";
+                stopQrPolling();
+                return;
+            }
+
+            if (qrPollAttempts >= 5) {
+                showError(
+                    data.evolution_response ||
+                    data.message ||
+                    `بانتظار QR Code... (${qrPollAttempts}/30)`
+                );
+            }
+        } catch (error) {
+            if (qrPollAttempts >= 5) {
+                showError(error.message);
+            }
+        }
+    }, 2000);
 }
 
 
