@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: ai-store-assistant
+    runtime: python
+    plan: free
+    region: frankfurt
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+
+      # Set these values in Render Environment for this service.
+      - key: EVOLUTION_API_URL
+        sync: false
+      - key: EVOLUTION_GLOBAL_KEY
+        sync: false
+      - key: WEBHOOK_BASE_URL
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        sync: false
+      - key: DATABASE_CONNECTION_URI
+        sync: false
