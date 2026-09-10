@@ -28,9 +28,13 @@ Base = declarative_base()
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 claude_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
-EVOLUTION_API_URL = os.getenv("EVOLUTION_API_URL", "https://evolution-api-render-1-nsvq.onrender.com")
+# تنظيف الرابط لمنع خطأ المسارات المزدوجة //
+RAW_EVOLUTION_URL = os.getenv("EVOLUTION_API_URL", "https://evolution-api-render-1-nsvq.onrender.com")
+EVOLUTION_API_URL = RAW_EVOLUTION_URL.rstrip("/")
+
 EVOLUTION_GLOBAL_KEY = os.getenv("EVOLUTION_GLOBAL_KEY", "")
-WEBHOOK_BASE_URL = os.getenv("WEBHOOK_BASE_URL", "https://twelve-garlics-mix.loca.lt")
+RAW_WEBHOOK_URL = os.getenv("WEBHOOK_BASE_URL", "https://twelve-garlics-mix.loca.lt")
+WEBHOOK_BASE_URL = RAW_WEBHOOK_URL.rstrip("/")
 
 
 class StoreModel(Base):
@@ -152,9 +156,21 @@ async def register_store(
             "Content-Type": "application/json"
         }
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             try:
-                # 1. إنشاء الجلسة
+                # 1. محاولة حذف الجلسة القديمة إن وجدت (تجاهل 404 في حال عدم وجودها)
+                try:
+                    del_res = await client.delete(
+                        f"{EVOLUTION_API_URL}/instance/delete/{instance_name}",
+                        headers=headers
+                    )
+                    print(f"ℹ️ Logout/Delete status: {del_res.status_code}")
+                except Exception as del_err:
+                    print(f"ℹ️ Clean old instance notice: {del_err}")
+
+                await asyncio.sleep(0.5)
+
+                # 2. إنشاء الجلسة الجديدة
                 create_payload = {
                     "instanceName": instance_name,
                     "qrcode": True,
@@ -168,20 +184,19 @@ async def register_store(
 
                 print(f"👉 Evolution Create Status: {res.status_code}")
 
-                # فحص ما إذا كانت الاستجابة JSON وليست HTML 502
                 if res.status_code in [200, 201] and "application/json" in res.headers.get("content-type", ""):
                     res_data = res.json()
                     qr_raw = (
-                        res_data.get("qrcode", {}).get("base64") or 
-                        res_data.get("base64") or 
-                        res_data.get("code")
+                        (res_data.get("qrcode", {}).get("base64") if isinstance(res_data.get("qrcode"), dict) else None)
+                        or res_data.get("base64")
+                        or res_data.get("code")
                     )
                     if qr_raw:
                         qr_code_data = qr_raw if str(qr_raw).startswith("data:image") else f"data:image/png;base64,{qr_raw}"
 
-                # 2. جلب الكود من رابط الاتصال المباشر إذا تعذر استخراجه فوراً
-                if not qr_code_data:
-                    await asyncio.sleep(2.0)
+                # 3. طلب كود الاتصال إذا لم يرجعه أمر Create
+                if not qr_code_data and res.status_code in [200, 201, 409]:
+                    await asyncio.sleep(1.5)
                     connect_res = await client.get(
                         f"{EVOLUTION_API_URL}/instance/connect/{instance_name}",
                         headers=headers
@@ -192,13 +207,13 @@ async def register_store(
                         c_data = connect_res.json()
                         qr_raw = (
                             c_data.get("base64") or 
-                            c_data.get("qrcode", {}).get("base64") or 
+                            (c_data.get("qrcode", {}).get("base64") if isinstance(c_data.get("qrcode"), dict) else None) or 
                             c_data.get("code")
                         )
                         if qr_raw:
                             qr_code_data = qr_raw if str(qr_raw).startswith("data:image") else f"data:image/png;base64,{qr_raw}"
 
-                # 3. إعداد الـ Webhook
+                # 4. ضبط الـ Webhook
                 webhook_payload = {
                     "webhook": {
                         "enabled": True,
@@ -214,7 +229,7 @@ async def register_store(
                 )
 
             except Exception as e:
-                print(f"❌ Evolution API Connection Error: {e}")
+                print(f"❌ Evolution API Exception: {e}")
 
     return {
         "status": "success",
