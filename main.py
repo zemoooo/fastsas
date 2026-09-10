@@ -1,3 +1,4 @@
+import asyncio
 import os
 import uuid
 from datetime import datetime
@@ -153,7 +154,7 @@ async def register_store(
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             try:
-                # 1. محاولة إنشاء الجلسة (Instance)
+                # 1. إنشاء الجلسة
                 create_payload = {
                     "instanceName": instance_name,
                     "qrcode": True,
@@ -164,11 +165,11 @@ async def register_store(
                     json=create_payload,
                     headers=headers
                 )
-                
-                print(f"👉 Evolution Create Instance Status: {res.status_code}")
-                print(f"👉 Evolution Create Instance Body: {res.text}")
 
-                if res.status_code in [200, 201]:
+                print(f"👉 Evolution Create Status: {res.status_code}")
+
+                # فحص ما إذا كانت الاستجابة JSON وليست HTML 502
+                if res.status_code in [200, 201] and "application/json" in res.headers.get("content-type", ""):
                     res_data = res.json()
                     qr_raw = (
                         res_data.get("qrcode", {}).get("base64") or 
@@ -178,16 +179,16 @@ async def register_store(
                     if qr_raw:
                         qr_code_data = qr_raw if str(qr_raw).startswith("data:image") else f"data:image/png;base64,{qr_raw}"
 
-                # 2. في حال فشل الحصول على QR (إذا كانت الجلسة موجودة مسبقاً)، نطلب الاتصال للحصول على الكود
+                # 2. جلب الكود من رابط الاتصال المباشر إذا تعذر استخراجه فوراً
                 if not qr_code_data:
+                    await asyncio.sleep(2.0)
                     connect_res = await client.get(
                         f"{EVOLUTION_API_URL}/instance/connect/{instance_name}",
                         headers=headers
                     )
                     print(f"👉 Evolution Connect Status: {connect_res.status_code}")
-                    print(f"👉 Evolution Connect Body: {connect_res.text}")
 
-                    if connect_res.status_code in [200, 201]:
+                    if connect_res.status_code in [200, 201] and "application/json" in connect_res.headers.get("content-type", ""):
                         c_data = connect_res.json()
                         qr_raw = (
                             c_data.get("base64") or 
@@ -213,7 +214,7 @@ async def register_store(
                 )
 
             except Exception as e:
-                print(f"❌ Evolution API Exception: {e}")
+                print(f"❌ Evolution API Connection Error: {e}")
 
     return {
         "status": "success",
