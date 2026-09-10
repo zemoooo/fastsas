@@ -10,25 +10,33 @@
         : null;
 
     if (!storeId) {
-        console.error("AI Chat Widget: لم يتم العثور على data-store-id.");
+        console.error(
+            "AI Chat Widget: لم يتم العثور على data-store-id."
+        );
         return;
     }
 
     const scriptSrc = currentScript.src;
 
     if (!scriptSrc) {
-        console.error("AI Chat Widget: تعذر تحديد رابط الخادم.");
+        console.error(
+            "AI Chat Widget: تعذر تحديد رابط الخادم."
+        );
         return;
     }
 
     const baseUrl = new URL(scriptSrc).origin;
 
-    let senderId = localStorage.getItem("ai_widget_sender_id");
+    let senderId = localStorage.getItem(
+        "ai_widget_sender_id"
+    );
 
     if (!senderId) {
         senderId =
             "user_" +
-            Math.random().toString(36).substring(2, 11);
+            Math.random()
+                .toString(36)
+                .substring(2, 11);
 
         localStorage.setItem(
             "ai_widget_sender_id",
@@ -235,7 +243,6 @@
         <div id="ai-chat-box">
             <div class="ai-chat-header">
                 <h4>مساعد المتجر الذكي 🤖</h4>
-
                 <button
                     class="close-btn"
                     id="ai-chat-close"
@@ -358,7 +365,8 @@
 
             if (response.ok) {
                 appendMessage(
-                    data.reply || "لم يتم استلام رد.",
+                    data.reply ||
+                    "لم يتم استلام رد.",
                     "bot"
                 );
             } else {
@@ -368,7 +376,6 @@
                     "bot"
                 );
             }
-
         } catch (error) {
             console.error(
                 "AI Chat Widget Error:",
@@ -381,7 +388,6 @@
                 "تعذر الاتصال بالخادم. يرجى المحاولة مرة أخرى.",
                 "bot"
             );
-
         } finally {
             chatInput.disabled = false;
             sendBtn.disabled = false;
@@ -405,5 +411,4 @@
 
         return msgDiv;
     }
-
-})(); 
+})();
