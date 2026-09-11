@@ -69,7 +69,10 @@ if not DATABASE_URL:
     DATABASE_URL = "sqlite:///./saas_stores.db"
 
 
-# Supabase/PostgreSQL compatibility
+# ---------------------------------------------------------
+# PostgreSQL / Supabase compatibility
+# ---------------------------------------------------------
+
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace(
         "postgres://",
@@ -78,13 +81,29 @@ if DATABASE_URL.startswith("postgres://"):
     )
 
 if DATABASE_URL.startswith("postgresql://"):
-    if "sslmode=" not in DATABASE_URL:
-        separator = "&" if "?" in DATABASE_URL else "?"
-        DATABASE_URL += f"{separator}sslmode=require"
 
+    if "sslmode=" not in DATABASE_URL:
+
+        separator = (
+            "&"
+            if "?" in DATABASE_URL
+            else "?"
+        )
+
+        DATABASE_URL += (
+            f"{separator}sslmode=require"
+        )
+
+
+# =========================================================
+# ANTHROPIC
+# =========================================================
 
 ANTHROPIC_API_KEY = (
-    os.getenv("ANTHROPIC_API_KEY", "").strip()
+    os.getenv(
+        "ANTHROPIC_API_KEY",
+        "",
+    ).strip()
 )
 
 ANTHROPIC_MODEL = (
@@ -97,6 +116,50 @@ ANTHROPIC_MODEL = (
     ).strip()
 )
 
+
+# =========================================================
+# SUPABASE AUTH
+# =========================================================
+#
+# Supabase is used here for email OTP delivery and
+# verification.
+#
+# The application's password/session system remains local.
+#
+# Required Render environment variables:
+#
+# SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+# SUPABASE_ANON_KEY=YOUR_ANON_OR_PUBLISHABLE_KEY
+#
+# Do NOT use service_role in this backend for this flow.
+# =========================================================
+
+SUPABASE_URL = (
+    os.getenv(
+        "SUPABASE_URL",
+        "",
+    )
+    .strip()
+    .rstrip("/")
+)
+
+SUPABASE_ANON_KEY = (
+    os.getenv(
+        "SUPABASE_ANON_KEY",
+        "",
+    ).strip()
+    or os.getenv(
+        "SUPABASE_PUBLISHABLE_KEY",
+        "",
+    ).strip()
+)
+
+SUPABASE_AUTH_TIMEOUT = 30.0
+
+
+# =========================================================
+# EVOLUTION API
+# =========================================================
 
 EVOLUTION_API_URL = (
     os.getenv(
@@ -115,6 +178,7 @@ EVOLUTION_GLOBAL_KEY = (
 )
 
 if not EVOLUTION_GLOBAL_KEY:
+
     EVOLUTION_GLOBAL_KEY = (
         os.getenv(
             "EVOLUTION_API_KEY",
@@ -123,6 +187,7 @@ if not EVOLUTION_GLOBAL_KEY:
     )
 
 if not EVOLUTION_GLOBAL_KEY:
+
     EVOLUTION_GLOBAL_KEY = (
         os.getenv(
             "AUTHENTICATION_API_KEY",
@@ -131,12 +196,17 @@ if not EVOLUTION_GLOBAL_KEY:
     )
 
 
-# Render automatically exposes the public URL through RENDER_EXTERNAL_URL.
-# WEBHOOK_BASE_URL remains an explicit override for non-Render deployments.
+# =========================================================
+# WEBHOOK
+# =========================================================
+
 WEBHOOK_BASE_URL = (
     os.getenv(
         "WEBHOOK_BASE_URL",
-        os.getenv("RENDER_EXTERNAL_URL", ""),
+        os.getenv(
+            "RENDER_EXTERNAL_URL",
+            "",
+        ),
     )
     .strip()
     .rstrip("/")
@@ -180,7 +250,7 @@ Base = declarative_base()
 
 app = FastAPI(
     title="Smart AI Store Assistant",
-    version="2.0.0",
+    version="2.1.0",
 )
 
 
@@ -279,6 +349,14 @@ class UserModel(Base):
         nullable=True,
         unique=True,
         index=True,
+    )
+
+    # 0 = not verified
+    # 1 = verified
+    email_verified = Column(
+        Integer,
+        nullable=False,
+        default=0,
     )
 
     password_hash = Column(
@@ -415,6 +493,10 @@ def ensure_database_schema():
             for column in columns
         }
 
+        # -------------------------------------------------
+        # email
+        # -------------------------------------------------
+
         if "email" not in column_names:
 
             with engine.begin() as connection:
@@ -428,7 +510,28 @@ def ensure_database_schema():
                     )
                 )
 
-        # Email unique index
+        # -------------------------------------------------
+        # email_verified
+        # -------------------------------------------------
+
+        if "email_verified" not in column_names:
+
+            with engine.begin() as connection:
+
+                connection.execute(
+                    text(
+                        """
+                        ALTER TABLE users
+                        ADD COLUMN email_verified INTEGER
+                        NOT NULL DEFAULT 0
+                        """
+                    )
+                )
+
+        # -------------------------------------------------
+        # Unique email index
+        # -------------------------------------------------
+
         if engine.dialect.name == "postgresql":
 
             with engine.begin() as connection:
@@ -661,6 +764,18 @@ def get_current_user(
             detail="المستخدم غير موجود",
         )
 
+    # -----------------------------------------------------
+    # Extra protection:
+    # session cannot be used when email is unverified.
+    # -----------------------------------------------------
+
+    if int(user.email_verified or 0) != 1:
+
+        raise HTTPException(
+            status_code=403,
+            detail="البريد الإلكتروني غير مؤكد",
+        )
+
     return user
 
 
@@ -722,8 +837,8 @@ def make_instance_name(
 ) -> str:
 
     # IMPORTANT:
-    # Instance is now permanently tied
-    # to the store, NOT the WhatsApp number.
+    # Instance is permanently tied
+    # to the store, not WhatsApp number.
 
     clean = re.sub(
         r"[^A-Za-z0-9]",
@@ -762,6 +877,153 @@ def first_value(
 
 
 # =========================================================
+# SUPABASE AUTH HELPERS
+# =========================================================
+
+def supabase_configuration_ready() -> bool:
+
+    return bool(
+        SUPABASE_URL
+        and SUPABASE_ANON_KEY
+    )
+
+
+def supabase_auth_headers():
+
+    return {
+        "apikey": SUPABASE_ANON_KEY,
+        "Content-Type": "application/json",
+    }
+
+
+def supabase_error_message(
+    data: Any,
+) -> str:
+
+    if isinstance(data, dict):
+
+        return (
+            str(
+                data.get("msg")
+                or data.get("message")
+                or data.get("error_description")
+                or data.get("error")
+                or data.get("error_code")
+                or ""
+            ).strip()
+        )
+
+    if isinstance(data, str):
+
+        return data.strip()
+
+    return ""
+
+
+async def supabase_send_email_otp(
+    email: str,
+):
+
+    if not supabase_configuration_ready():
+
+        raise RuntimeError(
+            "SUPABASE_URL أو SUPABASE_ANON_KEY غير مضبوطين."
+        )
+
+    url = (
+        f"{SUPABASE_URL}"
+        "/auth/v1/otp"
+    )
+
+    payload = {
+        "email": email,
+        "create_user": True,
+    }
+
+    async with httpx.AsyncClient(
+        timeout=SUPABASE_AUTH_TIMEOUT
+    ) as client:
+
+        response = await client.post(
+            url,
+            headers=supabase_auth_headers(),
+            json=payload,
+        )
+
+    data = safe_json(response)
+
+    print(
+        "SUPABASE SEND OTP:",
+        response.status_code,
+        data,
+    )
+
+    if response.status_code not in range(
+        200,
+        300,
+    ):
+
+        message = supabase_error_message(
+            data
+        )
+
+        if not message:
+
+            message = (
+                "تعذر إرسال رمز التحقق عبر Supabase."
+            )
+
+        raise RuntimeError(
+            message
+        )
+
+    return data
+
+
+async def supabase_verify_email_otp(
+    email: str,
+    code: str,
+):
+
+    if not supabase_configuration_ready():
+
+        raise RuntimeError(
+            "SUPABASE_URL أو SUPABASE_ANON_KEY غير مضبوطين."
+        )
+
+    url = (
+        f"{SUPABASE_URL}"
+        "/auth/v1/verify"
+    )
+
+    payload = {
+        "email": email,
+        "token": code,
+        "type": "email",
+    }
+
+    async with httpx.AsyncClient(
+        timeout=SUPABASE_AUTH_TIMEOUT
+    ) as client:
+
+        response = await client.post(
+            url,
+            headers=supabase_auth_headers(),
+            json=payload,
+        )
+
+    data = safe_json(response)
+
+    print(
+        "SUPABASE VERIFY OTP:",
+        response.status_code,
+        data,
+    )
+
+    return response.status_code, data
+
+
+# =========================================================
 # PDF
 # =========================================================
 
@@ -790,11 +1052,13 @@ def extract_pdf_text(
                     parts.append(value)
 
             except Exception:
+
                 continue
 
         result = "\n\n".join(parts)
 
         if len(result) > 500000:
+
             result = result[:500000]
 
         return result.strip()
@@ -856,7 +1120,11 @@ def normalize_qr(
             value.get("qr"),
         )
 
-    if not isinstance(value, str):
+    if not isinstance(
+        value,
+        str,
+    ):
+
         return None
 
     value = value.strip()
@@ -870,10 +1138,9 @@ def normalize_qr(
 
         return value
 
-    if value.startswith(
-        "http://"
-    ) or value.startswith(
-        "https://"
+    if (
+        value.startswith("http://")
+        or value.startswith("https://")
     ):
 
         return value
@@ -888,7 +1155,11 @@ def extract_qr_code(
     data: Any,
 ) -> Optional[str]:
 
-    if not isinstance(data, dict):
+    if not isinstance(
+        data,
+        dict,
+    ):
+
         return None
 
     candidates = []
@@ -904,7 +1175,9 @@ def extract_qr_code(
         ]
     )
 
-    nested_data = data.get("data")
+    nested_data = data.get(
+        "data"
+    )
 
     if isinstance(
         nested_data,
@@ -956,7 +1229,11 @@ def extract_connection_state(
     data: Any,
 ) -> Optional[str]:
 
-    if not isinstance(data, dict):
+    if not isinstance(
+        data,
+        dict,
+    ):
+
         return None
 
     values = [
@@ -965,7 +1242,9 @@ def extract_connection_state(
         data.get("connectionStatus"),
     ]
 
-    nested = data.get("instance")
+    nested = data.get(
+        "instance"
+    )
 
     if isinstance(
         nested,
@@ -982,7 +1261,9 @@ def extract_connection_state(
             ]
         )
 
-    nested_data = data.get("data")
+    nested_data = data.get(
+        "data"
+    )
 
     if isinstance(
         nested_data,
@@ -1002,6 +1283,7 @@ def extract_connection_state(
     for value in values:
 
         if value:
+
             return str(value)
 
     return None
@@ -1018,7 +1300,7 @@ def require_evolution_config():
         raise HTTPException(
             status_code=500,
             detail=(
-                "EVOLUTION_API_URL غير مضبوط في Render"
+                "EVOLUTION_API_URL غير مضبوط"
             ),
         )
 
@@ -1027,7 +1309,7 @@ def require_evolution_config():
         raise HTTPException(
             status_code=500,
             detail=(
-                "EVOLUTION_GLOBAL_KEY غير مضبوط في Render"
+                "EVOLUTION_GLOBAL_KEY غير مضبوط"
             ),
         )
 
@@ -1049,7 +1331,10 @@ async def evolution_create_instance(
     instance_name: str,
 ):
 
-    url = f"{EVOLUTION_API_URL}/instance/create"
+    url = (
+        f"{EVOLUTION_API_URL}"
+        "/instance/create"
+    )
 
     payload = {
         "instanceName": instance_name,
@@ -1058,26 +1343,43 @@ async def evolution_create_instance(
     }
 
     try:
+
         response = await client.post(
             url,
             headers=evolution_headers(),
             json=payload,
         )
-        data = safe_json(response)
 
-        print("EVOLUTION CREATE:", response.status_code, data)
+        data = safe_json(
+            response
+        )
+
+        print(
+            "EVOLUTION CREATE:",
+            response.status_code,
+            data,
+        )
 
         return {
             "status_code": response.status_code,
             "data": data,
-            "qr": extract_qr_code(data),
+            "qr": extract_qr_code(
+                data
+            ),
         }
 
     except Exception as exc:
-        print("EVOLUTION CREATE EXCEPTION:", repr(exc))
+
+        print(
+            "EVOLUTION CREATE EXCEPTION:",
+            repr(exc),
+        )
+
         return {
             "status_code": 0,
-            "data": {"error": str(exc)},
+            "data": {
+                "error": str(exc)
+            },
             "qr": None,
         }
 
@@ -1093,7 +1395,7 @@ async def evolution_connect(
 
     url = (
         f"{EVOLUTION_API_URL}"
-        f"/instance/connect/"
+        "/instance/connect/"
         f"{instance_name}"
     )
 
@@ -1104,7 +1406,9 @@ async def evolution_connect(
             headers=evolution_headers(),
         )
 
-        data = safe_json(response)
+        data = safe_json(
+            response
+        )
 
         print(
             "EVOLUTION CONNECT:",
@@ -1115,7 +1419,9 @@ async def evolution_connect(
         return {
             "status_code": response.status_code,
             "data": data,
-            "qr": extract_qr_code(data),
+            "qr": extract_qr_code(
+                data
+            ),
         }
 
     except Exception as exc:
@@ -1145,7 +1451,7 @@ async def evolution_status(
 
     url = (
         f"{EVOLUTION_API_URL}"
-        f"/instance/connectionState/"
+        "/instance/connectionState/"
         f"{instance_name}"
     )
 
@@ -1156,7 +1462,9 @@ async def evolution_status(
             headers=evolution_headers(),
         )
 
-        data = safe_json(response)
+        data = safe_json(
+            response
+        )
 
         print(
             "EVOLUTION STATUS:",
@@ -1199,7 +1507,7 @@ async def evolution_delete_instance(
 
     url = (
         f"{EVOLUTION_API_URL}"
-        f"/instance/logout/"
+        "/instance/logout/"
         f"{instance_name}"
     )
 
@@ -1212,7 +1520,9 @@ async def evolution_delete_instance(
 
         return {
             "status_code": response.status_code,
-            "data": safe_json(response),
+            "data": safe_json(
+                response
+            ),
         }
 
     except Exception as exc:
@@ -1234,12 +1544,26 @@ async def ensure_instance(
     store: StoreModel,
 ):
 
-    instance_name = make_instance_name(store.id)
+    instance_name = make_instance_name(
+        store.id
+    )
 
-    status = await evolution_status(client, instance_name)
-    state = (status.get("state") or "").lower()
+    status = await evolution_status(
+        client,
+        instance_name,
+    )
 
-    if state in {"open", "connected", "online"}:
+    state = (
+        status.get("state")
+        or ""
+    ).lower()
+
+    if state in {
+        "open",
+        "connected",
+        "online",
+    }:
+
         return {
             "instance_name": instance_name,
             "created": False,
@@ -1247,21 +1571,43 @@ async def ensure_instance(
             "status": status,
         }
 
-    create_result = await evolution_create_instance(
-        client, instance_name
+    create_result = (
+        await evolution_create_instance(
+            client,
+            instance_name,
+        )
     )
 
-    if create_result["status_code"] not in (200, 201, 409):
-        print("INSTANCE CREATE FAILED:", create_result)
+    if create_result[
+        "status_code"
+    ] not in (
+        200,
+        201,
+        409,
+    ):
 
-    # A 409 normally means the instance already exists. Refresh its state so
-    # diagnostics contain the current state rather than the pre-create 404.
-    if create_result["status_code"] == 409:
-        status = await evolution_status(client, instance_name)
+        print(
+            "INSTANCE CREATE FAILED:",
+            create_result,
+        )
+
+    if create_result[
+        "status_code"
+    ] == 409:
+
+        status = await evolution_status(
+            client,
+            instance_name,
+        )
 
     return {
         "instance_name": instance_name,
-        "created": create_result["status_code"] in (200, 201),
+        "created": (
+            create_result[
+                "status_code"
+            ]
+            in (200, 201)
+        ),
         "create": create_result,
         "status": status,
     }
@@ -1290,11 +1636,10 @@ async def configure_webhook(
 
     webhook_url = (
         f"{WEBHOOK_BASE_URL}"
-        f"/api/whatsapp/webhook/"
+        "/api/whatsapp/webhook/"
         f"{store_id}"
     )
 
-    # Evolution API versions differ slightly.
     payload = {
         "webhook": {
             "enabled": True,
@@ -1312,7 +1657,7 @@ async def configure_webhook(
 
     url = (
         f"{EVOLUTION_API_URL}"
-        f"/webhook/set/"
+        "/webhook/set/"
         f"{instance_name}"
     )
 
@@ -1324,7 +1669,9 @@ async def configure_webhook(
             json=payload,
         )
 
-        data = safe_json(response)
+        data = safe_json(
+            response
+        )
 
         print(
             "EVOLUTION WEBHOOK:",
@@ -1363,37 +1710,70 @@ async def get_qr_with_retry(
     delay_seconds: float = 1.5,
     initial_result: Optional[dict] = None,
 ):
-    """Return a QR code, a connected state, or the last Evolution response.
-
-    Some Evolution API versions return the QR from /instance/create while
-    others return it only from /instance/connect. We support both flows.
-    """
 
     last_result = initial_result
 
-    if initial_result and initial_result.get("qr"):
+    if (
+        initial_result
+        and initial_result.get("qr")
+    ):
+
         return initial_result
 
-    for attempt in range(1, attempts + 1):
-        result = await evolution_connect(client, instance_name)
+    for attempt in range(
+        1,
+        attempts + 1,
+    ):
+
+        result = await evolution_connect(
+            client,
+            instance_name,
+        )
+
         last_result = result
 
         if result.get("qr"):
-            print(f"QR RECEIVED ON ATTEMPT {attempt}")
+
+            print(
+                f"QR RECEIVED ON ATTEMPT {attempt}"
+            )
+
             return result
 
-        state = extract_connection_state(result.get("data"))
-        if state and state.lower() in {"open", "connected", "online"}:
+        state = extract_connection_state(
+            result.get("data")
+        )
+
+        if (
+            state
+            and state.lower()
+            in {
+                "open",
+                "connected",
+                "online",
+            }
+        ):
+
             return result
 
         if attempt < attempts:
-            await asyncio.sleep(delay_seconds)
 
-    return last_result or {
-        "status_code": 0,
-        "data": {"error": "Evolution API لم ترجع نتيجة"},
-        "qr": None,
-    }
+            await asyncio.sleep(
+                delay_seconds
+            )
+
+    return (
+        last_result
+        or {
+            "status_code": 0,
+            "data": {
+                "error": (
+                    "Evolution API لم ترجع نتيجة"
+                )
+            },
+            "qr": None,
+        }
+    )
 
 
 # =========================================================
@@ -1446,18 +1826,35 @@ async def health():
     return {
         "status": "ok",
         "service": "Smart AI Store Assistant",
+
         "evolution_api_configured": bool(
             EVOLUTION_API_URL
         ),
+
         "evolution_key_configured": bool(
             EVOLUTION_GLOBAL_KEY
         ),
+
         "anthropic_configured": bool(
             ANTHROPIC_API_KEY
         ),
+
+        "supabase_configured": bool(
+            supabase_configuration_ready()
+        ),
+
+        "supabase_url_configured": bool(
+            SUPABASE_URL
+        ),
+
+        "supabase_key_configured": bool(
+            SUPABASE_ANON_KEY
+        ),
+
         "webhook_configured": bool(
             WEBHOOK_BASE_URL
         ),
+
         "model": ANTHROPIC_MODEL,
     }
 
@@ -1530,6 +1927,10 @@ async def register_store(
     username = username.strip()
     email = email.strip().lower()
 
+    # -----------------------------------------------------
+    # VALIDATION
+    # -----------------------------------------------------
+
     if len(store_name) < 2:
 
         raise HTTPException(
@@ -1554,7 +1955,6 @@ async def register_store(
             detail="اسم المستخدم طويل جدًا",
         )
 
-    # Arabic + English + numbers + _ . -
     username_pattern = (
         r"^[A-Za-z0-9\u0600-\u06FF_.-]+$"
     )
@@ -1596,6 +1996,25 @@ async def register_store(
             ),
         )
 
+    # -----------------------------------------------------
+    # SUPABASE REQUIRED
+    # -----------------------------------------------------
+
+    if not supabase_configuration_ready():
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "إعدادات Supabase غير موجودة. "
+                "أضف SUPABASE_URL و "
+                "SUPABASE_ANON_KEY في Render."
+            ),
+        )
+
+    # -----------------------------------------------------
+    # DUPLICATE USERNAME
+    # -----------------------------------------------------
+
     existing_username = (
         db.query(UserModel)
         .filter(
@@ -1613,6 +2032,10 @@ async def register_store(
                 "اسم المستخدم مستخدم مسبقًا"
             ),
         )
+
+    # -----------------------------------------------------
+    # DUPLICATE EMAIL
+    # -----------------------------------------------------
 
     existing_email = (
         db.query(UserModel)
@@ -1632,6 +2055,10 @@ async def register_store(
             ),
         )
 
+    # -----------------------------------------------------
+    # CREATE STORE
+    # -----------------------------------------------------
+
     store = StoreModel(
         id=str(uuid.uuid4()),
         store_name=store_name,
@@ -1641,11 +2068,16 @@ async def register_store(
 
     db.flush()
 
+    # -----------------------------------------------------
+    # CREATE LOCAL USER
+    # -----------------------------------------------------
+
     user = UserModel(
         id=str(uuid.uuid4()),
         store_id=store.id,
         username=username,
         email=email,
+        email_verified=0,
         password_hash=hash_password(
             password
         ),
@@ -1653,9 +2085,16 @@ async def register_store(
 
     db.add(user)
 
+    # -----------------------------------------------------
+    # COMMIT
+    # -----------------------------------------------------
+
     try:
 
         db.commit()
+
+        db.refresh(user)
+        db.refresh(store)
 
     except IntegrityError:
 
@@ -1669,6 +2108,247 @@ async def register_store(
             ),
         )
 
+    # -----------------------------------------------------
+    # SEND SUPABASE OTP
+    # -----------------------------------------------------
+
+    try:
+
+        await supabase_send_email_otp(
+            email
+        )
+
+    except Exception as exc:
+
+        print(
+            "SUPABASE REGISTER OTP ERROR:",
+            repr(exc),
+        )
+
+        # Remove local account if email delivery fails.
+        try:
+
+            db.delete(user)
+            db.delete(store)
+
+            db.commit()
+
+        except Exception:
+
+            db.rollback()
+
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "تم إنشاء الحساب لكن تعذر إرسال "
+                "رسالة التحقق عبر Supabase. "
+                f"Supabase: {str(exc)}"
+            ),
+        )
+
+    # -----------------------------------------------------
+    # DO NOT CREATE SESSION HERE
+    # -----------------------------------------------------
+
+    return {
+        "status": "success",
+        "success": True,
+        "verification_required": True,
+
+        "message": (
+            "تم إنشاء الحساب. "
+            "تم إرسال رمز التحقق إلى بريدك الإلكتروني."
+        ),
+
+        "store_id": store.id,
+
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "email_verified": False,
+        },
+
+        "store": store_to_dict(
+            store
+        ),
+    }
+
+
+# =========================================================
+# VERIFY EMAIL
+# =========================================================
+
+@app.post("/api/verify-email")
+async def verify_email(
+    email: str = Form(...),
+    code: str = Form(...),
+    db: Session = Depends(get_db),
+):
+
+    email = email.strip().lower()
+    code = code.strip()
+
+    # -----------------------------------------------------
+    # EMAIL VALIDATION
+    # -----------------------------------------------------
+
+    if not re.match(
+        r"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+        email,
+    ):
+
+        raise HTTPException(
+            status_code=400,
+            detail="البريد الإلكتروني غير صحيح",
+        )
+
+    # -----------------------------------------------------
+    # OTP VALIDATION
+    # -----------------------------------------------------
+
+    # Current Supabase email OTP documentation
+    # describes a six-digit OTP flow.
+    if not re.fullmatch(
+        r"\d{6}",
+        code,
+    ):
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "رمز التحقق يجب أن يكون 6 أرقام"
+            ),
+        )
+
+    # -----------------------------------------------------
+    # FIND LOCAL USER
+    # -----------------------------------------------------
+
+    user = (
+        db.query(UserModel)
+        .filter(
+            UserModel.email == email
+        )
+        .first()
+    )
+
+    if not user:
+
+        raise HTTPException(
+            status_code=404,
+            detail="المستخدم غير موجود",
+        )
+
+    # -----------------------------------------------------
+    # ALREADY VERIFIED
+    # -----------------------------------------------------
+
+    if int(
+        user.email_verified or 0
+    ) == 1:
+
+        token = create_session(
+            db,
+            user,
+        )
+
+        response = JSONResponse(
+            content={
+                "status": "success",
+                "success": True,
+                "verification_required": False,
+
+                "message": (
+                    "البريد الإلكتروني مؤكد مسبقًا"
+                ),
+
+                "store_id": user.store_id,
+
+                "user": {
+                    "id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                    "email_verified": True,
+                },
+
+                "store": store_to_dict(
+                    user.store
+                ),
+            }
+        )
+
+        set_session_cookie(
+            response,
+            token,
+        )
+
+        return response
+
+    # -----------------------------------------------------
+    # VERIFY WITH SUPABASE
+    # -----------------------------------------------------
+
+    try:
+
+        status_code, data = (
+            await supabase_verify_email_otp(
+                email,
+                code,
+            )
+        )
+
+    except Exception as exc:
+
+        print(
+            "SUPABASE VERIFY EXCEPTION:",
+            repr(exc),
+        )
+
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "تعذر الاتصال بـ Supabase "
+                "للتحقق من الرمز."
+            ),
+        )
+
+    # -----------------------------------------------------
+    # INVALID OTP
+    # -----------------------------------------------------
+
+    if status_code not in range(
+        200,
+        300,
+    ):
+
+        print(
+            "SUPABASE VERIFY FAILED:",
+            status_code,
+            data,
+        )
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "رمز التحقق غير صحيح أو "
+                "منتهي الصلاحية."
+            ),
+        )
+
+    # -----------------------------------------------------
+    # MARK LOCAL USER AS VERIFIED
+    # -----------------------------------------------------
+
+    user.email_verified = 1
+
+    db.commit()
+    db.refresh(user)
+
+    # -----------------------------------------------------
+    # CREATE LOCAL SESSION
+    # -----------------------------------------------------
+
     token = create_session(
         db,
         user,
@@ -1678,17 +2358,23 @@ async def register_store(
         content={
             "status": "success",
             "success": True,
+            "verification_required": False,
+
             "message": (
-                "تم إنشاء الحساب بنجاح"
+                "تم تأكيد البريد الإلكتروني بنجاح"
             ),
-            "store_id": store.id,
+
+            "store_id": user.store_id,
+
             "user": {
                 "id": user.id,
                 "username": user.username,
                 "email": user.email,
+                "email_verified": True,
             },
+
             "store": store_to_dict(
-                store
+                user.store
             ),
         }
     )
@@ -1699,6 +2385,107 @@ async def register_store(
     )
 
     return response
+
+
+# =========================================================
+# RESEND VERIFICATION
+# =========================================================
+
+@app.post(
+    "/api/resend-verification"
+)
+async def resend_verification(
+    email: str = Form(...),
+    db: Session = Depends(get_db),
+):
+
+    email = email.strip().lower()
+
+    # -----------------------------------------------------
+    # FIND USER
+    # -----------------------------------------------------
+
+    user = (
+        db.query(UserModel)
+        .filter(
+            UserModel.email == email
+        )
+        .first()
+    )
+
+    if not user:
+
+        raise HTTPException(
+            status_code=404,
+            detail="المستخدم غير موجود",
+        )
+
+    # -----------------------------------------------------
+    # ALREADY VERIFIED
+    # -----------------------------------------------------
+
+    if int(
+        user.email_verified or 0
+    ) == 1:
+
+        return {
+            "status": "success",
+            "success": True,
+            "already_verified": True,
+            "message": (
+                "البريد الإلكتروني مؤكد مسبقًا"
+            ),
+        }
+
+    # -----------------------------------------------------
+    # RESEND OTP
+    # -----------------------------------------------------
+
+    try:
+
+        await supabase_send_email_otp(
+            email
+        )
+
+    except Exception as exc:
+
+        print(
+            "SUPABASE RESEND OTP ERROR:",
+            repr(exc),
+        )
+
+        error_text = str(exc)
+
+        status_code = 502
+
+        lowered = (
+            error_text.lower()
+        )
+
+        if (
+            "rate" in lowered
+            or "60" in lowered
+            or "too many" in lowered
+        ):
+
+            status_code = 429
+
+        raise HTTPException(
+            status_code=status_code,
+            detail=(
+                "تعذر إعادة إرسال رمز التحقق. "
+                f"{error_text}"
+            ),
+        )
+
+    return {
+        "status": "success",
+        "success": True,
+        "message": (
+            "تم إرسال رمز تحقق جديد "
+            "إلى بريدك الإلكتروني."
+        ),
+    }
 
 
 # =========================================================
@@ -1714,12 +2501,17 @@ async def login(
 
     username = username.strip()
 
+    # -----------------------------------------------------
+    # FIND USER
+    # -----------------------------------------------------
+
     user = (
         db.query(UserModel)
         .filter(
             or_(
                 UserModel.username
                 == username,
+
                 UserModel.email
                 == username.lower(),
             )
@@ -1736,6 +2528,10 @@ async def login(
             ),
         )
 
+    # -----------------------------------------------------
+    # PASSWORD
+    # -----------------------------------------------------
+
     if not verify_password(
         password,
         user.password_hash,
@@ -1748,6 +2544,73 @@ async def login(
             ),
         )
 
+    # -----------------------------------------------------
+    # EMAIL VERIFICATION REQUIRED
+    # -----------------------------------------------------
+
+    if int(
+        user.email_verified or 0
+    ) != 1:
+
+        message = (
+            "البريد الإلكتروني غير مؤكد. "
+            "تحقق من بريدك الإلكتروني وأدخل رمز التحقق."
+        )
+
+        # -------------------------------------------------
+        # TRY TO SEND A NEW OTP
+        # -------------------------------------------------
+
+        try:
+
+            await supabase_send_email_otp(
+                user.email
+            )
+
+            message = (
+                "البريد الإلكتروني غير مؤكد. "
+                "تم إرسال رمز تحقق جديد إلى بريدك."
+            )
+
+        except Exception as exc:
+
+            print(
+                "LOGIN OTP RESEND ERROR:",
+                repr(exc),
+            )
+
+            message = (
+                "البريد الإلكتروني غير مؤكد. "
+                "استخدم رمز التحقق الذي وصلك، "
+                "أو اضغط إعادة الإرسال بعد قليل."
+            )
+
+        return JSONResponse(
+            status_code=403,
+            content={
+                "status": "verification_required",
+                "success": False,
+                "verification_required": True,
+
+                "message": message,
+
+                "email": user.email,
+
+                "store_id": user.store_id,
+
+                "user": {
+                    "id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                    "email_verified": False,
+                },
+            }
+        )
+
+    # -----------------------------------------------------
+    # CREATE SESSION
+    # -----------------------------------------------------
+
     token = create_session(
         db,
         user,
@@ -1758,12 +2621,16 @@ async def login(
             "status": "success",
             "success": True,
             "message": "تم تسجيل الدخول",
+
             "store_id": user.store_id,
+
             "user": {
                 "id": user.id,
                 "username": user.username,
                 "email": user.email,
+                "email_verified": True,
             },
+
             "store": store_to_dict(
                 user.store
             ),
@@ -1840,11 +2707,17 @@ async def me(
     return {
         "status": "success",
         "success": True,
+
         "user": {
             "id": user.id,
             "username": user.username,
             "email": user.email,
+
+            "email_verified": bool(
+                user.email_verified
+            ),
         },
+
         "store": store_to_dict(
             user.store
         ),
@@ -1862,9 +2735,11 @@ async def update_agent(
     whatsapp_number: str = Form(""),
     agent_notes: str = Form(""),
     pdf_file: Optional[UploadFile] = File(None),
+
     user: UserModel = Depends(
         get_current_user
     ),
+
     db: Session = Depends(get_db),
 ):
 
@@ -1945,7 +2820,10 @@ async def update_agent(
         agent_notes
     )
 
-    if pdf_file and pdf_file.filename:
+    if (
+        pdf_file
+        and pdf_file.filename
+    ):
 
         filename = (
             pdf_file.filename
@@ -1976,14 +2854,16 @@ async def update_agent(
     db.commit()
     db.refresh(store)
 
-    # =====================================================
-    # IMPORTANT:
-    # Create Evolution instance immediately.
-    # =====================================================
+    # -----------------------------------------------------
+    # CREATE EVOLUTION INSTANCE
+    # -----------------------------------------------------
 
     evolution_result = None
 
-    if EVOLUTION_API_URL and EVOLUTION_GLOBAL_KEY:
+    if (
+        EVOLUTION_API_URL
+        and EVOLUTION_GLOBAL_KEY
+    ):
 
         try:
 
@@ -2013,9 +2893,14 @@ async def update_agent(
                 )
 
                 evolution_result = {
-                    "instance_name": instance_name,
-                    "ensure": ensure_result,
-                    "webhook": webhook_result,
+                    "instance_name":
+                        instance_name,
+
+                    "ensure":
+                        ensure_result,
+
+                    "webhook":
+                        webhook_result,
                 }
 
         except Exception as exc:
@@ -2032,13 +2917,17 @@ async def update_agent(
     return {
         "status": "success",
         "success": True,
+
         "message": (
             "تم حفظ إعدادات المساعد بنجاح"
         ),
+
         "store": store_to_dict(
             store
         ),
-        "evolution": evolution_result,
+
+        "evolution":
+            evolution_result,
     }
 
 
@@ -2051,9 +2940,11 @@ async def update_agent(
 )
 async def whatsapp_qr(
     store_id: str,
+
     user: UserModel = Depends(
         get_current_user
     ),
+
     db: Session = Depends(get_db),
 ):
 
@@ -2095,9 +2986,9 @@ async def whatsapp_qr(
         timeout=40.0
     ) as client:
 
-        # =================================================
-        # 1. ENSURE INSTANCE EXISTS
-        # =================================================
+        # -------------------------------------------------
+        # 1. ENSURE INSTANCE
+        # -------------------------------------------------
 
         ensure_result = (
             await ensure_instance(
@@ -2112,9 +3003,9 @@ async def whatsapp_qr(
             ]
         )
 
-        # =================================================
-        # 2. CONFIGURE WEBHOOK
-        # =================================================
+        # -------------------------------------------------
+        # 2. WEBHOOK
+        # -------------------------------------------------
 
         webhook_result = (
             await configure_webhook(
@@ -2124,9 +3015,9 @@ async def whatsapp_qr(
             )
         )
 
-        # =================================================
-        # 3. CONNECT / GET QR
-        # =================================================
+        # -------------------------------------------------
+        # 3. CONNECT / QR
+        # -------------------------------------------------
 
         qr_result = (
             await get_qr_with_retry(
@@ -2134,7 +3025,11 @@ async def whatsapp_qr(
                 instance_name,
                 attempts=10,
                 delay_seconds=1.5,
-                initial_result=ensure_result.get("create"),
+                initial_result=(
+                    ensure_result.get(
+                        "create"
+                    )
+                ),
             )
         )
 
@@ -2143,20 +3038,22 @@ async def whatsapp_qr(
         return {
             "status": "success",
             "success": True,
-            "qr_code": qr_result["qr"],
-            "instance_name": instance_name,
+
+            "qr_code":
+                qr_result["qr"],
+
+            "instance_name":
+                instance_name,
+
             "connection_state": (
                 extract_connection_state(
                     qr_result.get("data")
                 )
             ),
-            "webhook": webhook_result,
-        }
 
-    # =====================================================
-    # DO NOT HIDE EVOLUTION ERROR.
-    # Return diagnostic information.
-    # =====================================================
+            "webhook":
+                webhook_result,
+        }
 
     evolution_data = qr_result.get(
         "data"
@@ -2167,21 +3064,35 @@ async def whatsapp_qr(
         content={
             "status": "error",
             "success": False,
+
             "message": (
-                "Evolution API لم تُرجع QR Code. راجع evolution_http_status و evolution_response."
+                "Evolution API لم تُرجع QR Code. "
+                "راجع evolution_http_status "
+                "و evolution_response."
             ),
-            "instance_name": instance_name,
-            "evolution_http_status": qr_result.get(
-                "status_code"
-            ),
+
+            "instance_name":
+                instance_name,
+
+            "evolution_http_status":
+                qr_result.get(
+                    "status_code"
+                ),
+
             "connection_state": (
                 extract_connection_state(
                     evolution_data
                 )
             ),
-            "evolution_response": evolution_data,
-            "ensure_result": ensure_result,
-            "webhook_result": webhook_result,
+
+            "evolution_response":
+                evolution_data,
+
+            "ensure_result":
+                ensure_result,
+
+            "webhook_result":
+                webhook_result,
         },
     )
 
@@ -2195,9 +3106,11 @@ async def whatsapp_qr(
 )
 async def whatsapp_status(
     store_id: str,
+
     user: UserModel = Depends(
         get_current_user
     ),
+
     db: Session = Depends(get_db),
 ):
 
@@ -2240,27 +3153,35 @@ async def whatsapp_status(
             )
         )
 
+    success = (
+        result.get("status_code")
+        in range(200, 300)
+    )
+
     return {
         "status": (
             "success"
-            if result.get("status_code")
-            in range(200, 300)
+            if success
             else "error"
         ),
-        "success": (
-            result.get("status_code")
-            in range(200, 300)
-        ),
-        "instance_name": instance_name,
-        "connection_state": result.get(
-            "state"
-        ),
-        "http_status": result.get(
-            "status_code"
-        ),
-        "evolution_response": result.get(
-            "data"
-        ),
+
+        "success": success,
+
+        "instance_name":
+            instance_name,
+
+        "connection_state":
+            result.get("state"),
+
+        "http_status":
+            result.get(
+                "status_code"
+            ),
+
+        "evolution_response":
+            result.get(
+                "data"
+            ),
     }
 
 
@@ -2275,7 +3196,7 @@ def require_claude():
         raise HTTPException(
             status_code=500,
             detail=(
-                "ANTHROPIC_API_KEY غير مضبوط في Render"
+                "ANTHROPIC_API_KEY غير مضبوط"
             ),
         )
 
@@ -2322,6 +3243,7 @@ async def generate_ai_reply(
         .filter(
             ChatLogModel.store_id
             == store.id,
+
             ChatLogModel.sender_id
             == sender_id,
         )
@@ -2343,9 +3265,8 @@ async def generate_ai_reply(
             messages.append(
                 {
                     "role": "user",
-                    "content": (
-                        log.user_message
-                    ),
+                    "content":
+                        log.user_message,
                 }
             )
 
@@ -2354,9 +3275,8 @@ async def generate_ai_reply(
             messages.append(
                 {
                     "role": "assistant",
-                    "content": (
-                        log.bot_response
-                    ),
+                    "content":
+                        log.bot_response,
                 }
             )
 
@@ -2433,7 +3353,10 @@ class ChatRequest(BaseModel):
 @app.post("/api/chat")
 async def widget_chat(
     payload: ChatRequest,
-    db: Session = Depends(get_db),
+
+    db: Session = Depends(
+        get_db
+    ),
 ):
 
     store = (
@@ -2464,28 +3387,33 @@ async def widget_chat(
         reply_text = (
             await generate_ai_reply(
                 store,
+
                 payload.sender_id
                 or "preview_user",
+
                 payload.message,
+
                 db,
             )
         )
 
-        # IMPORTANT:
-        # "=" not ":"
         log = ChatLogModel(
             store_id=store.id,
+
             sender_id=(
                 payload.sender_id
                 or "preview_user"
             ),
+
             user_message=(
                 payload.message
             ),
+
             bot_response=reply_text,
         )
 
         db.add(log)
+
         db.commit()
 
         return {
@@ -2509,7 +3437,8 @@ async def widget_chat(
         raise HTTPException(
             status_code=500,
             detail=(
-                "حدث خطأ أثناء الاتصال بالذكاء الاصطناعي"
+                "حدث خطأ أثناء الاتصال "
+                "بالذكاء الاصطناعي"
             ),
         )
 
@@ -2527,7 +3456,7 @@ async def evolution_send_text(
 
     url = (
         f"{EVOLUTION_API_URL}"
-        f"/message/sendText/"
+        "/message/sendText/"
         f"{instance_name}"
     )
 
@@ -2542,7 +3471,9 @@ async def evolution_send_text(
         json=payload,
     )
 
-    data = safe_json(response)
+    data = safe_json(
+        response
+    )
 
     print(
         "EVOLUTION SEND TEXT:",
@@ -2551,8 +3482,11 @@ async def evolution_send_text(
     )
 
     return {
-        "status_code": response.status_code,
-        "data": data,
+        "status_code":
+            response.status_code,
+
+        "data":
+            data,
     }
 
 
@@ -2699,7 +3633,10 @@ def extract_whatsapp_message(
 async def whatsapp_webhook(
     store_id: str,
     request: Request,
-    db: Session = Depends(get_db),
+
+    db: Session = Depends(
+        get_db
+    ),
 ):
 
     store = (
@@ -2713,7 +3650,8 @@ async def whatsapp_webhook(
     if not store:
 
         return {
-            "status": "store_not_found"
+            "status":
+                "store_not_found"
         }
 
     try:
@@ -2736,17 +3674,22 @@ async def whatsapp_webhook(
 
             return {
                 "status": "ignored",
-                "reason": "sender missing",
+                "reason":
+                    "sender missing",
             }
 
         if not incoming_text:
 
             return {
                 "status": "ignored",
-                "reason": "text missing",
+                "reason":
+                    "text missing",
             }
 
-        # Ignore groups.
+        # -------------------------------------------------
+        # IGNORE GROUPS
+        # -------------------------------------------------
+
         if sender.endswith(
             "@g.us"
         ):
@@ -2756,24 +3699,34 @@ async def whatsapp_webhook(
                 "reason": "group",
             }
 
-        # Ignore broadcasts.
+        # -------------------------------------------------
+        # IGNORE BROADCASTS
+        # -------------------------------------------------
+
         if sender.endswith(
             "@broadcast"
         ):
 
             return {
                 "status": "ignored",
-                "reason": "broadcast",
+                "reason":
+                    "broadcast",
             }
 
-        # Ignore messages generated by us.
+        # -------------------------------------------------
+        # IGNORE OUR OWN MESSAGES
+        # -------------------------------------------------
+
         data = payload.get(
             "data",
             payload,
         )
 
         key = (
-            data.get("key", {})
+            data.get(
+                "key",
+                {},
+            )
             if isinstance(
                 data,
                 dict,
@@ -2788,16 +3741,17 @@ async def whatsapp_webhook(
 
             return {
                 "status": "ignored",
-                "reason": "from_me",
+                "reason":
+                    "from_me",
             }
 
         incoming_text = (
             incoming_text.strip()
         )
 
-        # =================================================
-        # Generate Claude response
-        # =================================================
+        # -------------------------------------------------
+        # CLAUDE
+        # -------------------------------------------------
 
         reply_text = (
             await generate_ai_reply(
@@ -2808,9 +3762,9 @@ async def whatsapp_webhook(
             )
         )
 
-        # =================================================
-        # Save conversation
-        # =================================================
+        # -------------------------------------------------
+        # SAVE
+        # -------------------------------------------------
 
         log = ChatLogModel(
             store_id=store.id,
@@ -2820,19 +3774,22 @@ async def whatsapp_webhook(
         )
 
         db.add(log)
+
         db.commit()
 
-        # =================================================
-        # Send WhatsApp reply
-        # =================================================
+        # -------------------------------------------------
+        # SEND WHATSAPP
+        # -------------------------------------------------
 
-        instance_name = make_instance_name(
-            store.id
+        instance_name = (
+            make_instance_name(
+                store.id
+            )
         )
 
-        target_number = sender.split(
-            "@"
-        )[0]
+        target_number = (
+            sender.split("@")[0]
+        )
 
         async with httpx.AsyncClient(
             timeout=30.0
@@ -2849,12 +3806,17 @@ async def whatsapp_webhook(
 
         return {
             "status": "success",
+
             "sent": (
                 send_result[
                     "status_code"
                 ]
-                in range(200, 300)
+                in range(
+                    200,
+                    300,
+                )
             ),
+
             "evolution_status": (
                 send_result[
                     "status_code"
@@ -2922,6 +3884,24 @@ async def startup_event():
         (
             WEBHOOK_BASE_URL
             if WEBHOOK_BASE_URL
+            else "missing"
+        ),
+    )
+
+    print(
+        "SUPABASE URL:",
+        (
+            SUPABASE_URL
+            if SUPABASE_URL
+            else "missing"
+        ),
+    )
+
+    print(
+        "SUPABASE KEY:",
+        (
+            "configured"
+            if SUPABASE_ANON_KEY
             else "missing"
         ),
     )
