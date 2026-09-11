@@ -1,172 +1,67 @@
-import hashlib
 import os
-import secrets
 import uuid
-from datetime import datetime, timedelta
-from typing import Optional, Any
+import hashlib
+import secrets
+import re
+
+from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 import anthropic
 import httpx
-import pypdf
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
+
+from pypdf import PdfReader
+
+from fastapi import (
+    Depends,
+    FastAPI,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+    status,
+)
+
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi import Response
+
 from pydantic import BaseModel
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, create_engine
-from sqlalchemy.orm import Session, declarative_base, relationship, sessionmaker
 
-
-# =========================================================
-# Environment Variables
-# =========================================================
-
-DATABASE_URL = os.getenv("DATABASE_CONNECTION_URI", "").strip()
-if not DATABASE_URL:
-    DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
-
-if not DATABASE_URL:
-    DATABASE_URL = "sqlite:///./saas_stores.db"
-
-# Supabase usually provides a PostgreSQL URL. Normalize older postgres:// URLs
-# and require SSL for external PostgreSQL connections when sslmode was not set.
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = "postgresql://" + DATABASE_URL[len("postgres://"): ]
-
-if DATABASE_URL.startswith("postgresql") and "sslmode=" not in DATABASE_URL:
-    separator = "&" if "?" in DATABASE_URL else "?"
-    DATABASE_URL = f"{DATABASE_URL}{separator}sslmode=require"
-
-connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
-
-engine_kwargs = {
-    "pool_pre_ping": True,
-    "pool_recycle": 1800,
-}
-
-if not DATABASE_URL.startswith("sqlite"):
-    # Keep the pool small because Supabase/Render free plans have connection limits.
-    engine_kwargs.update({
-        "pool_size": int(os.getenv("DB_POOL_SIZE", "3")),
-        "max_overflow": int(os.getenv("DB_MAX_OVERFLOW", "2")),
-    })
-else:
-    engine_kwargs = {}
-
-engine = create_engine(
-    DATABASE_URL,
-    connect_args=connect_args,
-    **engine_kwargs,
+from sqlalchemy import (
+    Column,
+    String,
+    Text,
+    DateTime,
+    ForeignKey,
+    create_engine,
+    or_,
 )
 
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine,
+from sqlalchemy.exc import IntegrityError
+
+from sqlalchemy.orm import (
+    declarative_base,
+    relationship,
+    sessionmaker,
+    Session,
 )
 
-Base = declarative_base()
 
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "").strip()
-ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5").strip()
+# =========================================================
+# APP
+# =========================================================
 
-EVOLUTION_API_URL = os.getenv(
-    "EVOLUTION_API_URL",
-    "https://evolution-api-render-1-nsvq.onrender.com",
-).strip().rstrip("/")
-
-EVOLUTION_GLOBAL_KEY = os.getenv("EVOLUTION_GLOBAL_KEY", "").strip()
-if not EVOLUTION_GLOBAL_KEY:
-    EVOLUTION_GLOBAL_KEY = os.getenv("EVOLUTION_API_KEY", "").strip()
-if not EVOLUTION_GLOBAL_KEY:
-    # Useful when the same variable name is temporarily used in both services.
-    EVOLUTION_GLOBAL_KEY = os.getenv("AUTHENTICATION_API_KEY", "").strip()
-
-WEBHOOK_BASE_URL = os.getenv("WEBHOOK_BASE_URL", "").strip().rstrip("/")
-
-SESSION_COOKIE_NAME = "ai_store_session"
-SESSION_DAYS = int(os.getenv("SESSION_DAYS", "30"))
-
-if ANTHROPIC_API_KEY:
-    claude_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-else:
-    claude_client = None
+app = FastAPI(
+    title="Smart AI Store Assistant",
+    version="1.0.0",
+)
 
 
 # =========================================================
-# Database Models
+# CORS
 # =========================================================
-
-class StoreModel(Base):
-    __tablename__ = "stores"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    store_name = Column(String, nullable=False)
-    store_url = Column(String, nullable=True)
-    whatsapp_number = Column(String, nullable=True)
-    agent_notes = Column(Text, nullable=True)
-    catalog_text = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    logs = relationship(
-        "ChatLogModel",
-        back_populates="store",
-        cascade="all, delete-orphan",
-    )
-
-
-class UserModel(Base):
-    __tablename__ = "users"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    store_id = Column(String, ForeignKey("stores.id"), nullable=False, unique=True)
-    username = Column(String, nullable=False, unique=True, index=True)
-    password_hash = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    store = relationship("StoreModel", backref="owner", uselist=False)
-
-
-class SessionModel(Base):
-    __tablename__ = "auth_sessions"
-
-    id = Column(String, primary_key=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
-    token_hash = Column(String, nullable=False, unique=True, index=True)
-    expires_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    user = relationship("UserModel")
-
-
-class ChatLogModel(Base):
-    __tablename__ = "chat_logs"
-
-    id = Column(Integer, primary_key=True, index=True)
-    store_id = Column(String, ForeignKey("stores.id"))
-    sender_id = Column(String, default="default_user")
-    user_message = Column(Text)
-    bot_response = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    store = relationship("StoreModel", back_populates="logs")
-
-
-Base.metadata.create_all(bind=engine)
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-# =========================================================
-# FastAPI
-# =========================================================
-
-app = FastAPI(title="AI Store Assistant SaaS Platform")
 
 app.add_middleware(
     CORSMiddleware,
@@ -177,525 +72,819 @@ app.add_middleware(
 )
 
 
-class ChatRequest(BaseModel):
-    store_id: str
-    message: str
-    sender_id: Optional[str] = "preview_user"
+# =========================================================
+# DATABASE
+# =========================================================
+
+DATABASE_URL = os.getenv(
+    "DATABASE_CONNECTION_URI",
+    ""
+).strip()
+
+
+if not DATABASE_URL:
+
+    DATABASE_URL = os.getenv(
+        "DATABASE_URL",
+        ""
+    ).strip()
+
+
+if not DATABASE_URL:
+
+    DATABASE_URL = "sqlite:///./saas_stores.db"
+
+
+if DATABASE_URL.startswith("postgres://"):
+
+    DATABASE_URL = (
+        "postgresql://"
+        + DATABASE_URL[len("postgres://"):]
+    )
+
+
+if DATABASE_URL.startswith("postgresql"):
+
+    if "sslmode=" not in DATABASE_URL:
+
+        separator = (
+            "&"
+            if "?" in DATABASE_URL
+            else "?"
+        )
+
+        DATABASE_URL = (
+            DATABASE_URL
+            + separator
+            + "sslmode=require"
+        )
+
+
+if DATABASE_URL.startswith("sqlite"):
+
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={
+            "check_same_thread": False
+        },
+    )
+
+else:
+
+    engine = create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True,
+        pool_recycle=1800,
+    )
+
+
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+)
+
+
+Base = declarative_base()
 
 
 # =========================================================
-# Helpers
+# MODELS
 # =========================================================
 
-def normalize_phone(value: str) -> str:
-    if not value:
-        return ""
+class StoreModel(Base):
+
+    __tablename__ = "stores"
+
+    id = Column(
+        String(36),
+        primary_key=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+
+    store_name = Column(
+        String(255),
+        nullable=False,
+    )
+
+    store_url = Column(
+        String(1000),
+        nullable=True,
+    )
+
+    whatsapp_number = Column(
+        String(50),
+        nullable=True,
+    )
+
+    agent_notes = Column(
+        Text,
+        nullable=True,
+    )
+
+    catalog_text = Column(
+        Text,
+        nullable=True,
+    )
+
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    users = relationship(
+        "UserModel",
+        back_populates="store",
+        cascade="all, delete-orphan",
+    )
+
+    logs = relationship(
+        "ChatLogModel",
+        back_populates="store",
+        cascade="all, delete-orphan",
+    )
+
+
+class UserModel(Base):
+
+    __tablename__ = "users"
+
+    id = Column(
+        String(36),
+        primary_key=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+
+    store_id = Column(
+        String(36),
+        ForeignKey("stores.id"),
+        nullable=False,
+        unique=True,
+    )
+
+    username = Column(
+        String(255),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+
+    password_hash = Column(
+        String(255),
+        nullable=False,
+    )
+
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    store = relationship(
+        "StoreModel",
+        back_populates="users",
+    )
+
+
+class SessionModel(Base):
+
+    __tablename__ = "auth_sessions"
+
+    id = Column(
+        String(36),
+        primary_key=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id"),
+        nullable=False,
+    )
+
+    token_hash = Column(
+        String(255),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+
+    expires_at = Column(
+        DateTime,
+        nullable=False,
+    )
+
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+
+class ChatLogModel(Base):
+
+    __tablename__ = "chat_logs"
+
+    id = Column(
+        String(36),
+        primary_key=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+
+    store_id = Column(
+        String(36),
+        ForeignKey("stores.id"),
+        nullable=False,
+    )
+
+    sender_id = Column(
+        String(255),
+        nullable=True,
+    )
+
+    user_message = Column(
+        Text,
+        nullable=False,
+    )
+
+    bot_response = Column(
+        Text,
+        nullable=False,
+    )
+
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    store = relationship(
+        "StoreModel",
+        back_populates="logs",
+    )
+
+
+# =========================================================
+# CREATE TABLES
+# =========================================================
+
+Base.metadata.create_all(
+    bind=engine
+)
+
+
+# =========================================================
+# DATABASE DEPENDENCY
+# =========================================================
+
+def get_db():
+
+    db = SessionLocal()
+
+    try:
+
+        yield db
+
+    finally:
+
+        db.close()
+
+
+# =========================================================
+# PASSWORD HASHING
+# =========================================================
+
+PBKDF2_ROUNDS = 240000
+
+
+def hash_password(password: str) -> str:
+
+    salt = secrets.token_bytes(16)
+
+    derived = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt,
+        PBKDF2_ROUNDS,
+    )
+
     return (
+        f"pbkdf2_sha256$"
+        f"{PBKDF2_ROUNDS}$"
+        f"{salt.hex()}$"
+        f"{derived.hex()}"
+    )
+
+
+def verify_password(
+    password: str,
+    stored_hash: str,
+) -> bool:
+
+    try:
+
+        parts = stored_hash.split("$")
+
+        if len(parts) != 4:
+            return False
+
+        algorithm = parts[0]
+        rounds = int(parts[1])
+        salt = bytes.fromhex(parts[2])
+        expected = bytes.fromhex(parts[3])
+
+        if algorithm != "pbkdf2_sha256":
+            return False
+
+        actual = hashlib.pbkdf2_hmac(
+            "sha256",
+            password.encode("utf-8"),
+            salt,
+            rounds,
+        )
+
+        return secrets.compare_digest(
+            actual,
+            expected,
+        )
+
+    except Exception:
+
+        return False
+
+
+# =========================================================
+# SESSION
+# =========================================================
+
+SESSION_COOKIE = "ai_store_session"
+
+SESSION_DAYS = 30
+
+
+COOKIE_SECURE = (
+    os.getenv(
+        "COOKIE_SECURE",
+        "true",
+    ).lower()
+    in ("1", "true", "yes")
+)
+
+
+def hash_session_token(token: str) -> str:
+
+    return hashlib.sha256(
+        token.encode("utf-8")
+    ).hexdigest()
+
+
+def create_session(
+    db: Session,
+    user: UserModel,
+):
+
+    raw_token = secrets.token_urlsafe(48)
+
+    token_hash = hash_session_token(
+        raw_token
+    )
+
+    expires_at = (
+        datetime.now(timezone.utc)
+        + timedelta(days=SESSION_DAYS)
+    )
+
+    session = SessionModel(
+        user_id=user.id,
+        token_hash=token_hash,
+        expires_at=expires_at,
+    )
+
+    db.add(session)
+    db.commit()
+
+    return raw_token
+
+
+def get_current_user(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+
+    token = request.cookies.get(
+        SESSION_COOKIE
+    )
+
+    if not token:
+        return None
+
+
+    token_hash = hash_session_token(
+        token
+    )
+
+
+    session = (
+        db.query(SessionModel)
+        .filter(
+            SessionModel.token_hash
+            == token_hash
+        )
+        .first()
+    )
+
+
+    if not session:
+
+        return None
+
+
+    now = datetime.now(timezone.utc)
+
+
+    expires_at = session.expires_at
+
+    if expires_at.tzinfo is None:
+
+        expires_at = expires_at.replace(
+            tzinfo=timezone.utc
+        )
+
+
+    if expires_at < now:
+
+        db.delete(session)
+        db.commit()
+
+        return None
+
+
+    user = (
+        db.query(UserModel)
+        .filter(
+            UserModel.id
+            == session.user_id
+        )
+        .first()
+    )
+
+
+    if not user:
+        return None
+
+
+    return user
+
+
+def require_current_user(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+
+    user = get_current_user(
+        request,
+        db,
+    )
+
+    if not user:
+
+        raise HTTPException(
+            status_code=401,
+            detail="يجب تسجيل الدخول أولاً.",
+        )
+
+    return user
+
+
+# =========================================================
+# EVOLUTION API
+# =========================================================
+
+EVOLUTION_API_URL = os.getenv(
+    "EVOLUTION_API_URL",
+    "",
+).strip().rstrip("/")
+
+
+EVOLUTION_API_KEY = (
+    os.getenv(
+        "EVOLUTION_GLOBAL_KEY",
+        "",
+    ).strip()
+    or os.getenv(
+        "EVOLUTION_API_KEY",
+        "",
+    ).strip()
+    or os.getenv(
+        "AUTHENTICATION_API_KEY",
+        "",
+    ).strip()
+)
+
+
+WEBHOOK_BASE_URL = os.getenv(
+    "WEBHOOK_BASE_URL",
+    "",
+).strip().rstrip("/")
+
+
+def require_evolution_config():
+
+    if not EVOLUTION_API_URL:
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "EVOLUTION_API_URL غير موجود "
+                "في متغيرات البيئة على Render."
+            ),
+        )
+
+
+    if not EVOLUTION_API_KEY:
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "EVOLUTION_GLOBAL_KEY أو "
+                "EVOLUTION_API_KEY غير موجود "
+                "في متغيرات البيئة على Render."
+            ),
+        )
+
+
+def evolution_headers():
+
+    return {
+        "Content-Type": "application/json",
+        "apikey": EVOLUTION_API_KEY,
+    }
+
+
+# =========================================================
+# PHONE NORMALIZATION
+# =========================================================
+
+def normalize_phone(phone: str) -> str:
+
+    if not phone:
+        return ""
+
+
+    value = phone.strip()
+
+
+    value = (
         value.replace("+", "")
         .replace(" ", "")
         .replace("-", "")
         .replace("(", "")
         .replace(")", "")
-        .strip()
     )
 
 
-def make_instance_name(phone: str) -> str:
-    clean = normalize_phone(phone)
-    return f"store_{clean}"
+    if value.startswith("00"):
+
+        value = value[2:]
 
 
-def extract_pdf_text(file_obj) -> str:
+    if not value.isdigit():
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "رقم الواتساب غير صحيح. "
+                "اكتب الرقم مع مفتاح الدولة بدون + أو مسافات."
+            ),
+        )
+
+
+    if len(value) < 8:
+
+        raise HTTPException(
+            status_code=400,
+            detail="رقم الواتساب قصير جداً.",
+        )
+
+
+    return value
+
+
+# =========================================================
+# PDF EXTRACTION
+# =========================================================
+
+async def extract_pdf_text(
+    pdf_file: Optional[UploadFile],
+) -> Optional[str]:
+
+    if not pdf_file:
+        return None
+
+
+    if not pdf_file.filename:
+        return None
+
+
+    filename =
+        pdf_file.filename.lower()
+
+
+    if not filename.endswith(".pdf"):
+
+        raise HTTPException(
+            status_code=400,
+            detail="الملف يجب أن يكون PDF.",
+        )
+
+
     try:
-        reader = pypdf.PdfReader(file_obj)
-        parts = []
+
+        content = await pdf_file.read()
+
+        if not content:
+
+            return None
+
+
+        import io
+
+        reader = PdfReader(
+            io.BytesIO(content)
+        )
+
+
+        pages = []
+
 
         for page in reader.pages:
-            extracted = page.extract_text()
-            if extracted:
-                parts.append(extracted)
 
-        return "\n".join(parts).strip()
+            text = page.extract_text() or ""
 
-    except Exception as exc:
-        print(f"PDF extraction error: {exc}")
-        return ""
+            if text.strip():
 
-
-def safe_json(response: httpx.Response) -> Any:
-    try:
-        return response.json()
-    except Exception:
-        return {"raw": response.text}
+                pages.append(
+                    text.strip()
+                )
 
 
-def first_value(*values):
-    for value in values:
-        if value is not None and value != "":
-            return value
-    return None
+        result = "\n\n".join(pages)
 
 
-def normalize_qr(value: Any) -> Optional[str]:
-    if not value:
-        return None
-
-    if isinstance(value, dict):
-        value = first_value(
-            value.get("base64"),
-            value.get("base64Image"),
-            value.get("qrcode"),
-            value.get("code"),
-        )
-
-    if not isinstance(value, str):
-        return None
-
-    value = value.strip()
-
-    if not value:
-        return None
-
-    if value.startswith("data:image"):
-        return value
-
-    # Evolution normally returns the QR as base64.
-    if value.startswith("http://") or value.startswith("https://"):
-        return value
-
-    # Remove possible surrounding whitespace only.
-    return f"data:image/png;base64,{value}"
+        return result[:500000]
 
 
-def extract_qr_code(data: Any) -> Optional[str]:
-    if not isinstance(data, dict):
-        return None
+    except Exception as error:
 
-    candidates = [
-        data.get("qrcode"),
-        data.get("qrCode"),
-        data.get("base64"),
-        data.get("base64Image"),
-        data.get("code"),
-        data.get("instance", {}).get("qrcode") if isinstance(data.get("instance"), dict) else None,
-        data.get("instance", {}).get("qrCode") if isinstance(data.get("instance"), dict) else None,
-    ]
-
-    for candidate in candidates:
-        qr = normalize_qr(candidate)
-        if qr:
-            return qr
-
-    return None
-
-
-def extract_instance_status(data: Any) -> Optional[str]:
-    if not isinstance(data, dict):
-        return None
-
-    values = [
-        data.get("state"),
-        data.get("status"),
-        data.get("connectionStatus"),
-    ]
-
-    instance = data.get("instance")
-    if isinstance(instance, dict):
-        values.extend([
-            instance.get("state"),
-            instance.get("status"),
-            instance.get("connectionStatus"),
-        ])
-
-    for value in values:
-        if value:
-            return str(value)
-
-    return None
-
-
-def hash_password(password: str, salt: Optional[bytes] = None) -> str:
-    if salt is None:
-        salt = secrets.token_bytes(16)
-    derived = hashlib.pbkdf2_hmac(
-        "sha256",
-        password.encode("utf-8"),
-        salt,
-        240_000,
-    )
-    return f"pbkdf2_sha256$240000${salt.hex()}${derived.hex()}"
-
-
-def verify_password(password: str, stored_hash: str) -> bool:
-    try:
-        algorithm, rounds, salt_hex, digest_hex = stored_hash.split("$", 3)
-        if algorithm != "pbkdf2_sha256":
-            return False
-        derived = hashlib.pbkdf2_hmac(
-            "sha256",
-            password.encode("utf-8"),
-            bytes.fromhex(salt_hex),
-            int(rounds),
-        )
-        return secrets.compare_digest(derived.hex(), digest_hex)
-    except Exception:
-        return False
-
-
-def hash_session_token(token: str) -> str:
-    return hashlib.sha256(token.encode("utf-8")).hexdigest()
-
-
-def get_user_from_token(db: Session, token: Optional[str]) -> Optional[UserModel]:
-    if not token:
-        return None
-
-    token_hash = hash_session_token(token)
-    session = (
-        db.query(SessionModel)
-        .filter(SessionModel.token_hash == token_hash)
-        .first()
-    )
-
-    if not session:
-        return None
-
-    if session.expires_at <= datetime.utcnow():
-        db.delete(session)
-        db.commit()
-        return None
-
-    user = db.query(UserModel).filter(UserModel.id == session.user_id).first()
-    return user
-
-
-def set_session_cookie(response: JSONResponse, db: Session, user: UserModel) -> str:
-    token = secrets.token_urlsafe(48)
-    session = SessionModel(
-        id=str(uuid.uuid4()),
-        user_id=user.id,
-        token_hash=hash_session_token(token),
-        expires_at=datetime.utcnow() + timedelta(days=SESSION_DAYS),
-    )
-    db.add(session)
-    db.commit()
-
-    response.set_cookie(
-        key=SESSION_COOKIE_NAME,
-        value=token,
-        max_age=SESSION_DAYS * 24 * 60 * 60,
-        httponly=True,
-        secure=os.getenv("COOKIE_SECURE", "true").lower() == "true",
-        samesite="lax",
-        path="/",
-    )
-    return token
-
-
-def current_user_from_request(request: Request, db: Session) -> UserModel:
-    user = get_user_from_token(db, request.cookies.get(SESSION_COOKIE_NAME))
-    if not user:
-        raise HTTPException(status_code=401, detail="يجب تسجيل الدخول أولاً.")
-    return user
-
-
-def require_evolution_config():
-    if not EVOLUTION_API_URL:
         raise HTTPException(
-            status_code=500,
-            detail="EVOLUTION_API_URL غير مضبوط في Render.",
-        )
-
-    if not EVOLUTION_GLOBAL_KEY:
-        raise HTTPException(
-            status_code=500,
-            detail="EVOLUTION_GLOBAL_KEY غير مضبوط في Render.",
+            status_code=400,
+            detail=(
+                "تعذر قراءة ملف PDF: "
+                + str(error)
+            ),
         )
 
 
-def require_claude():
-    if not claude_client:
-        raise HTTPException(
-            status_code=500,
-            detail="ANTHROPIC_API_KEY غير مضبوط في Render.",
-        )
+# =========================================================
+# STORE SERIALIZER
+# =========================================================
 
-
-async def evolution_connect(
-    client: httpx.AsyncClient,
-    instance_name: str,
-    headers: dict,
+def store_to_dict(
+    store: StoreModel,
+    user: Optional[UserModel] = None,
 ):
-    """
-    Ask Evolution API to connect the instance and return the QR if available.
-    """
-    url = f"{EVOLUTION_API_URL}/instance/connect/{instance_name}"
-
-    try:
-        response = await client.get(url, headers=headers)
-        data = safe_json(response)
-
-        print(
-            f"Evolution connect: status={response.status_code}, "
-            f"response={data}"
-        )
-
-        qr = extract_qr_code(data)
-
-        return {
-            "status_code": response.status_code,
-            "data": data,
-            "qr": qr,
-        }
-
-    except Exception as exc:
-        print(f"Evolution connect exception: {exc}")
-        return {
-            "status_code": 0,
-            "data": {"error": str(exc)},
-            "qr": None,
-        }
-
-
-async def evolution_create(
-    client: httpx.AsyncClient,
-    instance_name: str,
-    headers: dict,
-):
-    payload = {
-        "instanceName": instance_name,
-        "qrcode": True,
-        "integration": "WHATSAPP-BAILEYS",
-    }
-
-    url = f"{EVOLUTION_API_URL}/instance/create"
-
-    try:
-        response = await client.post(
-            url,
-            json=payload,
-            headers=headers,
-        )
-
-        data = safe_json(response)
-
-        print(
-            f"Evolution create: status={response.status_code}, "
-            f"response={data}"
-        )
-
-        return {
-            "status_code": response.status_code,
-            "data": data,
-            "qr": extract_qr_code(data),
-        }
-
-    except Exception as exc:
-        print(f"Evolution create exception: {exc}")
-        return {
-            "status_code": 0,
-            "data": {"error": str(exc)},
-            "qr": None,
-        }
-
-
-async def configure_webhook(
-    client: httpx.AsyncClient,
-    instance_name: str,
-    store_id: str,
-    headers: dict,
-):
-    if not WEBHOOK_BASE_URL:
-        return {
-            "status_code": 0,
-            "data": {
-                "warning": "WEBHOOK_BASE_URL غير مضبوط، تم تخطي Webhook."
-            },
-        }
-
-    webhook_url = (
-        f"{WEBHOOK_BASE_URL}/api/whatsapp/webhook/{store_id}"
-    )
-
-    payload = {
-        "webhook": {
-            "enabled": True,
-            "url": webhook_url,
-            "byEvents": False,
-            "events": [
-                "MESSAGES_UPSERT",
-                "CONNECTION_UPDATE",
-                "QRCODE_UPDATED",
-            ],
-        }
-    }
-
-    url = f"{EVOLUTION_API_URL}/webhook/set/{instance_name}"
-
-    try:
-        response = await client.post(
-            url,
-            json=payload,
-            headers=headers,
-        )
-
-        data = safe_json(response)
-
-        print(
-            f"Evolution webhook: status={response.status_code}, "
-            f"response={data}"
-        )
-
-        return {
-            "status_code": response.status_code,
-            "data": data,
-        }
-
-    except Exception as exc:
-        print(f"Webhook configuration exception: {exc}")
-        return {
-            "status_code": 0,
-            "data": {"error": str(exc)},
-        }
-
-
-async def evolution_qr_fallback(
-    client: httpx.AsyncClient,
-    instance_name: str,
-    headers: dict,
-):
-    """Try alternate QR endpoints used by some Evolution API builds."""
-    endpoints = [
-        f"{EVOLUTION_API_URL}/instance/connect/{instance_name}",
-        f"{EVOLUTION_API_URL}/qrcode/{instance_name}",
-    ]
-
-    seen = set()
-    for url in endpoints:
-        if url in seen:
-            continue
-        seen.add(url)
-        try:
-            response = await client.get(url, headers=headers)
-            data = safe_json(response)
-            qr = extract_qr_code(data)
-            print(
-                f"Evolution QR fallback: url={url}, "
-                f"status={response.status_code}, response={data}"
-            )
-            if qr:
-                return {
-                    "status_code": response.status_code,
-                    "data": data,
-                    "qr": qr,
-                }
-        except Exception as exc:
-            print(f"Evolution QR fallback exception: {exc}")
 
     return {
-        "status_code": 0,
-        "data": {"error": "No QR returned from fallback endpoints."},
-        "qr": None,
+        "id": store.id,
+        "store_name": store.store_name,
+        "store_url": store.store_url or "",
+        "whatsapp_number": (
+            store.whatsapp_number or ""
+        ),
+        "agent_notes": (
+            store.agent_notes or ""
+        ),
+        "has_catalog": bool(
+            store.catalog_text
+        ),
+        "email": (
+            user.username
+            if user
+            else ""
+        ),
+        "username": (
+            user.username
+            if user
+            else ""
+        ),
     }
 
 
-async def get_qr_with_retry(
-    client: httpx.AsyncClient,
-    instance_name: str,
-    headers: dict,
-    attempts: int = 8,
-    delay_seconds: float = 1.5,
-):
-    """
-    QR may not be present immediately after instance creation.
-    Retry the connect endpoint a few times.
-    """
-    import asyncio
+# =========================================================
+# HOME
+# =========================================================
 
-    last_result = None
+@app.get("/")
+async def home():
 
-    for attempt in range(1, attempts + 1):
-        result = await evolution_connect(
-            client,
-            instance_name,
-            headers,
+    if os.path.exists("index.html"):
+
+        return FileResponse(
+            "index.html"
         )
 
-        last_result = result
-
-        if result.get("qr"):
-            print(f"QR received on attempt {attempt}")
-            return result
-
-        status = extract_instance_status(result.get("data"))
-
-        if status and status.lower() in {
-            "open",
-            "connected",
-            "online",
-        }:
-            return result
-
-        if attempt in {2, 4, 6, 8, attempts}:
-            fallback = await evolution_qr_fallback(
-                client,
-                instance_name,
-                headers,
-            )
-            if fallback.get("qr"):
-                print(f"QR received from fallback on attempt {attempt}")
-                return fallback
-
-        if attempt < attempts:
-            await asyncio.sleep(delay_seconds)
-
-    return last_result or {
-        "status_code": 0,
-        "data": {"error": "لم تتم إعادة نتيجة Evolution API."},
-        "qr": None,
+    return {
+        "message":
+            "Smart AI Store Assistant is running"
     }
 
 
 # =========================================================
-# Basic Routes
+# HEAD HOME
 # =========================================================
 
-@app.get("/", response_class=HTMLResponse)
-async def read_index():
-    if os.path.exists("index.html"):
-        with open("index.html", "r", encoding="utf-8") as file:
-            return file.read()
+@app.head("/")
+async def head_home():
 
-    return "<h1>مرحباً بك في منصة المساعد الذكي للمتاجر</h1>"
+    return Response(
+        status_code=200
+    )
 
+
+# =========================================================
+# HEALTH
+# =========================================================
 
 @app.get("/health")
-async def health():
+def health():
+
     return {
         "status": "ok",
-        "evolution_api_url": EVOLUTION_API_URL,
-        "evolution_key_configured": bool(EVOLUTION_GLOBAL_KEY),
-        "claude_key_configured": bool(ANTHROPIC_API_KEY),
-        "webhook_base_url_configured": bool(WEBHOOK_BASE_URL),
+        "database":
+            "configured"
+            if DATABASE_URL
+            else "missing",
+        "evolution":
+            "configured"
+            if EVOLUTION_API_URL
+            and EVOLUTION_API_KEY
+            else "not_configured",
     }
 
 
-@app.get("/widget.js", response_class=FileResponse)
-async def get_widget_script():
+# =========================================================
+# DATABASE HEALTH
+# =========================================================
+
+@app.get("/health/db")
+def health_db(
+    db: Session = Depends(get_db),
+):
+
+    try:
+
+        db.execute(
+            __import__(
+                "sqlalchemy"
+            ).text("SELECT 1")
+        )
+
+        return {
+            "status": "ok",
+            "database": "connected",
+        }
+
+    except Exception as error:
+
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "error",
+                "database": "not_connected",
+                "detail": str(error),
+            },
+        )
+
+
+# =========================================================
+# WIDGET
+# =========================================================
+
+@app.get("/widget.js")
+async def widget():
+
     if os.path.exists("widget.js"):
+
         return FileResponse(
             "widget.js",
             media_type="application/javascript",
         )
 
-    raise HTTPException(
-        status_code=404,
-        detail="widget.js not found",
+    return Response(
+        "// widget not found",
+        media_type="application/javascript",
     )
 
 
 # =========================================================
-# Store Registration + WhatsApp QR
+# REGISTER STORE
 # =========================================================
 
 @app.post("/api/register-store")
@@ -703,657 +892,1565 @@ async def register_store(
     request: Request,
     store_name: str = Form(...),
     username: str = Form(...),
+    email: str = Form(...),
     password: str = Form(...),
-    store_url: Optional[str] = Form(None),
-    whatsapp_number: Optional[str] = Form(None),
-    agent_notes: Optional[str] = Form(None),
-    pdf_file: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
 ):
-    # 1. التحقق الأساسي من المدخلات
-    username = username.strip().lower()
-    if len(username) < 3:
-        raise HTTPException(status_code=400, detail="اسم المستخدم يجب أن يكون 3 أحرف على الأقل.")
-    if len(password) < 6:
-        raise HTTPException(status_code=400, detail="كلمة المرور يجب أن تكون 6 أحرف على الأقل.")
 
-    # 2. التحقق من وجود اسم المستخدم مسبقاً
-    existing_user = db.query(UserModel).filter(UserModel.username == username).first()
-    if existing_user:
-        raise HTTPException(status_code=409, detail="اسم المستخدم مستخدم بالفعل.")
+    store_name = store_name.strip()
+    username = username.strip()
+    email = email.strip().lower()
 
-    # 3. التحقق المسبق من رقم الواتساب ووجود إعدادات Evolution API قبل إجراء أي حفظ
-    clean_phone = ""
-    if whatsapp_number:
-        clean_phone = normalize_phone(whatsapp_number)
-        if not clean_phone.isdigit():
-            raise HTTPException(
-                status_code=400,
-                detail="رقم الواتساب يجب أن يحتوي على أرقام فقط مع المفتاح الدولي.",
-            )
-        require_evolution_config()
 
-    # 4. استخراج النص من الكتالوج المرفق
-    catalog_content = ""
-    if pdf_file and pdf_file.filename:
-        if pdf_file.filename.lower().endswith(".pdf"):
-            catalog_content = extract_pdf_text(pdf_file.file)
+    if not store_name:
 
-    # 5. حفظ المتجر والمستخدم في قاعدة البيانات فقط بعد نجاح جميع الفحوصات
-    new_store = StoreModel(
-        store_name=store_name,
-        store_url=store_url,
-        whatsapp_number=whatsapp_number,
-        agent_notes=agent_notes,
-        catalog_text=catalog_content,
-    )
-
-    db.add(new_store)
-    db.commit()
-    db.refresh(new_store)
-
-    new_user = UserModel(
-        store_id=new_store.id,
-        username=username,
-        password_hash=hash_password(password),
-    )
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-
-    # 6. طلب توليد QR Code وتهيئة الـ Webhook
-    qr_code_data = None
-    evolution_error = None
-    evolution_create_response = None
-    evolution_connect_response = None
-    instance_name = None
-
-    if whatsapp_number:
-        instance_name = make_instance_name(clean_phone)
-
-        headers = {
-            "apikey": EVOLUTION_GLOBAL_KEY,
-            "Content-Type": "application/json",
-        }
-
-        timeout = httpx.Timeout(
-            connect=15.0,
-            read=30.0,
-            write=30.0,
-            pool=30.0,
+        raise HTTPException(
+            status_code=400,
+            detail="اسم المتجر مطلوب.",
         )
 
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            try:
-                # 1) Create the instance.
-                create_result = await evolution_create(
-                    client,
-                    instance_name,
-                    headers,
-                )
 
-                evolution_create_response = create_result["data"]
+    if not username:
 
-                if create_result.get("qr"):
-                    qr_code_data = create_result["qr"]
+        raise HTTPException(
+            status_code=400,
+            detail="اسم المستخدم مطلوب.",
+        )
 
-                # 2) If create did not return a QR, call connect and retry.
-                if not qr_code_data:
-                    connect_result = await get_qr_with_retry(
-                        client,
-                        instance_name,
-                        headers,
-                    )
 
-                    evolution_connect_response = connect_result["data"]
+    if len(username) < 3:
 
-                    if connect_result.get("qr"):
-                        qr_code_data = connect_result["qr"]
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "اسم المستخدم يجب أن يكون "
+                "3 أحرف على الأقل."
+            ),
+        )
 
-                    if not qr_code_data:
-                        evolution_error = (
-                            "Evolution API لم يُرجع QR Code. "
-                            "تحقق من اتصال Redis/Valkey وحالة Instance وAPI Key."
-                        )
 
-                # 3) Configure webhook regardless of whether QR was immediate.
-                await configure_webhook(
-                    client,
-                    instance_name,
-                    new_store.id,
-                    headers,
-                )
+    if not email:
 
-            except Exception as exc:
-                evolution_error = str(exc)
-                print(f"Evolution registration error: {exc}")
+        raise HTTPException(
+            status_code=400,
+            detail="الإيميل مطلوب.",
+        )
 
-    result_payload = {
-        "status": "success",
-        "message": (
-            "تم تسجيل المتجر بنجاح وتم توليد QR Code."
-            if qr_code_data
-            else "تم تسجيل المتجر، لكن لم يتم استلام QR Code من Evolution API."
+
+    email_pattern = (
+        r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+    )
+
+
+    if not re.match(
+        email_pattern,
+        email,
+    ):
+
+        raise HTTPException(
+            status_code=400,
+            detail="الإيميل غير صحيح.",
+        )
+
+
+    if len(password) < 6:
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "كلمة المرور يجب أن تكون "
+                "6 أحرف على الأقل."
+            ),
+        )
+
+
+    existing_user = (
+        db.query(UserModel)
+        .filter(
+            or_(
+                UserModel.username
+                == username,
+                UserModel.username
+                == email,
+            )
+        )
+        .first()
+    )
+
+
+    if existing_user:
+
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "اسم المستخدم أو الإيميل "
+                "مستخدم بالفعل."
+            ),
+        )
+
+
+    store_id = str(
+        uuid.uuid4()
+    )
+
+
+    store = StoreModel(
+        id=store_id,
+        store_name=store_name,
+    )
+
+
+    user = UserModel(
+        id=str(uuid.uuid4()),
+        store_id=store_id,
+        username=username,
+        password_hash=hash_password(
+            password
         ),
-        "store_id": new_store.id,
-        "instance_name": instance_name,
-        "qr_code": qr_code_data,
-        "evolution_error": evolution_error,
-        "evolution_create_response": evolution_create_response,
-        "evolution_connect_response": evolution_connect_response,
-        "widget_code": (
-            f'<script src="{WEBHOOK_BASE_URL}/widget.js" '
-            f'data-store-id="{new_store.id}"></script>'
-        ),
-        "username": username,
-    }
+    )
 
-    response = JSONResponse(result_payload)
-    set_session_cookie(response, db, new_user)
+
+    try:
+
+        db.add(store)
+        db.add(user)
+
+        db.commit()
+
+        db.refresh(store)
+        db.refresh(user)
+
+
+    except IntegrityError:
+
+        db.rollback()
+
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "اسم المستخدم أو الحساب "
+                "موجود بالفعل."
+            ),
+        )
+
+
+    except Exception as error:
+
+        db.rollback()
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "تعذر إنشاء الحساب: "
+                + str(error)
+            ),
+        )
+
+
+    token = create_session(
+        db,
+        user,
+    )
+
+
+    response = JSONResponse(
+        content={
+            "success": True,
+            "message":
+                "تم إنشاء الحساب بنجاح.",
+            "store_id": store.id,
+            "id": store.id,
+            "username": username,
+            "email": email,
+            "store":
+                store_to_dict(
+                    store,
+                    user,
+                ),
+        }
+    )
+
+
+    response.set_cookie(
+        key=SESSION_COOKIE,
+        value=token,
+        max_age=SESSION_DAYS * 86400,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite="lax",
+        path="/",
+    )
+
+
     return response
 
 
+# =========================================================
+# LOGIN
+# =========================================================
+
 @app.post("/api/login")
 async def login(
+    request: Request,
     username: str = Form(...),
     password: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    user = db.query(UserModel).filter(UserModel.username == username.strip().lower()).first()
-    if not user or not verify_password(password, user.password_hash):
-        raise HTTPException(status_code=401, detail="اسم المستخدم أو كلمة المرور غير صحيحة.")
 
-    response = JSONResponse({
-        "status": "success",
-        "message": "تم تسجيل الدخول بنجاح.",
-        "username": user.username,
-        "store": {
-            "id": user.store.id,
-            "store_name": user.store.store_name,
-            "store_url": user.store.store_url,
-            "whatsapp_number": user.store.whatsapp_number,
-        },
-    })
-    set_session_cookie(response, db, user)
+    username = username.strip()
+
+
+    user = (
+        db.query(UserModel)
+        .filter(
+            or_(
+                UserModel.username
+                == username,
+                UserModel.username
+                == username.lower(),
+            )
+        )
+        .first()
+    )
+
+
+    if not user:
+
+        raise HTTPException(
+            status_code=401,
+            detail="اسم المستخدم أو كلمة المرور غير صحيحة.",
+        )
+
+
+    if not verify_password(
+        password,
+        user.password_hash,
+    ):
+
+        raise HTTPException(
+            status_code=401,
+            detail="اسم المستخدم أو كلمة المرور غير صحيحة.",
+        )
+
+
+    store = (
+        db.query(StoreModel)
+        .filter(
+            StoreModel.id
+            == user.store_id
+        )
+        .first()
+    )
+
+
+    if not store:
+
+        raise HTTPException(
+            status_code=404,
+            detail="المتجر غير موجود.",
+        )
+
+
+    token = create_session(
+        db,
+        user,
+    )
+
+
+    response = JSONResponse(
+        content={
+            "success": True,
+            "username":
+                user.username,
+            "email":
+                user.username,
+            "store":
+                store_to_dict(
+                    store,
+                    user,
+                ),
+        }
+    )
+
+
+    response.set_cookie(
+        key=SESSION_COOKIE,
+        value=token,
+        max_age=SESSION_DAYS * 86400,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite="lax",
+        path="/",
+    )
+
+
     return response
 
 
+# =========================================================
+# LOGOUT
+# =========================================================
+
 @app.post("/api/logout")
-async def logout(request: Request, db: Session = Depends(get_db)):
-    token = request.cookies.get(SESSION_COOKIE_NAME)
+async def logout(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+
+    token = request.cookies.get(
+        SESSION_COOKIE
+    )
+
+
     if token:
-        session = db.query(SessionModel).filter(SessionModel.token_hash == hash_session_token(token)).first()
+
+        token_hash = hash_session_token(
+            token
+        )
+
+
+        session = (
+            db.query(SessionModel)
+            .filter(
+                SessionModel.token_hash
+                == token_hash
+            )
+            .first()
+        )
+
+
         if session:
+
             db.delete(session)
             db.commit()
 
-    response = JSONResponse({"status": "success"})
-    response.delete_cookie(SESSION_COOKIE_NAME, path="/")
+
+    response = JSONResponse(
+        content={
+            "success": True
+        }
+    )
+
+
+    response.delete_cookie(
+        key=SESSION_COOKIE,
+        path="/",
+    )
+
+
     return response
 
 
+# =========================================================
+# CURRENT USER
+# =========================================================
+
 @app.get("/api/me")
-async def me(request: Request, db: Session = Depends(get_db)):
-    user = current_user_from_request(request, db)
+async def me(
+    user: UserModel = Depends(
+        require_current_user
+    ),
+    db: Session = Depends(get_db),
+):
+
+    store = (
+        db.query(StoreModel)
+        .filter(
+            StoreModel.id
+            == user.store_id
+        )
+        .first()
+    )
+
+
+    if not store:
+
+        raise HTTPException(
+            status_code=404,
+            detail="المتجر غير موجود.",
+        )
+
+
     return {
-        "status": "success",
-        "username": user.username,
-        "store": {
-            "id": user.store.id,
-            "store_name": user.store.store_name,
-            "store_url": user.store.store_url,
-            "whatsapp_number": user.store.whatsapp_number,
-            "agent_notes": user.store.agent_notes,
-            "catalog_text": user.store.catalog_text,
-        },
+        "success": True,
+        "username":
+            user.username,
+        "email":
+            user.username,
+        "store":
+            store_to_dict(
+                store,
+                user,
+            ),
     }
 
+
+# =========================================================
+# UPDATE AGENT
+# =========================================================
+
+@app.post("/api/update-agent")
+async def update_agent(
+    store_id: str = Form(...),
+    store_url: str = Form(...),
+    whatsapp_number: str = Form(...),
+    agent_notes: str = Form(...),
+    pdf_file: Optional[UploadFile] = File(None),
+    user: UserModel = Depends(
+        require_current_user
+    ),
+    db: Session = Depends(get_db),
+):
+
+    store_id = store_id.strip()
+    store_url = store_url.strip()
+    agent_notes = agent_notes.strip()
+
+
+    if store_id != user.store_id:
+
+        raise HTTPException(
+            status_code=403,
+            detail="لا يمكنك تعديل هذا المتجر.",
+        )
+
+
+    if not store_url:
+
+        raise HTTPException(
+            status_code=400,
+            detail="رابط المتجر مطلوب.",
+        )
+
+
+    if not (
+        store_url.startswith(
+            "http://"
+        )
+        or store_url.startswith(
+            "https://"
+        )
+    ):
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "رابط المتجر يجب أن يبدأ "
+                "بـ https:// أو http://"
+            ),
+        )
+
+
+    if not agent_notes:
+
+        raise HTTPException(
+            status_code=400,
+            detail="تعليمات المساعد مطلوبة.",
+        )
+
+
+    phone = normalize_phone(
+        whatsapp_number
+    )
+
+
+    store = (
+        db.query(StoreModel)
+        .filter(
+            StoreModel.id
+            == user.store_id
+        )
+        .first()
+    )
+
+
+    if not store:
+
+        raise HTTPException(
+            status_code=404,
+            detail="المتجر غير موجود.",
+        )
+
+
+    catalog_text = None
+
+
+    if pdf_file:
+
+        catalog_text = (
+            await extract_pdf_text(
+                pdf_file
+            )
+        )
+
+
+    store.store_url = store_url
+    store.whatsapp_number = phone
+    store.agent_notes = agent_notes
+
+
+    if catalog_text is not None:
+
+        store.catalog_text = catalog_text
+
+
+    try:
+
+        db.commit()
+        db.refresh(store)
+
+    except Exception as error:
+
+        db.rollback()
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "تعذر حفظ بيانات المتجر: "
+                + str(error)
+            ),
+        )
+
+
+    return {
+        "success": True,
+        "message":
+            "تم حفظ بيانات المتجر والمساعد بنجاح.",
+        "store":
+            store_to_dict(
+                store,
+                user,
+            ),
+    }
+
+
+# =========================================================
+# EVOLUTION CREATE INSTANCE
+# =========================================================
+
+async def evolution_create_instance(
+    instance_name: str,
+):
+
+    require_evolution_config()
+
+
+    payload = {
+        "instanceName":
+            instance_name,
+
+        "qrcode":
+            True,
+
+        "integration":
+            "WHATSAPP-BAILEYS",
+    }
+
+
+    async with httpx.AsyncClient(
+        timeout=30
+    ) as client:
+
+        response = await client.post(
+            f"{EVOLUTION_API_URL}/instance/create",
+            headers=evolution_headers(),
+            json=payload,
+        )
+
+
+    return response
+
+
+# =========================================================
+# EVOLUTION CONNECT
+# =========================================================
+
+async def evolution_connect(
+    instance_name: str,
+):
+
+    require_evolution_config()
+
+
+    async with httpx.AsyncClient(
+        timeout=30
+    ) as client:
+
+        response = await client.get(
+            f"{EVOLUTION_API_URL}/instance/connect/{instance_name}",
+            headers=evolution_headers(),
+        )
+
+
+    return response
+
+
+# =========================================================
+# EVOLUTION STATUS
+# =========================================================
+
+async def evolution_status(
+    instance_name: str,
+):
+
+    require_evolution_config()
+
+
+    async with httpx.AsyncClient(
+        timeout=30
+    ) as client:
+
+        response = await client.get(
+            f"{EVOLUTION_API_URL}/instance/connectionState/{instance_name}",
+            headers=evolution_headers(),
+        )
+
+
+    return response
+
+
+# =========================================================
+# ENSURE INSTANCE
+# =========================================================
+
+async def ensure_evolution_instance(
+    store: StoreModel,
+):
+
+    require_evolution_config()
+
+
+    instance_name = (
+        "store_"
+        + re.sub(
+            r"[^a-zA-Z0-9_]",
+            "_",
+            store.id,
+        )
+    )
+
+
+    create_response = None
+
+
+    try:
+
+        create_response =
+            await evolution_create_instance(
+                instance_name
+            )
+
+    except Exception:
+        create_response = None
+
+
+    # إذا كان موجوداً مسبقاً نتجاهل خطأ الإنشاء
+    if create_response:
+
+        if (
+            create_response.status_code
+            not in (200, 201, 409)
+        ):
+
+            # بعض نسخ Evolution ترجع 403/400
+            # إذا كان السبب أن instance موجودة
+            try:
+
+                error_data = (
+                    create_response.json()
+                )
+
+                error_text = str(
+                    error_data
+                ).lower()
+
+            except Exception:
+
+                error_text = (
+                    create_response.text
+                    or ""
+                ).lower()
+
+
+            if (
+                "already"
+                not in error_text
+                and "exists"
+                not in error_text
+                and "exist"
+                not in error_text
+            ):
+
+                raise HTTPException(
+                    status_code=502,
+                    detail=(
+                        "تعذر إنشاء اتصال Evolution API: "
+                        + (
+                            create_response.text
+                            or "خطأ غير معروف"
+                        )
+                    ),
+                )
+
+
+    return instance_name
+
+
+# =========================================================
+# EXTRACT QR FROM EVOLUTION RESPONSE
+# =========================================================
+
+def extract_qr_code(data):
+
+    if not isinstance(
+        data,
+        dict,
+    ):
+
+        return None
+
+
+    possible_keys = [
+        "base64",
+        "qrCode",
+        "qrcode",
+        "qr",
+        "code",
+    ]
+
+
+    for key in possible_keys:
+
+        value = data.get(key)
+
+        if isinstance(
+            value,
+            str,
+        ) and value.strip():
+
+            if value.startswith(
+                "data:image"
+            ):
+
+                return value
+
+            return (
+                "data:image/png;base64,"
+                + value
+            )
+
+
+    # بعض إصدارات Evolution تضع البيانات داخل instance
+    instance = data.get(
+        "instance"
+    )
+
+
+    if isinstance(
+        instance,
+        dict,
+    ):
+
+        for key in possible_keys:
+
+            value = instance.get(key)
+
+            if isinstance(
+                value,
+                str,
+            ) and value.strip():
+
+                if value.startswith(
+                    "data:image"
+                ):
+
+                    return value
+
+                return (
+                    "data:image/png;base64,"
+                    + value
+                )
+
+
+    return None
+
+
+# =========================================================
+# WHATSAPP QR
+# =========================================================
 
 @app.get("/api/whatsapp/qr/{store_id}")
 async def whatsapp_qr(
     store_id: str,
-    request: Request,
+    user: UserModel = Depends(
+        require_current_user
+    ),
     db: Session = Depends(get_db),
 ):
-    require_evolution_config()
+
+    if store_id != user.store_id:
+
+        raise HTTPException(
+            status_code=403,
+            detail="لا يمكنك الوصول إلى هذا المتجر.",
+        )
+
 
     store = (
         db.query(StoreModel)
-        .filter(StoreModel.id == store_id)
+        .filter(
+            StoreModel.id
+            == store_id
+        )
         .first()
     )
 
+
     if not store:
+
         raise HTTPException(
             status_code=404,
-            detail="Store not found",
+            detail="المتجر غير موجود.",
         )
 
-    user = current_user_from_request(request, db)
-    if user.store_id != store.id:
-        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا المتجر.")
 
     if not store.whatsapp_number:
+
         raise HTTPException(
             status_code=400,
-            detail="رقم الواتساب غير موجود لهذا المتجر.",
+            detail=(
+                "رقم الواتساب غير موجود لهذا المتجر. "
+                "أدخل رقم المتجر أولاً ثم احفظ البيانات."
+            ),
         )
 
-    instance_name = make_instance_name(store.whatsapp_number)
 
-    headers = {
-        "apikey": EVOLUTION_GLOBAL_KEY,
-        "Content-Type": "application/json",
-    }
+    instance_name = (
+        await ensure_evolution_instance(
+            store
+        )
+    )
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        result = await get_qr_with_retry(
-            client,
-            instance_name,
-            headers,
-            attempts=5,
-            delay_seconds=1.5,
+
+    # محاولة الاتصال
+    try:
+
+        connect_response =
+            await evolution_connect(
+                instance_name
+            )
+
+    except Exception as error:
+
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "تعذر الاتصال بـ Evolution API: "
+                + str(error)
+            ),
         )
 
-    if result.get("qr"):
+
+    try:
+
+        connect_data =
+            connect_response.json()
+
+    except Exception:
+
+        connect_data = {}
+
+
+    qr_code =
+        extract_qr_code(
+            connect_data
+        )
+
+
+    if qr_code:
+
         return {
-            "status": "success",
-            "qr_code": result["qr"],
-            "instance_name": instance_name,
-            "evolution_response": result["data"],
+            "success": True,
+            "qr_code": qr_code,
+            "instance":
+                instance_name,
         }
 
-    return {
-        "status": "error",
-        "qr_code": None,
-        "instance_name": instance_name,
-        "message": "Evolution API لم يُرجع QR Code.",
-        "evolution_response": result.get("data"),
-    }
 
+    # إذا لم يرجع QR من connect
+    # نحاول مرة أخرى
+    try:
+
+        second_response =
+            await evolution_connect(
+                instance_name
+            )
+
+        try:
+
+            second_data =
+                second_response.json()
+
+        except Exception:
+
+            second_data = {}
+
+
+        qr_code =
+            extract_qr_code(
+                second_data
+            )
+
+
+        if qr_code:
+
+            return {
+                "success": True,
+                "qr_code": qr_code,
+                "instance":
+                    instance_name,
+            }
+
+
+    except Exception:
+        pass
+
+
+    # إرجاع معلومات مفيدة بدلاً من رسالة غامضة
+    detail = (
+        "تم حفظ بيانات المتجر، "
+        "لكن Evolution API لم يرجع رمز QR."
+    )
+
+
+    if connect_response.status_code >= 400:
+
+        detail += (
+            f" حالة Evolution API: "
+            f"{connect_response.status_code}. "
+            f"{connect_response.text[:500]}"
+        )
+
+
+    raise HTTPException(
+        status_code=502,
+        detail=detail,
+    )
+
+
+# =========================================================
+# WHATSAPP STATUS
+# =========================================================
 
 @app.get("/api/whatsapp/status/{store_id}")
 async def whatsapp_status(
     store_id: str,
-    request: Request,
+    user: UserModel = Depends(
+        require_current_user
+    ),
     db: Session = Depends(get_db),
 ):
-    require_evolution_config()
+
+    if store_id != user.store_id:
+
+        raise HTTPException(
+            status_code=403,
+            detail="غير مسموح.",
+        )
+
 
     store = (
         db.query(StoreModel)
-        .filter(StoreModel.id == store_id)
+        .filter(
+            StoreModel.id
+            == store_id
+        )
         .first()
     )
 
+
     if not store:
+
         raise HTTPException(
             status_code=404,
-            detail="Store not found",
+            detail="المتجر غير موجود.",
         )
 
-    user = current_user_from_request(request, db)
-    if user.store_id != store.id:
-        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا المتجر.")
 
-    if not store.whatsapp_number:
-        raise HTTPException(
-            status_code=400,
-            detail="رقم الواتساب غير موجود.",
+    instance_name = (
+        "store_"
+        + re.sub(
+            r"[^a-zA-Z0-9_]",
+            "_",
+            store.id,
+        )
+    )
+
+
+    response =
+        await evolution_status(
+            instance_name
         )
 
-    instance_name = make_instance_name(store.whatsapp_number)
 
-    headers = {
-        "apikey": EVOLUTION_GLOBAL_KEY,
-        "Content-Type": "application/json",
+    try:
+
+        data =
+            response.json()
+
+    except Exception:
+
+        data = {
+            "raw":
+                response.text
+        }
+
+
+    return {
+        "success":
+            response.status_code < 400,
+        "instance":
+            instance_name,
+        "status":
+            data,
     }
 
-    url = (
-        f"{EVOLUTION_API_URL}/instance/connectionState/"
-        f"{instance_name}"
-    )
-
-    async with httpx.AsyncClient(timeout=20.0) as client:
-        try:
-            response = await client.get(
-                url,
-                headers=headers,
-            )
-
-            data = safe_json(response)
-
-            return {
-                "status": "success" if response.is_success else "error",
-                "http_status": response.status_code,
-                "instance_name": instance_name,
-                "connection_state": extract_instance_status(data),
-                "evolution_response": data,
-            }
-
-        except Exception as exc:
-            return {
-                "status": "error",
-                "instance_name": instance_name,
-                "error": str(exc),
-            }
-
 
 # =========================================================
-# Claude Chat
+# CLAUDE
 # =========================================================
 
-async def generate_ai_reply(
-    store: StoreModel,
-    sender_id: str,
-    message: str,
-    db: Session,
-) -> str:
-    require_claude()
+ANTHROPIC_API_KEY = os.getenv(
+    "ANTHROPIC_API_KEY",
+    "",
+).strip()
 
-    previous_logs = (
-        db.query(ChatLogModel)
-        .filter(
-            ChatLogModel.store_id == store.id,
-            ChatLogModel.sender_id == sender_id,
+
+CLAUDE_MODEL = os.getenv(
+    "CLAUDE_MODEL",
+    "claude-3-5-sonnet-latest",
+).strip()
+
+
+def get_anthropic_client():
+
+    if not ANTHROPIC_API_KEY:
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "ANTHROPIC_API_KEY غير موجود "
+                "في متغيرات البيئة."
+            ),
         )
-        .order_by(ChatLogModel.created_at.desc())
-        .limit(5)
-        .all()
+
+
+    return anthropic.Anthropic(
+        api_key=ANTHROPIC_API_KEY
     )
 
-    previous_logs.reverse()
 
-    chat_history = []
+# =========================================================
+# CHAT
+# =========================================================
 
-    for log in previous_logs:
-        if log.user_message:
-            chat_history.append({
-                "role": "user",
-                "content": log.user_message,
-            })
+class ChatRequest(BaseModel):
 
-        if log.bot_response:
-            chat_history.append({
-                "role": "assistant",
-                "content": log.bot_response,
-            })
+    store_id: str
 
-    chat_history.append({
-        "role": "user",
-        "content": message,
-    })
+    message: str
 
-    system_prompt = f"""
-أنت مساعد مبيعات ذكي يعمل لصالح متجر "{store.store_name}".
-
-تعليمات المساعد:
-{store.agent_notes if store.agent_notes else "كن ودوداً ومفيداً وخادماً للعملاء."}
-
-كتالوج المنتجات والأسعار:
-{store.catalog_text if store.catalog_text else "لا يوجد كتالوج مرفق."}
-
-أجب باللغة العربية بشكل واضح ومختصر.
-لا تخترع أسعاراً أو منتجات غير موجودة في الكتالوج.
-إذا لم تعرف الإجابة، أخبر العميل بذلك واطلب منه التواصل مع المتجر.
-"""
-
-    response = claude_client.messages.create(
-        model=ANTHROPIC_MODEL,
-        max_tokens=500,
-        system=system_prompt,
-        messages=chat_history,
-    )
-
-    if not response.content:
-        return "عذراً، لم أتمكن من إنشاء رد."
-
-    first_block = response.content[0]
-
-    if hasattr(first_block, "text"):
-        return first_block.text
-
-    return str(first_block)
+    sender_id: Optional[str] = None
 
 
 @app.post("/api/chat")
-async def widget_chat(
+async def chat(
     payload: ChatRequest,
+    user: UserModel = Depends(
+        require_current_user
+    ),
     db: Session = Depends(get_db),
 ):
+
+    if payload.store_id != user.store_id:
+
+        raise HTTPException(
+            status_code=403,
+            detail="غير مسموح.",
+        )
+
+
     store = (
         db.query(StoreModel)
-        .filter(StoreModel.id == payload.store_id)
+        .filter(
+            StoreModel.id
+            == payload.store_id
+        )
         .first()
     )
 
+
     if not store:
+
         raise HTTPException(
             status_code=404,
-            detail="Store not found",
+            detail="المتجر غير موجود.",
         )
+
+
+    client =
+        get_anthropic_client()
+
+
+    system_prompt = f"""
+أنت المساعد الذكي الخاص بالمتجر التالي:
+
+اسم المتجر:
+{store.store_name}
+
+رابط المتجر:
+{store.store_url or "غير محدد"}
+
+تعليمات صاحب المتجر:
+{store.agent_notes or "لا توجد تعليمات إضافية."}
+
+بيانات كتالوج المنتجات:
+{store.catalog_text or "لا يوجد كتالوج PDF."}
+
+التزم بتعليمات صاحب المتجر.
+لا تخترع أسعاراً أو منتجات أو معلومات غير موجودة.
+إذا لم تعرف معلومة، أخبر العميل بوضوح أنك لا تملك المعلومة.
+كن مهذباً ومختصراً ومفيداً.
+"""
+
 
     try:
-        reply_text = await generate_ai_reply(
-            store,
-            payload.sender_id or "preview_user",
-            payload.message,
-            db,
-        )
 
-        db.add(
-            ChatLogModel(
-                store_id=store.id,
-                sender_id=payload.sender_id or "preview_user",
-                user_message=payload.message,
-                bot_response=reply_text,
+        message =
+            client.messages.create(
+                model=CLAUDE_MODEL,
+                max_tokens=1000,
+                system=system_prompt,
+                messages=[
+                    {
+                        "role": "user",
+                        "content":
+                            payload.message,
+                    }
+                ],
             )
-        )
 
-        db.commit()
 
-        return {
-            "status": "success",
-            "reply": reply_text,
-        }
+        bot_response = ""
 
-    except HTTPException:
-        raise
 
-    except Exception as exc:
-        print(f"Widget Chat Error: {exc}")
+        for block in message.content:
+
+            if hasattr(
+                block,
+                "text",
+            ):
+
+                bot_response += (
+                    block.text
+                )
+
+
+    except Exception as error:
+
         raise HTTPException(
-            status_code=500,
-            detail="Internal Server Error",
+            status_code=502,
+            detail=(
+                "تعذر الاتصال بالذكاء الاصطناعي: "
+                + str(error)
+            ),
         )
+
+
+    log = ChatLogModel(
+        store_id=store.id,
+        sender_id=payload.sender_id,
+        user_message=payload.message,
+        bot_response=bot_response,
+    )
+
+
+    db.add(log)
+    db.commit()
+
+
+    return {
+        "success": True,
+        "response":
+            bot_response,
+    }
 
 
 # =========================================================
-# Evolution WhatsApp Webhook
+# EVOLUTION SEND TEXT
+# =========================================================
+
+async def evolution_send_text(
+    instance_name: str,
+    number: str,
+    text: str,
+):
+
+    require_evolution_config()
+
+
+    payload = {
+        "number": number,
+        "text": text,
+    }
+
+
+    async with httpx.AsyncClient(
+        timeout=30
+    ) as client:
+
+        response = await client.post(
+            f"{EVOLUTION_API_URL}/message/sendText/{instance_name}",
+            headers=evolution_headers(),
+            json=payload,
+        )
+
+
+    return response
+
+
+# =========================================================
+# WHATSAPP WEBHOOK
 # =========================================================
 
 @app.post("/api/whatsapp/webhook/{store_id}")
-async def whatsapp_evolution_webhook(
+async def whatsapp_webhook(
     store_id: str,
     request: Request,
     db: Session = Depends(get_db),
 ):
+
     store = (
         db.query(StoreModel)
-        .filter(StoreModel.id == store_id)
+        .filter(
+            StoreModel.id
+            == store_id
+        )
         .first()
     )
 
+
     if not store:
-        return {"status": "store_not_found"}
+
+        raise HTTPException(
+            status_code=404,
+            detail="المتجر غير موجود.",
+        )
+
 
     try:
-        data = await request.json()
 
-        event_name = str(data.get("event", ""))
-        print(
-            f"WhatsApp webhook received for store={store_id}, event={event_name}: "
-            f"{data}"
+        payload =
+            await request.json()
+
+    except Exception:
+
+        payload = {}
+
+
+    # -----------------------------------------------------
+    # محاولة استخراج الرقم والرسالة
+    # -----------------------------------------------------
+
+    data = payload.get(
+        "data",
+        payload,
+    )
+
+
+    key = {}
+
+    if isinstance(
+        data,
+        dict,
+    ):
+
+        key = data.get(
+            "key",
+            {}
         )
 
-        msg_data = data.get("data", data)
 
-        if isinstance(msg_data, list):
-            msg_data = msg_data[0] if msg_data else {}
+    sender = (
+        key.get(
+            "remoteJid"
+        )
+        if isinstance(
+            key,
+            dict,
+        )
+        else None
+    )
 
-        if not isinstance(msg_data, dict):
-            return {"status": "ignored"}
 
-        # Evolution normally sends the message as data.message. Some proxies
-        # may forward it as data.messages[0], so support both shapes.
-        message_obj = msg_data.get("message")
+    message_data = {}
 
-        if not message_obj and isinstance(msg_data.get("messages"), list):
-            messages = msg_data.get("messages") or []
-            if messages and isinstance(messages[0], dict):
-                msg_data = messages[0]
-                message_obj = msg_data.get("message") or msg_data.get("text")
 
-        if not message_obj:
-            return {"status": "event_received"}
+    if isinstance(
+        data,
+        dict,
+    ):
 
-        key = msg_data.get("key", {})
+        message_data = data.get(
+            "message",
+            {}
+        )
 
-        if not isinstance(key, dict):
-            return {"status": "ignored"}
 
-        sender_remote_jid = key.get("remoteJid", "")
-        is_from_me = bool(key.get("fromMe", False))
+    incoming_text = ""
 
-        if is_from_me:
-            return {"status": "ignored"}
 
-        if "g.us" in sender_remote_jid:
-            return {"status": "ignored"}
-        msg_body = message_obj if isinstance(message_obj, dict) else {}
+    if isinstance(
+        message_data,
+        dict,
+    ):
 
-        # Unwrap common WhatsApp containers.
-        for wrapper in (
-            "ephemeralMessage",
-            "viewOnceMessage",
-            "viewOnceMessageV2",
-            "viewOnceMessageV2Extension",
-            "documentWithCaptionMessage",
+        conversation =
+            message_data.get(
+                "conversation"
+            )
+
+        if conversation:
+
+            incoming_text = (
+                str(conversation)
+            )
+
+
+        extended =
+            message_data.get(
+                "extendedTextMessage"
+            )
+
+
+        if (
+            not incoming_text
+            and isinstance(
+                extended,
+                dict,
+            )
         ):
-            nested = msg_body.get(wrapper)
-            if isinstance(nested, dict) and isinstance(nested.get("message"), dict):
-                msg_body = nested["message"]
 
-        extended = msg_body.get("extendedTextMessage")
-        image = msg_body.get("imageMessage")
-        video = msg_body.get("videoMessage")
-        document = msg_body.get("documentMessage")
-
-        message_content = (
-            msg_body.get("conversation")
-            or (extended.get("text") if isinstance(extended, dict) else None)
-            or (image.get("caption") if isinstance(image, dict) else None)
-            or (video.get("caption") if isinstance(video, dict) else None)
-            or (document.get("caption") if isinstance(document, dict) else None)
-            or ""
-        )
-
-        message_content = str(message_content).strip()
-
-        if not message_content or not sender_remote_jid:
-            return {"status": "ignored"}
-
-        # Generate Claude reply.
-        reply_text = await generate_ai_reply(
-            store,
-            sender_remote_jid,
-            message_content,
-            db,
-        )
-
-        # Save conversation.
-        db.add(
-            ChatLogModel(
-                store_id=store.id,
-                sender_id=sender_remote_jid,
-                user_message=message_content,
-                bot_response=reply_text,
-            )
-        )
-
-        db.commit()
-
-        # Send response through Evolution API.
-        if not store.whatsapp_number:
-            return {
-                "status": "success",
-                "warning": "store whatsapp number is missing",
-            }
-
-        clean_phone = normalize_phone(store.whatsapp_number)
-        instance_name = make_instance_name(clean_phone)
-        # Prefer a real phone JID when Evolution provides an alternative for LID users.
-        target_jid = (
-            key.get("remoteJidAlt")
-            or key.get("senderPn")
-            or key.get("remoteJid")
-            or sender_remote_jid
-        )
-        target_number = str(target_jid).split("@")[0]
-
-        send_url = (
-            f"{EVOLUTION_API_URL}/message/sendText/"
-            f"{instance_name}"
-        )
-
-        headers = {
-            "apikey": EVOLUTION_GLOBAL_KEY,
-            "Content-Type": "application/json",
-        }
-
-        # Evolution API v2 documents sendText with textMessage.text.
-        send_payload = {
-            "number": target_number,
-            "textMessage": {
-                "text": reply_text,
-            },
-            "options": {
-                "delay": 500,
-                "presence": "composing",
-            },
-        }
-
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            response = await client.post(
-                send_url,
-                json=send_payload,
-                headers=headers,
+            incoming_text = (
+                extended.get(
+                    "text",
+                    ""
+                )
             )
 
-            print(
-                f"Evolution sendText: status={response.status_code}, "
-                f"response={response.text}"
-            )
 
-            if not response.is_success:
-                return {
-                    "status": "success",
-                    "warning": "تم إنشاء الرد لكن Evolution API لم يرسل الرسالة.",
-                    "evolution_status": response.status_code,
-                    "evolution_response": safe_json(response),
-                }
+    if not incoming_text:
 
-        return {"status": "success"}
-
-    except Exception as exc:
-        print(f"Webhook Processing Error: {exc}")
         return {
-            "status": "error",
-            "error": str(exc),
+            "success": True,
+            "message":
+                "Webhook received but no text message found.",
         }
 
 
+    if not sender:
+
+        return {
+            "success": True,
+            "message":
+                "Sender not found.",
+        }
+
+
+    # -----------------------------------------------------
+    # AI
+    # -----------------------------------------------------
+
+    client =
+        get_anthropic_client()
+
+
+    system_prompt = f"""
+أنت المساعد الذكي لمتجر:
+
+{store.store_name}
+
+رابط المتجر:
+{store.store_url or "غير محدد"}
+
+تعليمات صاحب المتجر:
+{store.agent_notes or "لا توجد تعليمات."}
+
+كتالوج المنتجات:
+{store.catalog_text or "لا يوجد كتالوج."}
+
+التزم بالتعليمات.
+لا تخترع معلومات.
+إذا لم توجد المعلومة في البيانات المتوفرة، أخبر العميل بذلك.
+"""
+
+
+    try:
+
+        ai_message =
+            client.messages.create(
+                model=CLAUDE_MODEL,
+                max_tokens=1000,
+                system=system_prompt,
+                messages=[
+                    {
+                        "role": "user",
+                        "content":
+                            incoming_text,
+                    }
+                ],
+            )
+
+
+        answer = ""
+
+
+        for block in ai_message.content:
+
+            if hasattr(
+                block,
+                "text",
+            ):
+
+                answer += (
+                    block.text
+                )
+
+
+    except Exception as error:
+
+        return {
+            "success": False,
+            "error": str(error),
+        }
+
+
+    # -----------------------------------------------------
+    # SEND RESPONSE
+    # -----------------------------------------------------
+
+    instance_name = (
+        "store_"
+        + re.sub(
+            r"[^a-zA-Z0-9_]",
+            "_",
+            store.id,
+        )
+    )
+
+
+    try:
+
+        send_response =
+            await evolution_send_text(
+                instance_name,
+                sender,
+                answer,
+            )
+
+
+    except Exception as error:
+
+        return {
+            "success": False,
+            "error":
+                str(error),
+        }
+
+
+    # -----------------------------------------------------
+    # LOG
+    # -----------------------------------------------------
+
+    log = ChatLogModel(
+        store_id=store.id,
+        sender_id=sender,
+        user_message=incoming_text,
+        bot_response=answer,
+    )
+
+
+    db.add(log)
+    db.commit()
+
+
+    return {
+        "success": True,
+        "response": answer,
+        "evolution_status":
+            send_response.status_code,
+    }
+
+
 # =========================================================
-# Run with:
-# uvicorn main:app --host 0.0.0.0 --port $PORT
+# STARTUP
 # =========================================================
+
+@app.on_event("startup")
+async def startup_event():
+
+    print("=" * 60)
+    print("Smart AI Store Assistant")
+    print("=" * 60)
+
+    print(
+        "Database:",
+        (
+            "configured"
+            if DATABASE_URL
+            else "missing"
+        )
+    )
+
+    print(
+        "Evolution API:",
+        (
+            "configured"
+            if EVOLUTION_API_URL
+            and EVOLUTION_API_KEY
+            else "not configured"
+        )
+    )
+
+    print(
+        "Anthropic:",
+        (
+            "configured"
+            if ANTHROPIC_API_KEY
+            else "not configured"
+        )
+    )
+
+    print("=" * 60)
+
+
+# =========================================================
+# MAIN
+# =========================================================
+
+if __name__ == "__main__":
+
+    import uvicorn
+
+    port = int(
+        os.getenv(
+            "PORT",
+            "10000",
+        )
+    )
+
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=port,
+    )
