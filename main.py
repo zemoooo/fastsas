@@ -145,9 +145,67 @@ SUPABASE_ANON_KEY = (
 
 SUPABASE_AUTH_TIMEOUT = 30.0
 
-# قبول 6 إلى 8 أرقام لمنع تعارض طول OTP
+# نقبل 6 إلى 8 أرقام تحسبًا لاختلاف إعداد OTP في المشروع.
 OTP_MIN_DIGITS = 6
 OTP_MAX_DIGITS = 8
+
+# حماية محلية إضافية قبل طلب OTP جديد.
+# Supabase يفرض بدوره rate limit خاصًا به.
+LOCAL_OTP_COOLDOWN_SECONDS = 60
+
+
+# =========================================================
+# IN-MEMORY OTP REQUEST CONTROL
+# =========================================================
+#
+# هذا يمنع الصفحة/المستخدم من ضرب /otp مرات متتالية.
+#
+# المفتاح:
+#     email
+#
+# القيمة:
+#     datetime لآخر طلب ناجح
+#
+# ملاحظة:
+# هذه حماية إضافية فقط. Supabase هو المصدر النهائي
+# لسياسة الـ rate limit.
+# =========================================================
+
+otp_last_sent_at = {}
+
+
+def utc_now():
+    return datetime.now(timezone.utc)
+
+
+def get_otp_remaining_seconds(
+    email: str,
+) -> int:
+
+    last_sent = otp_last_sent_at.get(email)
+
+    if not last_sent:
+        return 0
+
+    elapsed = (
+        utc_now() - last_sent
+    ).total_seconds()
+
+    remaining = (
+        LOCAL_OTP_COOLDOWN_SECONDS
+        - elapsed
+    )
+
+    if remaining <= 0:
+        return 0
+
+    return int(remaining) + 1
+
+
+def remember_otp_sent(
+    email: str,
+):
+    otp_last_sent_at[email] = utc_now()
 
 
 # =========================================================
@@ -229,13 +287,16 @@ CORS_ORIGINS = (
 # =========================================================
 
 if DATABASE_URL.startswith("sqlite"):
+
     engine = create_engine(
         DATABASE_URL,
         connect_args={
             "check_same_thread": False,
         },
     )
+
 else:
+
     engine = create_engine(
         DATABASE_URL,
         pool_pre_ping=True,
@@ -258,7 +319,7 @@ Base = declarative_base()
 
 app = FastAPI(
     title="Smart AI Store Assistant",
-    version="2.2.0",
+    version="2.3.0",
 )
 
 app.add_middleware(
@@ -461,9 +522,13 @@ class ChatLogModel(Base):
 # =========================================================
 
 try:
-    Base.metadata.create_all(bind=engine)
+
+    Base.metadata.create_all(
+        bind=engine
+    )
 
 except Exception as exc:
+
     print(
         "DATABASE CREATE ERROR:",
         repr(exc),
@@ -485,7 +550,9 @@ def ensure_database_schema():
         if "users" not in tables:
             return
 
-        columns = inspector.get_columns("users")
+        columns = inspector.get_columns(
+            "users"
+        )
 
         column_names = {
             column["name"]
@@ -596,9 +663,11 @@ def get_db():
     db = SessionLocal()
 
     try:
+
         yield db
 
     finally:
+
         db.close()
 
 
@@ -663,6 +732,7 @@ def verify_password(
         )
 
     except Exception:
+
         return False
 
 
@@ -740,6 +810,7 @@ def get_current_user(
     expires_at = session.expires_at
 
     if expires_at.tzinfo is None:
+
         expires_at = expires_at.replace(
             tzinfo=timezone.utc
         )
@@ -788,10 +859,7 @@ def set_session_cookie(
         key=SESSION_COOKIE,
         value=token,
         max_age=(
-            SESSION_DAYS
-            * 24
-            * 60
-            * 60
+            SESSION_DAYS * 24 * 60 * 60
         ),
         httponly=True,
         secure=True,
@@ -829,7 +897,11 @@ def normalize_phone(
     if value.startswith("00"):
         value = value[2:]
 
-    return re.sub(r"\D", "", value)
+    return re.sub(
+        r"\D",
+        "",
+        value,
+    )
 
 
 def make_instance_name(
@@ -850,6 +922,7 @@ def safe_json(
 ) -> Any:
 
     try:
+
         return response.json()
 
     except Exception:
@@ -869,13 +942,14 @@ def first_value(
             value is not None
             and value != ""
         ):
+
             return value
 
     return None
 
 
 # =========================================================
-# SUPABASE AUTH
+# SUPABASE AUTH HELPERS
 # =========================================================
 
 def supabase_configuration_ready() -> bool:
@@ -898,7 +972,10 @@ def supabase_error_message(
     data: Any,
 ) -> str:
 
-    if isinstance(data, dict):
+    if isinstance(
+        data,
+        dict,
+    ):
 
         return str(
             data.get("msg")
@@ -909,7 +986,11 @@ def supabase_error_message(
             or ""
         ).strip()
 
-    if isinstance(data, str):
+    if isinstance(
+        data,
+        str,
+    ):
+
         return data.strip()
 
     return ""
@@ -927,11 +1008,9 @@ def is_supabase_rate_limit_error(
     rate_terms = (
         "rate",
         "too many",
-        "60 seconds",
-        "60 second",
+        "seconds",
         "over_email_send_rate_limit",
         "429",
-        "after 60",
     )
 
     return any(
@@ -940,18 +1019,67 @@ def is_supabase_rate_limit_error(
     )
 
 
+def extract_retry_after_seconds(
+    data: Any,
+    fallback: int = 60,
+) -> int:
+
+    message = (
+        supabase_error_message(data)
+        or ""
+    )
+
+    patterns = [
+        r"after\s+(\d+)\s+seconds?",
+        r"(\d+)\s+seconds?",
+    ]
+
+    for pattern in patterns:
+
+        match = re.search(
+            pattern,
+            message,
+            re.IGNORECASE,
+        )
+
+        if match:
+
+            try:
+
+                return max(
+                    1,
+                    int(match.group(1)),
+                )
+
+            except Exception:
+
+                pass
+
+    return fallback
+
+
 # =========================================================
-# SEND OTP
+# SEND SUPABASE OTP
 # =========================================================
 #
-# IMPORTANT:
-# هذا هو المسار الوحيد المستخدم لإرسال البريد.
+# مهم:
 #
-# لا يوجد /auth/v1/signup هنا.
-# لا يوجد confirmation link.
+# لا /auth/v1/signup
+# لا ConfirmationURL
+# لا Magic Link endpoint مستقل
 #
-# create_user=True مقصود حتى يعمل أيضًا مع الحسابات
-# المحلية القديمة التي لم يكن لها مستخدم Supabase.
+# كل البريد يخرج من /auth/v1/otp
+#
+# ويجب أن يكون قالب Supabase المستخدم:
+#
+# Authentication
+#   -> Email Templates
+#      -> Magic link or OTP
+#
+# ويستخدم:
+#
+# {{ .Token }}
+#
 # =========================================================
 
 async def supabase_send_email_otp(
@@ -964,11 +1092,59 @@ async def supabase_send_email_otp(
             "SUPABASE_URL أو SUPABASE_ANON_KEY غير مضبوطين."
         )
 
+    # -----------------------------------------------------
+    # LOCAL COOLDOWN
+    # -----------------------------------------------------
+
+    remaining = get_otp_remaining_seconds(
+        email
+    )
+
+    if remaining > 0:
+
+        error = RuntimeError(
+            (
+                "For security purposes, "
+                f"please wait {remaining} seconds "
+                "before requesting another OTP."
+            )
+        )
+
+        setattr(
+            error,
+            "supabase_status_code",
+            429,
+        )
+
+        setattr(
+            error,
+            "supabase_data",
+            {
+                "code": 429,
+                "error_code": "local_otp_cooldown",
+                "msg": (
+                    f"Please wait {remaining} seconds."
+                ),
+            },
+        )
+
+        setattr(
+            error,
+            "retry_after",
+            remaining,
+        )
+
+        raise error
+
     url = (
         f"{SUPABASE_URL}"
         "/auth/v1/otp"
     )
 
+    # create_user=True:
+    # يسمح بإنشاء مستخدم Supabase عند عدم وجوده.
+    #
+    # عند وجود المستخدم بالفعل سيستمر التدفق كـOTP.
     payload = {
         "email": email,
         "create_user": True,
@@ -992,11 +1168,21 @@ async def supabase_send_email_otp(
         data,
     )
 
-    if response.status_code not in range(200, 300):
+    if response.status_code not in range(
+        200,
+        300,
+    ):
+
+        retry_after = extract_retry_after_seconds(
+            data,
+            fallback=60,
+        )
 
         error = RuntimeError(
             supabase_error_message(data)
-            or "تعذر إرسال رمز التحقق عبر Supabase."
+            or (
+                "تعذر إرسال رمز التحقق عبر Supabase."
+            )
         )
 
         setattr(
@@ -1011,13 +1197,29 @@ async def supabase_send_email_otp(
             data,
         )
 
+        setattr(
+            error,
+            "retry_after",
+            retry_after,
+        )
+
         raise error
 
-    return data
+    # -----------------------------------------------------
+    # لا نسجل وقت آخر إرسال إلا بعد نجاح Supabase
+    # -----------------------------------------------------
+
+    remember_otp_sent(email)
+
+    return {
+        "success": True,
+        "retry_after": LOCAL_OTP_COOLDOWN_SECONDS,
+        "data": data,
+    }
 
 
 # =========================================================
-# VERIFY OTP
+# VERIFY SUPABASE OTP
 # =========================================================
 
 async def supabase_verify_email_otp(
@@ -1095,6 +1297,7 @@ def extract_pdf_text(
                     parts.append(value)
 
             except Exception:
+
                 continue
 
         result = "\n\n".join(parts)
@@ -1148,7 +1351,10 @@ def normalize_qr(
     if not value:
         return None
 
-    if isinstance(value, dict):
+    if isinstance(
+        value,
+        dict,
+    ):
 
         value = first_value(
             value.get("base64"),
@@ -1159,7 +1365,11 @@ def normalize_qr(
             value.get("qr"),
         )
 
-    if not isinstance(value, str):
+    if not isinstance(
+        value,
+        str,
+    ):
+
         return None
 
     value = value.strip()
@@ -1167,7 +1377,9 @@ def normalize_qr(
     if not value:
         return None
 
-    if value.startswith("data:image"):
+    if value.startswith(
+        "data:image"
+    ):
         return value
 
     if (
@@ -1186,7 +1398,10 @@ def extract_qr_code(
     data: Any,
 ) -> Optional[str]:
 
-    if not isinstance(data, dict):
+    if not isinstance(
+        data,
+        dict,
+    ):
         return None
 
     candidates = [
@@ -1200,7 +1415,10 @@ def extract_qr_code(
 
     nested_data = data.get("data")
 
-    if isinstance(nested_data, dict):
+    if isinstance(
+        nested_data,
+        dict,
+    ):
 
         candidates.extend(
             [
@@ -1215,7 +1433,10 @@ def extract_qr_code(
 
     instance = data.get("instance")
 
-    if isinstance(instance, dict):
+    if isinstance(
+        instance,
+        dict,
+    ):
 
         candidates.extend(
             [
@@ -1230,7 +1451,9 @@ def extract_qr_code(
 
     for candidate in candidates:
 
-        qr = normalize_qr(candidate)
+        qr = normalize_qr(
+            candidate
+        )
 
         if qr:
             return qr
@@ -1242,7 +1465,10 @@ def extract_connection_state(
     data: Any,
 ) -> Optional[str]:
 
-    if not isinstance(data, dict):
+    if not isinstance(
+        data,
+        dict,
+    ):
         return None
 
     values = [
@@ -1253,7 +1479,10 @@ def extract_connection_state(
 
     nested = data.get("instance")
 
-    if isinstance(nested, dict):
+    if isinstance(
+        nested,
+        dict,
+    ):
 
         values.extend(
             [
@@ -1265,7 +1494,10 @@ def extract_connection_state(
 
     nested_data = data.get("data")
 
-    if isinstance(nested_data, dict):
+    if isinstance(
+        nested_data,
+        dict,
+    ):
 
         values.extend(
             [
@@ -1552,7 +1784,9 @@ async def ensure_instance(
         instance_name,
     )
 
-    if create_result["status_code"] not in (
+    if create_result[
+        "status_code"
+    ] not in (
         200,
         201,
         409,
@@ -1563,7 +1797,9 @@ async def ensure_instance(
             create_result,
         )
 
-    if create_result["status_code"] == 409:
+    if create_result[
+        "status_code"
+    ] == 409:
 
         status = await evolution_status(
             client,
@@ -1573,8 +1809,13 @@ async def ensure_instance(
     return {
         "instance_name": instance_name,
         "created": (
-            create_result["status_code"]
-            in (200, 201)
+            create_result[
+                "status_code"
+            ]
+            in (
+                200,
+                201,
+            )
         ),
         "create": create_result,
         "status": status,
@@ -1682,6 +1923,7 @@ async def get_qr_with_retry(
         initial_result
         and initial_result.get("qr")
     ):
+
         return initial_result
 
     for attempt in range(
@@ -1717,9 +1959,11 @@ async def get_qr_with_retry(
                 "online",
             }
         ):
+
             return result
 
         if attempt < attempts:
+
             await asyncio.sleep(
                 delay_seconds
             )
@@ -1747,7 +1991,9 @@ async def get_qr_with_retry(
 )
 async def read_index():
 
-    if os.path.exists("index.html"):
+    if os.path.exists(
+        "index.html"
+    ):
 
         with open(
             "index.html",
@@ -1774,7 +2020,9 @@ async def read_index():
 @app.head("/")
 async def head_index():
 
-    return Response(status_code=200)
+    return Response(
+        status_code=200
+    )
 
 
 @app.get("/health")
@@ -1783,19 +2031,30 @@ async def health():
     return {
         "status": "ok",
         "service": "Smart AI Store Assistant",
-        "evolution_api_configured": bool(EVOLUTION_API_URL),
-        "evolution_key_configured": bool(EVOLUTION_GLOBAL_KEY),
-        "anthropic_configured": bool(ANTHROPIC_API_KEY),
-        "supabase_configured": bool(
-            supabase_configuration_ready()
-        ),
-        "supabase_url_configured": bool(SUPABASE_URL),
-        "supabase_key_configured": bool(SUPABASE_ANON_KEY),
-        "webhook_configured": bool(WEBHOOK_BASE_URL),
-        "frontend_configured": bool(FRONTEND_URL),
-        "otp_digits": f"{OTP_MIN_DIGITS}-{OTP_MAX_DIGITS}",
-        "otp_mode": "supabase_otp_only",
-        "model": ANTHROPIC_MODEL,
+        "evolution_api_configured":
+            bool(EVOLUTION_API_URL),
+        "evolution_key_configured":
+            bool(EVOLUTION_GLOBAL_KEY),
+        "anthropic_configured":
+            bool(ANTHROPIC_API_KEY),
+        "supabase_configured":
+            bool(supabase_configuration_ready()),
+        "supabase_url_configured":
+            bool(SUPABASE_URL),
+        "supabase_key_configured":
+            bool(SUPABASE_ANON_KEY),
+        "webhook_configured":
+            bool(WEBHOOK_BASE_URL),
+        "frontend_configured":
+            bool(FRONTEND_URL),
+        "otp_mode":
+            "supabase_otp_only",
+        "otp_digits":
+            f"{OTP_MIN_DIGITS}-{OTP_MAX_DIGITS}",
+        "otp_cooldown":
+            LOCAL_OTP_COOLDOWN_SECONDS,
+        "model":
+            ANTHROPIC_MODEL,
     }
 
 
@@ -1833,7 +2092,9 @@ async def health_db(
 )
 async def get_widget():
 
-    if os.path.exists("widget.js"):
+    if os.path.exists(
+        "widget.js"
+    ):
 
         return FileResponse(
             "widget.js",
@@ -1866,9 +2127,7 @@ async def register_store(
 ):
 
     store_name = store_name.strip()
-
     username = username.strip()
-
     email = email.strip().lower()
 
     if len(store_name) < 2:
@@ -1883,7 +2142,8 @@ async def register_store(
         raise HTTPException(
             status_code=400,
             detail=(
-                "اسم المستخدم يجب أن يكون 3 أحرف على الأقل"
+                "اسم المستخدم يجب أن يكون "
+                "3 أحرف على الأقل"
             ),
         )
 
@@ -1906,7 +2166,8 @@ async def register_store(
         raise HTTPException(
             status_code=400,
             detail=(
-                "اسم المستخدم يحتوي على أحرف غير مسموحة"
+                "اسم المستخدم يحتوي على "
+                "أحرف غير مسموحة"
             ),
         )
 
@@ -1929,7 +2190,8 @@ async def register_store(
         raise HTTPException(
             status_code=400,
             detail=(
-                "كلمة المرور يجب أن تكون 6 أحرف على الأقل"
+                "كلمة المرور يجب أن تكون "
+                "6 أحرف على الأقل"
             ),
         )
 
@@ -1959,7 +2221,9 @@ async def register_store(
 
         raise HTTPException(
             status_code=409,
-            detail="اسم المستخدم مستخدم مسبقًا",
+            detail=(
+                "اسم المستخدم مستخدم مسبقًا"
+            ),
         )
 
     existing_email = (
@@ -1974,7 +2238,9 @@ async def register_store(
 
         raise HTTPException(
             status_code=409,
-            detail="البريد الإلكتروني مستخدم مسبقًا",
+            detail=(
+                "البريد الإلكتروني مستخدم مسبقًا"
+            ),
         )
 
     # -----------------------------------------------------
@@ -2023,7 +2289,7 @@ async def register_store(
         )
 
     # -----------------------------------------------------
-    # SEND OTP ONLY
+    # SEND OTP
     # -----------------------------------------------------
 
     try:
@@ -2039,20 +2305,13 @@ async def register_store(
             repr(exc),
         )
 
-        try:
-
-            db.delete(user)
-            db.delete(store)
-            db.commit()
-
-        except Exception:
-            db.rollback()
-
-        status = getattr(
-            exc,
-            "supabase_status_code",
-            None,
-        )
+        # لا نحذف الحساب المحلي تلقائيًا.
+        #
+        # السبب:
+        # إذا أخفق Supabase بسبب rate limit أو SMTP،
+        # لا نريد تدمير الحساب الذي أنشأه المستخدم.
+        #
+        # يستطيع المستخدم لاحقًا استخدام resend.
 
         data = getattr(
             exc,
@@ -2060,19 +2319,41 @@ async def register_store(
             None,
         )
 
+        status = getattr(
+            exc,
+            "supabase_status_code",
+            None,
+        )
+
+        retry_after = getattr(
+            exc,
+            "retry_after",
+            60,
+        )
+
         if (
             status == 429
             or is_supabase_rate_limit_error(data)
         ):
-            status = 429
-        else:
-            status = 502
+
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "message": (
+                        "تم طلب رمز مؤخرًا. "
+                        "انتظر قبل طلب رمز جديد."
+                    ),
+                    "retry_after": retry_after,
+                    "verification_required": True,
+                    "email": email,
+                },
+            )
 
         raise HTTPException(
-            status_code=status,
+            status_code=502,
             detail=(
-                "تعذر إرسال رمز التحقق عبر Supabase. "
-                f"{str(exc)}"
+                "تم إنشاء الحساب ولكن تعذر إرسال "
+                "رمز التحقق. استخدم إعادة الإرسال."
             ),
         )
 
@@ -2080,8 +2361,12 @@ async def register_store(
         "status": "success",
         "success": True,
         "verification_required": True,
+        "otp_sent": True,
+        "retry_after":
+            LOCAL_OTP_COOLDOWN_SECONDS,
         "message": (
-            "تم إنشاء الحساب وإرسال رمز التحقق إلى بريدك الإلكتروني."
+            "تم إنشاء الحساب وإرسال رمز التحقق "
+            "إلى بريدك الإلكتروني."
         ),
         "store_id": store.id,
         "user": {
@@ -2110,7 +2395,6 @@ async def verify_email(
 ):
 
     email = email.strip().lower()
-
     code = code.strip()
 
     if not re.match(
@@ -2123,22 +2407,17 @@ async def verify_email(
             detail="البريد الإلكتروني غير صحيح",
         )
 
-    # دعم 6 أو 7 أو 8 أرقام
-    otp_pattern = (
-        rf"\d{{{OTP_MIN_DIGITS},{OTP_MAX_DIGITS}}}"
-    )
-
     if not re.fullmatch(
-        otp_pattern,
+        rf"\d{{{OTP_MIN_DIGITS},{OTP_MAX_DIGITS}}}",
         code,
     ):
 
         raise HTTPException(
             status_code=400,
             detail=(
-                f"رمز التحقق يجب أن يكون من "
+                f"رمز التحقق يجب أن يكون "
                 f"{OTP_MIN_DIGITS} إلى "
-                f"{OTP_MAX_DIGITS} أرقام"
+                f"{OTP_MAX_DIGITS} أرقام."
             ),
         )
 
@@ -2183,7 +2462,9 @@ async def verify_email(
                     "email": user.email,
                     "email_verified": True,
                 },
-                "store": store_to_dict(user.store),
+                "store": store_to_dict(
+                    user.store
+                ),
             }
         )
 
@@ -2195,7 +2476,7 @@ async def verify_email(
         return response
 
     # -----------------------------------------------------
-    # VERIFY OTP WITH SUPABASE
+    # VERIFY WITH SUPABASE
     # -----------------------------------------------------
 
     try:
@@ -2210,7 +2491,7 @@ async def verify_email(
     except Exception as exc:
 
         print(
-            "SUPABASE VERIFY EXCEPTION:",
+            "SUPABASE VERIFY CONNECTION ERROR:",
             repr(exc),
         )
 
@@ -2221,17 +2502,55 @@ async def verify_email(
             ),
         )
 
+    print(
+        "================================================"
+    )
+
+    print(
+        "SUPABASE OTP VERIFICATION RESULT"
+    )
+
+    print(
+        "HTTP:",
+        status_code,
+    )
+
+    print(
+        "EMAIL:",
+        email,
+    )
+
+    print(
+        "RESPONSE:",
+        data,
+    )
+
+    print(
+        "================================================"
+    )
+
     # -----------------------------------------------------
-    # OTP FAILED
+    # FAILED
     # -----------------------------------------------------
 
-    if status_code not in range(200, 300):
+    if status_code not in range(
+        200,
+        300,
+    ):
 
-        print(
-            "SUPABASE VERIFY FAILED:",
-            status_code,
+        error_code = ""
+
+        if isinstance(
             data,
-        )
+            dict,
+        ):
+
+            error_code = str(
+                data.get(
+                    "error_code",
+                    "",
+                )
+            ).lower()
 
         message = (
             supabase_error_message(data)
@@ -2239,38 +2558,37 @@ async def verify_email(
         )
 
         if (
-            "expired" in message
-            or "otp_expired" in message
-            or "token has expired" in message
+            error_code == "otp_expired"
+            or "expired" in message
         ):
 
-            detail = (
-                "رمز التحقق منتهي الصلاحية. "
-                "اضغط إعادة إرسال وانتظر وصول الرمز الجديد، "
-                "ثم استخدم الرمز الأخير فقط."
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "رمز التحقق لم يعد صالحًا. "
+                    "استخدم آخر رمز تم إرساله فقط."
+                ),
             )
 
-        elif (
+        if (
             "invalid" in message
             or "token" in message
             or "otp" in message
         ):
 
-            detail = (
-                "رمز التحقق غير صحيح. "
-                "تأكد من إدخال أحدث رمز وصلك."
-            )
-
-        else:
-
-            detail = (
-                "تعذر التحقق من الرمز. "
-                "استخدم أحدث رمز وصلك وحاول مرة أخرى."
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "رمز التحقق غير صحيح. "
+                    "تأكد من إدخال آخر رمز وصلك."
+                ),
             )
 
         raise HTTPException(
             status_code=400,
-            detail=detail,
+            detail=(
+                "تعذر التحقق من رمز البريد الإلكتروني."
+            ),
         )
 
     # -----------------------------------------------------
@@ -2288,7 +2606,8 @@ async def verify_email(
         {
             "user_id": user.id,
             "email": user.email,
-            "email_verified": user.email_verified,
+            "email_verified":
+                user.email_verified,
         },
     )
 
@@ -2316,7 +2635,9 @@ async def verify_email(
                 "email": user.email,
                 "email_verified": True,
             },
-            "store": store_to_dict(user.store),
+            "store": store_to_dict(
+                user.store
+            ),
         }
     )
 
@@ -2330,12 +2651,6 @@ async def verify_email(
 
 # =========================================================
 # RESEND VERIFICATION
-# =========================================================
-#
-# نفس endpoint الخاص بـ OTP.
-# لا signup.
-# لا confirmation link.
-# create_user=True أيضًا حتى تعمل الحسابات القديمة.
 # =========================================================
 
 @app.post("/api/resend-verification")
@@ -2385,11 +2700,49 @@ async def resend_verification(
             ),
         }
 
+    # -----------------------------------------------------
+    # PRE-CHECK LOCAL COOLDOWN
+    # -----------------------------------------------------
+
+    remaining = get_otp_remaining_seconds(
+        email
+    )
+
+    if remaining > 0:
+
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "message": (
+                    "تم إرسال رمز مؤخرًا. "
+                    "انتظر قبل طلب رمز جديد."
+                ),
+                "retry_after": remaining,
+            },
+        )
+
+    # -----------------------------------------------------
+    # SEND NEW OTP
+    # -----------------------------------------------------
+
     try:
 
-        await supabase_send_email_otp(
+        result = await supabase_send_email_otp(
             email
         )
+
+        return {
+            "status": "success",
+            "success": True,
+            "verification_required": True,
+            "otp_sent": True,
+            "retry_after":
+                LOCAL_OTP_COOLDOWN_SECONDS,
+            "message": (
+                "تم إرسال رمز تحقق جديد. "
+                "استخدم هذا الرمز فقط."
+            ),
+        }
 
     except Exception as exc:
 
@@ -2410,6 +2763,12 @@ async def resend_verification(
             None,
         )
 
+        retry_after = getattr(
+            exc,
+            "retry_after",
+            60,
+        )
+
         if (
             status == 429
             or is_supabase_rate_limit_error(data)
@@ -2417,29 +2776,21 @@ async def resend_verification(
 
             raise HTTPException(
                 status_code=429,
-                detail=(
-                    "تم طلب رمز مؤخرًا. "
-                    "انتظر قليلًا ثم اطلب رمزًا جديدًا."
-                ),
+                detail={
+                    "message": (
+                        "Supabase يمنع طلب رمز جديد حاليًا. "
+                        "انتظر قبل المحاولة مرة أخرى."
+                    ),
+                    "retry_after": retry_after,
+                },
             )
 
         raise HTTPException(
             status_code=502,
             detail=(
-                "تعذر إعادة إرسال رمز التحقق. "
-                f"{str(exc)}"
+                "تعذر إعادة إرسال رمز التحقق."
             ),
         )
-
-    return {
-        "status": "success",
-        "success": True,
-        "verification_required": True,
-        "message": (
-            "تم إرسال رمز تحقق جديد. "
-            "استخدم أحدث رمز وصلك فقط."
-        ),
-    }
 
 
 # =========================================================
@@ -2474,7 +2825,6 @@ async def login(
             or_(
                 UserModel.username
                 == username_input,
-
                 UserModel.email
                 == username_input.lower(),
             )
@@ -2500,7 +2850,11 @@ async def login(
         )
 
     # -----------------------------------------------------
-    # لا نرسل OTP من login
+    # لا نرسل OTP من تسجيل الدخول
+    # -----------------------------------------------------
+    #
+    # لأن إرسال OTP جديد في login يمكن أن يجعل
+    # الرمز الموجود لدى المستخدم غير صالح.
     # -----------------------------------------------------
 
     if not bool(user.email_verified):
@@ -2508,20 +2862,39 @@ async def login(
         return JSONResponse(
             status_code=403,
             content={
-                "status": "verification_required",
-                "success": False,
-                "verification_required": True,
-                "message": (
-                    "البريد الإلكتروني غير مؤكد. "
-                    "أدخل رمز التحقق أو اضغط إعادة الإرسال."
-                ),
-                "email": user.email,
-                "store_id": user.store_id,
+                "status":
+                    "verification_required",
+
+                "success":
+                    False,
+
+                "verification_required":
+                    True,
+
+                "message":
+                    (
+                        "البريد الإلكتروني غير مؤكد. "
+                        "أدخل رمز التحقق أو اضغط إعادة الإرسال."
+                    ),
+
+                "email":
+                    user.email,
+
+                "store_id":
+                    user.store_id,
+
                 "user": {
-                    "id": user.id,
-                    "username": user.username,
-                    "email": user.email,
-                    "email_verified": False,
+                    "id":
+                        user.id,
+
+                    "username":
+                        user.username,
+
+                    "email":
+                        user.email,
+
+                    "email_verified":
+                        False,
                 },
             }
         )
@@ -2539,7 +2912,9 @@ async def login(
         content={
             "status": "success",
             "success": True,
-            "message": "تم تسجيل الدخول بنجاح",
+            "message": (
+                "تم تسجيل الدخول بنجاح"
+            ),
             "store_id": user.store_id,
             "user": {
                 "id": user.id,
@@ -2547,7 +2922,9 @@ async def login(
                 "email": user.email,
                 "email_verified": True,
             },
-            "store": store_to_dict(user.store),
+            "store": store_to_dict(
+                user.store
+            ),
         }
     )
 
@@ -2628,9 +3005,8 @@ async def me(
             "id": user.id,
             "username": user.username,
             "email": user.email,
-            "email_verified": bool(
-                user.email_verified
-            ),
+            "email_verified":
+                bool(user.email_verified),
         },
         "store": store_to_dict(
             user.store
@@ -2653,7 +3029,9 @@ async def update_agent(
 
     agent_notes: str = Form(""),
 
-    pdf_file: Optional[UploadFile] = File(None),
+    pdf_file: Optional[
+        UploadFile
+    ] = File(None),
 
     user: UserModel = Depends(
         get_current_user
@@ -2730,7 +3108,10 @@ async def update_agent(
     store.whatsapp_number = normalized_phone
     store.agent_notes = agent_notes
 
-    if pdf_file and pdf_file.filename:
+    if (
+        pdf_file
+        and pdf_file.filename
+    ):
 
         filename = (
             pdf_file.filename.lower()
@@ -2775,7 +3156,9 @@ async def update_agent(
                 )
 
                 instance_name = (
-                    ensure_result["instance_name"]
+                    ensure_result[
+                        "instance_name"
+                    ]
                 )
 
                 webhook_result = (
@@ -2787,9 +3170,14 @@ async def update_agent(
                 )
 
                 evolution_result = {
-                    "instance_name": instance_name,
-                    "ensure": ensure_result,
-                    "webhook": webhook_result,
+                    "instance_name":
+                        instance_name,
+
+                    "ensure":
+                        ensure_result,
+
+                    "webhook":
+                        webhook_result,
                 }
 
         except Exception as exc:
@@ -2818,7 +3206,9 @@ async def update_agent(
 # WHATSAPP QR
 # =========================================================
 
-@app.get("/api/whatsapp/qr/{store_id}")
+@app.get(
+    "/api/whatsapp/qr/{store_id}"
+)
 async def whatsapp_qr(
 
     store_id: str,
@@ -2875,7 +3265,9 @@ async def whatsapp_qr(
         )
 
         instance_name = (
-            ensure_result["instance_name"]
+            ensure_result[
+                "instance_name"
+            ]
         )
 
         webhook_result = (
@@ -2903,15 +3295,16 @@ async def whatsapp_qr(
             "success": True,
             "qr_code": qr_result["qr"],
             "instance_name": instance_name,
-            "connection_state": (
+            "connection_state":
                 extract_connection_state(
                     qr_result.get("data")
-                )
-            ),
+                ),
             "webhook": webhook_result,
         }
 
-    evolution_data = qr_result.get("data")
+    evolution_data = (
+        qr_result.get("data")
+    )
 
     return JSONResponse(
         status_code=502,
@@ -2942,7 +3335,9 @@ async def whatsapp_qr(
 # WHATSAPP STATUS
 # =========================================================
 
-@app.get("/api/whatsapp/status/{store_id}")
+@app.get(
+    "/api/whatsapp/status/{store_id}"
+)
 async def whatsapp_status(
 
     store_id: str,
@@ -2998,12 +3393,23 @@ async def whatsapp_status(
     )
 
     return {
-        "status": "success" if success else "error",
-        "success": success,
-        "instance_name": instance_name,
-        "connection_state": result.get("state"),
-        "http_status": result.get("status_code"),
-        "evolution_response": result.get("data"),
+        "status":
+            "success" if success else "error",
+
+        "success":
+            success,
+
+        "instance_name":
+            instance_name,
+
+        "connection_state":
+            result.get("state"),
+
+        "http_status":
+            result.get("status_code"),
+
+        "evolution_response":
+            result.get("data"),
     }
 
 
@@ -3155,7 +3561,9 @@ class ChatRequest(BaseModel):
 
     message: str
 
-    sender_id: Optional[str] = "preview_user"
+    sender_id: Optional[str] = (
+        "preview_user"
+    )
 
 
 # =========================================================
@@ -3295,7 +3703,11 @@ def extract_whatsapp_message(
     payload: dict,
 ):
 
-    if not isinstance(payload, dict):
+    if not isinstance(
+        payload,
+        dict,
+    ):
+
         return None, None
 
     data = payload.get(
@@ -3303,12 +3715,23 @@ def extract_whatsapp_message(
         payload,
     )
 
-    if not isinstance(data, dict):
+    if not isinstance(
+        data,
+        dict,
+    ):
+
         return None, None
 
-    key = data.get("key", {})
+    key = data.get(
+        "key",
+        {},
+    )
 
-    if not isinstance(key, dict):
+    if not isinstance(
+        key,
+        dict,
+    ):
+
         key = {}
 
     sender = key.get(
@@ -3321,7 +3744,11 @@ def extract_whatsapp_message(
         {},
     )
 
-    if not isinstance(message_data, dict):
+    if not isinstance(
+        message_data,
+        dict,
+    ):
+
         return sender, None
 
     conversation = message_data.get(
@@ -3340,9 +3767,14 @@ def extract_whatsapp_message(
         {},
     )
 
-    if isinstance(extended, dict):
+    if isinstance(
+        extended,
+        dict,
+    ):
 
-        value = extended.get("text")
+        value = extended.get(
+            "text"
+        )
 
         if value:
 
@@ -3356,7 +3788,10 @@ def extract_whatsapp_message(
         {},
     )
 
-    if isinstance(image_message, dict):
+    if isinstance(
+        image_message,
+        dict,
+    ):
 
         caption = image_message.get(
             "caption"
@@ -3374,7 +3809,10 @@ def extract_whatsapp_message(
         {},
     )
 
-    if isinstance(video_message, dict):
+    if isinstance(
+        video_message,
+        dict,
+    ):
 
         caption = video_message.get(
             "caption"
@@ -3418,7 +3856,8 @@ async def whatsapp_webhook(
     if not store:
 
         return {
-            "status": "store_not_found"
+            "status":
+                "store_not_found"
         }
 
     try:
@@ -3471,12 +3910,21 @@ async def whatsapp_webhook(
         )
 
         key = (
-            data.get("key", {})
-            if isinstance(data, dict)
+            data.get(
+                "key",
+                {},
+            )
+            if isinstance(
+                data,
+                dict,
+            )
             else {}
         )
 
-        if key.get("fromMe", False):
+        if key.get(
+            "fromMe",
+            False,
+        ):
 
             return {
                 "status": "ignored",
@@ -3514,17 +3962,21 @@ async def whatsapp_webhook(
             timeout=30.0
         ) as client:
 
-            send_result = await evolution_send_text(
-                client,
-                instance_name,
-                target_number,
-                reply_text,
+            send_result = (
+                await evolution_send_text(
+                    client,
+                    instance_name,
+                    target_number,
+                    reply_text,
+                )
             )
 
         return {
             "status": "success",
             "sent": (
-                send_result["status_code"]
+                send_result[
+                    "status_code"
+                ]
                 in range(200, 300)
             ),
             "evolution_status":
@@ -3624,12 +4076,18 @@ async def startup_event():
 
     print(
         "SUPABASE OTP MODE:",
-        "OTP ONLY - NO SIGNUP CONFIRMATION FLOW",
+        "OTP ONLY",
     )
 
     print(
-        "OTP DIGITS:",
-        f"{OTP_MIN_DIGITS}-{OTP_MAX_DIGITS}",
+        "SUPABASE SIGNUP ENDPOINT:",
+        "NOT USED",
+    )
+
+    print(
+        "OTP COOLDOWN:",
+        LOCAL_OTP_COOLDOWN_SECONDS,
+        "seconds",
     )
 
     print(
