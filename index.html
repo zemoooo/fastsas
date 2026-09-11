@@ -2,501 +2,371 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <title>منصة المساعد الذكي للمتاجر</title>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بوابة المشتركين - المساعد الذكي</title>
     <script src="https://cdn.tailwindcss.com"></script>
-
-    <link
-        href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap"
-        rel="stylesheet"
-    >
-
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Tajawal', sans-serif;
-        }
+        body { font-family: 'Tajawal', sans-serif; }
+        .hidden-panel { display: none !important; }
     </style>
 </head>
+<body class="min-h-screen bg-slate-950 text-slate-800">
 
-<body class="bg-slate-50 text-slate-800 min-h-screen py-10 px-4">
-
-<div class="max-w-3xl mx-auto bg-white rounded-2xl shadow-xl p-6 sm:p-10 border border-slate-100">
-
-    <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold text-indigo-700 mb-2">
-             منصة المساعد الذكي للمتاجر
-        </h1>
-
-        <p class="text-slate-500 text-sm sm:text-base">
-            قم بتسجيل متجرك وتوليد QR الخاص بالواتساب وودجت المحادثة.
-        </p>
-    </div>
-
-    <form id="storeForm" class="space-y-5">
-
-        <div>
-            <label
-                for="store_name"
-                class="block text-sm font-semibold text-slate-700 mb-1"
-            >
-                اسم المتجر
-                <span class="text-red-500">*</span>
-            </label>
-
-            <input
-                type="text"
-                id="store_name"
-                name="store_name"
-                required
-                placeholder="مثال: متجر الأناقة"
-                class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-            >
+<div class="min-h-screen grid lg:grid-cols-2">
+    <section class="hidden lg:flex relative overflow-hidden bg-gradient-to-br from-indigo-700 via-violet-700 to-slate-950 text-white p-12 items-center">
+        <div class="absolute -top-24 -right-24 w-80 h-80 bg-white/10 rounded-full blur-3xl"></div>
+        <div class="absolute -bottom-24 -left-24 w-96 h-96 bg-fuchsia-400/10 rounded-full blur-3xl"></div>
+        <div class="relative max-w-xl mx-auto">
+            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/10 text-sm mb-6">
+                <span>🤖</span>
+                <span>منصة المساعد الذكي للمتاجر</span>
+            </div>
+            <h1 class="text-5xl font-extrabold leading-tight mb-6">حساب مستقل لكل مشترك ومتجر</h1>
+            <p class="text-white/80 text-lg leading-8 mb-8">سجل الدخول إلى لوحة متجرك، أدر مساعد الذكاء الاصطناعي، تابع ربط واتساب، واستعرض أدوات المتجر من مكان واحد.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                <div class="p-4 rounded-2xl bg-white/10 border border-white/10">🔐<div class="font-bold mt-2">تسجيل دخول آمن</div></div>
+                <div class="p-4 rounded-2xl bg-white/10 border border-white/10">📱<div class="font-bold mt-2">ربط واتساب</div></div>
+                <div class="p-4 rounded-2xl bg-white/10 border border-white/10">🧠<div class="font-bold mt-2">وكيل ذكي</div></div>
+            </div>
         </div>
+    </section>
 
-        <div>
-            <label
-                for="store_url"
-                class="block text-sm font-semibold text-slate-700 mb-1"
-            >
-                رابط المتجر الإلكتروني (اختياري)
-            </label>
+    <main class="bg-slate-50 p-5 sm:p-8 lg:p-12 flex items-center">
+        <div class="w-full max-w-2xl mx-auto">
 
-            <input
-                type="url"
-                id="store_url"
-                name="store_url"
-                placeholder="https://my-store.com"
-                class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-left"
-                dir="ltr"
-            >
-        </div>
+            <div id="authPanel" class="bg-white rounded-3xl shadow-xl border border-slate-200 p-6 sm:p-9">
+                <div class="text-center mb-8">
+                    <div class="text-4xl mb-3">🤖</div>
+                    <h2 id="authTitle" class="text-3xl font-extrabold text-slate-900">تسجيل دخول المشترك</h2>
+                    <p id="authSubtitle" class="text-slate-500 mt-2">أدخل بيانات حساب متجرك للمتابعة.</p>
+                </div>
 
-        <div>
-            <label
-                for="whatsapp_number"
-                class="block text-sm font-semibold text-slate-700 mb-1"
-            >
-                رقم الواتساب مع المفتاح الدولي
-                <span class="text-red-500">*</span>
-            </label>
+                <div id="authError" class="hidden mb-5 p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm"></div>
+                <div id="authSuccess" class="hidden mb-5 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm"></div>
 
-            <input
-                type="text"
-                id="whatsapp_number"
-                name="whatsapp_number"
-                required
-                placeholder="9677XXXXXXXX"
-                inputmode="numeric"
-                class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-left"
-                dir="ltr"
-            >
+                <form id="loginForm" class="space-y-5">
+                    <div>
+                        <label class="block text-sm font-bold mb-2">اسم المستخدم</label>
+                        <input id="login_username" type="text" autocomplete="username" required placeholder="مثال: store123" class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-2">كلمة المرور</label>
+                        <input id="login_password" type="password" autocomplete="current-password" required placeholder="••••••••" class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <button id="loginBtn" type="submit" class="w-full rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 transition">تسجيل الدخول</button>
+                    <button id="showRegisterBtn" type="button" class="w-full rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold py-3.5 transition">إنشاء حساب مشترك جديد</button>
+                </form>
 
-            <p class="text-xs text-slate-400 mt-1">
-                مثال اليمن: 9677XXXXXXXX بدون + أو مسافات.
-            </p>
-        </div>
-
-        <div>
-            <label
-                for="agent_notes"
-                class="block text-sm font-semibold text-slate-700 mb-1"
-            >
-                تعليمات المساعد الذكي
-            </label>
-
-            <textarea
-                id="agent_notes"
-                name="agent_notes"
-                rows="3"
-                placeholder="مثال: أجب بلباقة، اذكر الأسعار من الكتالوج فقط..."
-                class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-            ></textarea>
-        </div>
-
-        <div>
-            <label
-                for="pdf_file"
-                class="block text-sm font-semibold text-slate-700 mb-1"
-            >
-                رفع كتالوج المنتجات PDF (اختياري)
-            </label>
-
-            <input
-                type="file"
-                id="pdf_file"
-                name="pdf_file"
-                accept=".pdf,application/pdf"
-                class="w-full px-3 py-2 text-sm text-slate-500 border border-slate-300 rounded-lg cursor-pointer bg-slate-50"
-            >
-        </div>
-
-        <button
-            type="submit"
-            id="submitBtn"
-            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition shadow-md"
-        >
-            تسجيل وتفعيل المتجر
-        </button>
-
-    </form>
-
-    <div
-        id="resultBox"
-        class="hidden mt-8 pt-8 border-t border-slate-200 space-y-6"
-    >
-
-        <div
-            id="resultMessage"
-            class="p-4 rounded-xl text-center font-medium"
-        ></div>
-
-        <div
-            id="errorBox"
-            class="hidden p-4 bg-red-50 border border-red-200 rounded-xl"
-        >
-            <div class="font-bold text-red-700 mb-2">
-                تفاصيل الخطأ
+                <form id="registerForm" class="hidden-panel space-y-5">
+                    <div class="grid sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-bold mb-2">اسم المتجر <span class="text-red-500">*</span></label>
+                            <input id="store_name" type="text" required placeholder="متجر الأناقة" class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold mb-2">اسم المستخدم <span class="text-red-500">*</span></label>
+                            <input id="register_username" type="text" autocomplete="username" required placeholder="store123" class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500" dir="ltr">
+                        </div>
+                    </div>
+                    <div class="grid sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-bold mb-2">كلمة المرور <span class="text-red-500">*</span></label>
+                            <input id="register_password" type="password" autocomplete="new-password" minlength="6" required placeholder="6 أحرف على الأقل" class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold mb-2">تأكيد كلمة المرور <span class="text-red-500">*</span></label>
+                            <input id="register_password2" type="password" autocomplete="new-password" minlength="6" required placeholder="أعد كتابة كلمة المرور" class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-2">رابط المتجر الإلكتروني</label>
+                        <input id="store_url" type="url" placeholder="https://my-store.com" class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500" dir="ltr">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-2">رقم الواتساب مع المفتاح الدولي</label>
+                        <input id="whatsapp_number" type="text" inputmode="numeric" placeholder="9677XXXXXXXX" class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500" dir="ltr">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-2">تعليمات المساعد الذكي</label>
+                        <textarea id="agent_notes" rows="3" placeholder="مثال: أجب بلباقة، اذكر الأسعار من الكتالوج فقط..." class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-2">كتالوج المنتجات PDF</label>
+                        <input id="pdf_file" type="file" accept=".pdf,application/pdf" class="w-full rounded-xl border border-slate-300 px-4 py-3 bg-slate-50">
+                    </div>
+                    <button id="registerBtn" type="submit" class="w-full rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold py-3.5 transition">إنشاء الحساب وتسجيل الدخول</button>
+                    <button id="showLoginBtn" type="button" class="w-full rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold py-3.5 transition">العودة إلى تسجيل الدخول</button>
+                </form>
             </div>
 
-            <pre
-                id="errorText"
-                class="text-xs text-red-600 whitespace-pre-wrap break-words text-left"
-                dir="ltr"
-            ></pre>
-        </div>
+            <div id="dashboardPanel" class="hidden-panel space-y-5">
+                <div class="bg-white rounded-3xl shadow-xl border border-slate-200 p-6 sm:p-8">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <p class="text-sm text-slate-500">مرحباً بك</p>
+                            <h2 id="dashboardStoreName" class="text-3xl font-extrabold text-slate-900 mt-1"></h2>
+                            <p id="dashboardUsername" class="text-sm text-indigo-600 mt-1"></p>
+                        </div>
+                        <button id="logoutBtn" class="rounded-xl border border-slate-300 px-5 py-2.5 font-bold hover:bg-slate-50">تسجيل الخروج</button>
+                    </div>
+                </div>
 
-        <div
-            id="qrContainer"
-            class="hidden flex flex-col items-center justify-center p-6 bg-slate-100 rounded-xl border border-slate-200 text-center"
-        >
+                <div class="grid sm:grid-cols-2 gap-5">
+                    <div class="bg-white rounded-3xl shadow border border-slate-200 p-6">
+                        <p class="text-sm text-slate-500">حالة واتساب</p>
+                        <div class="flex items-center gap-3 mt-3">
+                            <span id="statusDot" class="w-3 h-3 rounded-full bg-slate-300"></span>
+                            <span id="whatsappStatus" class="font-bold">جاري الفحص...</span>
+                        </div>
+                        <button id="refreshStatusBtn" class="mt-5 text-sm font-bold text-indigo-600 hover:text-indigo-800">تحديث الحالة</button>
+                    </div>
+                    <div class="bg-white rounded-3xl shadow border border-slate-200 p-6">
+                        <p class="text-sm text-slate-500">رقم الواتساب</p>
+                        <p id="dashboardPhone" class="font-bold text-lg mt-3" dir="ltr"></p>
+                        <p class="text-xs text-slate-400 mt-2">رقم الربط الخاص بهذا المشترك.</p>
+                    </div>
+                </div>
 
-            <h3 class="text-lg font-bold text-slate-800 mb-2">
-                📱 امسح QR Code لربط الواتساب
-            </h3>
+                <div id="qrCard" class="bg-white rounded-3xl shadow-xl border border-slate-200 p-6 sm:p-8">
+                    <div class="text-center">
+                        <h3 class="text-xl font-extrabold">📱 ربط واتساب</h3>
+                        <p class="text-sm text-slate-500 mt-2">امسح رمز QR من واتساب ← الأجهزة المرتبطة ← ربط جهاز.</p>
+                    </div>
+                    <div class="flex justify-center mt-6">
+                        <div class="bg-slate-100 rounded-3xl p-5 min-h-72 min-w-72 flex items-center justify-center">
+                            <img id="dashboardQr" alt="WhatsApp QR" class="hidden w-64 h-64 object-contain bg-white rounded-2xl p-3">
+                            <div id="qrMessage" class="text-center text-slate-500 text-sm max-w-xs">جاري طلب QR Code...</div>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap justify-center gap-3 mt-6">
+                        <button id="refreshQrBtn" class="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-3">تحديث QR</button>
+                    </div>
+                </div>
 
-            <p class="text-xs text-slate-500 mb-4">
-                واتساب → الأجهزة المرتبطة → ربط جهاز
-            </p>
+                <div class="bg-white rounded-3xl shadow border border-slate-200 p-6">
+                    <label class="block text-sm font-bold mb-2">كود الودجت لموقعك</label>
+                    <textarea id="widgetCodeOutput" readonly rows="3" class="w-full p-4 bg-slate-950 text-emerald-400 font-mono text-xs rounded-2xl outline-none" dir="ltr"></textarea>
+                    <button id="copyWidgetBtn" class="mt-3 rounded-xl bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 text-sm font-bold">نسخ الكود</button>
+                </div>
 
-            <div class="bg-white p-4 rounded-xl shadow-md border border-slate-200">
-                <img
-                    id="qrCodeImg"
-                    src=""
-                    alt="WhatsApp QR Code"
-                    class="w-64 h-64 object-contain mx-auto"
-                >
+                <div id="dashboardError" class="hidden p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm"></div>
             </div>
-
-            <button
-                type="button"
-                id="refreshQrBtn"
-                class="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg"
-            >
-                تحديث QR
-            </button>
-
         </div>
-
-        <div id="widgetContainer" class="space-y-2">
-
-            <label class="block text-sm font-semibold text-slate-700">
-                كود الودجت لموقعك:
-            </label>
-
-            <textarea
-                id="widgetCodeOutput"
-                readonly
-                rows="3"
-                class="w-full p-3 bg-slate-900 text-emerald-400 font-mono text-xs sm:text-sm rounded-lg border border-slate-700 text-left outline-none"
-                dir="ltr"
-            ></textarea>
-
-            <button
-                type="button"
-                id="copyWidgetBtn"
-                class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded"
-            >
-                نسخ الكود
-            </button>
-
-        </div>
-
-    </div>
-
+    </main>
 </div>
 
 <script>
-const form = document.getElementById("storeForm");
-const submitBtn = document.getElementById("submitBtn");
-
-const resultBox = document.getElementById("resultBox");
-const resultMessage = document.getElementById("resultMessage");
-
-const qrContainer = document.getElementById("qrContainer");
-const qrCodeImg = document.getElementById("qrCodeImg");
-const refreshQrBtn = document.getElementById("refreshQrBtn");
-
-const errorBox = document.getElementById("errorBox");
-const errorText = document.getElementById("errorText");
-
-const widgetCodeOutput =
-    document.getElementById("widgetCodeOutput");
-
-const copyWidgetBtn =
-    document.getElementById("copyWidgetBtn");
-
+const authPanel = document.getElementById('authPanel');
+const dashboardPanel = document.getElementById('dashboardPanel');
+const loginForm = document.getElementById('loginForm');
+const registerForm = document.getElementById('registerForm');
+const authTitle = document.getElementById('authTitle');
+const authSubtitle = document.getElementById('authSubtitle');
+const authError = document.getElementById('authError');
+const authSuccess = document.getElementById('authSuccess');
+const qrCard = document.getElementById('qrCard');
+const dashboardQr = document.getElementById('dashboardQr');
+const qrMessage = document.getElementById('qrMessage');
+const dashboardError = document.getElementById('dashboardError');
 let currentStoreId = null;
-let qrPollTimer = null;
-let qrPollAttempts = 0;
+let qrTimer = null;
 
-form.addEventListener("submit", async function (event) {
-    event.preventDefault();
+function showAuthError(message) {
+    authError.textContent = typeof message === 'string' ? message : JSON.stringify(message);
+    authError.classList.remove('hidden');
+    authSuccess.classList.add('hidden');
+}
+function showAuthSuccess(message) {
+    authSuccess.textContent = message;
+    authSuccess.classList.remove('hidden');
+    authError.classList.add('hidden');
+}
+function clearAuthMessages() {
+    authError.classList.add('hidden');
+    authSuccess.classList.add('hidden');
+}
+function showLogin() {
+    clearAuthMessages();
+    authTitle.textContent = 'تسجيل دخول المشترك';
+    authSubtitle.textContent = 'أدخل بيانات حساب متجرك للمتابعة.';
+    loginForm.classList.remove('hidden-panel');
+    registerForm.classList.add('hidden-panel');
+}
+function showRegister() {
+    clearAuthMessages();
+    authTitle.textContent = 'إنشاء حساب مشترك جديد';
+    authSubtitle.textContent = 'كل مشترك يحصل على حساب مستقل ولوحة خاصة بمتجره.';
+    loginForm.classList.add('hidden-panel');
+    registerForm.classList.remove('hidden-panel');
+}
 
-    submitBtn.disabled = true;
-    submitBtn.textContent =
-        "جاري إنشاء المتجر وطلب QR...";
-
-    resultBox.classList.remove("hidden");
-    qrContainer.classList.add("hidden");
-    errorBox.classList.add("hidden");
-
-    const formData = new FormData();
-
-    formData.append(
-        "store_name",
-        document.getElementById("store_name").value
-    );
-
-    formData.append(
-        "store_url",
-        document.getElementById("store_url").value
-    );
-
-    formData.append(
-        "whatsapp_number",
-        document.getElementById("whatsapp_number").value
-    );
-
-    formData.append(
-        "agent_notes",
-        document.getElementById("agent_notes").value
-    );
-
-    const pdfFile =
-        document.getElementById("pdf_file").files[0];
-
-    if (pdfFile) {
-        formData.append("pdf_file", pdfFile);
+async function apiJson(url, options = {}) {
+    const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store', ...options });
+    const data = await response.json().catch(() => ({ detail: 'استجابة غير صالحة من الخادم.' }));
+    if (!response.ok) {
+        throw new Error(data.detail || data.message || JSON.stringify(data));
     }
+    return data;
+}
 
+function openDashboard(data) {
+    const store = data.store || {};
+    currentStoreId = store.id || null;
+    authPanel.classList.add('hidden-panel');
+    dashboardPanel.classList.remove('hidden-panel');
+    document.getElementById('dashboardStoreName').textContent = store.store_name || 'متجري';
+    document.getElementById('dashboardUsername').textContent = 'اسم المستخدم: ' + (data.username || '');
+    document.getElementById('dashboardPhone').textContent = store.whatsapp_number || 'غير مضاف';
+    const widget = `${window.location.origin}/widget.js`;
+    document.getElementById('widgetCodeOutput').value = currentStoreId ? `<script src="${widget}" data-store-id="${currentStoreId}"></script>` : '';
+    refreshStatus();
+    refreshQr();
+}
+
+async function checkSession() {
     try {
-        const response = await fetch(
-            "/api/register-store",
-            {
-                method: "POST",
-                body: formData
-            }
-        );
+        const data = await apiJson('/api/me');
+        openDashboard(data);
+    } catch (_) {
+        showLogin();
+    }
+}
 
-        const data = await response.json();
-
-        currentStoreId = data.store_id || null;
-
-        widgetCodeOutput.value =
-            data.widget_code || "";
-
-        if (data.qr_code) {
-            resultMessage.textContent =
-                "تم تسجيل المتجر وتوليد QR Code بنجاح.";
-
-            resultMessage.className =
-                "p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-center font-medium";
-
-            showQr(data.qr_code);
-        } else {
-            resultMessage.textContent =
-                "تم تسجيل المتجر، لكن لم يتم استلام QR Code من Evolution API.";
-
-            resultMessage.className =
-                "p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-center font-medium";
-
-            showError(
-                data.evolution_error ||
-                data.evolution_connect_response ||
-                data.evolution_create_response ||
-                "Evolution API لم يرجع QR Code."
-            );
-            startQrPolling();
-        }
-
+loginForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    clearAuthMessages();
+    const btn = document.getElementById('loginBtn');
+    btn.disabled = true;
+    btn.textContent = 'جاري تسجيل الدخول...';
+    try {
+        const body = new URLSearchParams();
+        body.set('username', document.getElementById('login_username').value.trim());
+        body.set('password', document.getElementById('login_password').value);
+        const data = await apiJson('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+        openDashboard(data);
     } catch (error) {
-        console.error(error);
-
-        resultMessage.textContent =
-            "فشل الاتصال بالخادم.";
-
-        resultMessage.className =
-            "p-4 bg-red-50 border border-red-200 rounded-xl text-red-800 text-center font-medium";
-
-        showError(error.message);
+        showAuthError(error.message);
     } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent =
-            "تسجيل وتفعيل المتجر";
+        btn.disabled = false;
+        btn.textContent = 'تسجيل الدخول';
     }
 });
 
-
-refreshQrBtn.addEventListener(
-    "click",
-    async function () {
-        if (!currentStoreId) {
-            return;
-        }
-
-        refreshQrBtn.disabled = true;
-        refreshQrBtn.textContent =
-            "جاري التحديث...";
-
-        try {
-            const response = await fetch(
-                `/api/whatsapp/qr/${currentStoreId}`
-            );
-
-            const data = await response.json();
-
-            if (data.qr_code) {
-                showQr(data.qr_code);
-                errorBox.classList.add("hidden");
-                stopQrPolling();
-            } else {
-                showError(
-                    data.evolution_response ||
-                    data.message ||
-                    `لم يتم استلام QR Code (HTTP ${response.status}).`
-                );
-            }
-        } catch (error) {
-            showError(error.message);
-        } finally {
-            refreshQrBtn.disabled = false;
-            refreshQrBtn.textContent =
-                "تحديث QR";
-        }
-    }
-);
-
-
-function showQr(qr) {
-    qrContainer.classList.remove("hidden");
-    qrCodeImg.src = qr;
-}
-
-function stopQrPolling() {
-    if (qrPollTimer) {
-        clearInterval(qrPollTimer);
-        qrPollTimer = null;
-    }
-}
-
-function startQrPolling() {
-    stopQrPolling();
-
-    if (!currentStoreId) {
+registerForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    clearAuthMessages();
+    if (document.getElementById('register_password').value !== document.getElementById('register_password2').value) {
+        showAuthError('كلمتا المرور غير متطابقتين.');
         return;
     }
+    const btn = document.getElementById('registerBtn');
+    btn.disabled = true;
+    btn.textContent = 'جاري إنشاء الحساب...';
+    try {
+        const body = new FormData();
+        body.append('store_name', document.getElementById('store_name').value.trim());
+        body.append('username', document.getElementById('register_username').value.trim());
+        body.append('password', document.getElementById('register_password').value);
+        body.append('store_url', document.getElementById('store_url').value.trim());
+        body.append('whatsapp_number', document.getElementById('whatsapp_number').value.trim());
+        body.append('agent_notes', document.getElementById('agent_notes').value.trim());
+        const pdf = document.getElementById('pdf_file').files[0];
+        if (pdf) body.append('pdf_file', pdf);
+        const response = await fetch('/api/register-store', { method: 'POST', credentials: 'same-origin', body });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.detail || data.message || 'تعذر إنشاء الحساب.');
+        openDashboard({ username: data.username, store: { id: data.store_id, store_name: document.getElementById('store_name').value, store_url: document.getElementById('store_url').value, whatsapp_number: document.getElementById('whatsapp_number').value } });
+        if (data.evolution_error) {
+            dashboardError.textContent = data.evolution_error;
+            dashboardError.classList.remove('hidden');
+        }
+    } catch (error) {
+        showAuthError(error.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'إنشاء الحساب وتسجيل الدخول';
+    }
+});
 
-    qrPollAttempts = 0;
+document.getElementById('showRegisterBtn').addEventListener('click', showRegister);
+document.getElementById('showLoginBtn').addEventListener('click', showLogin);
 
-    qrPollTimer = setInterval(async function () {
-        qrPollAttempts += 1;
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+    try { await apiJson('/api/logout', { method: 'POST' }); } catch (_) {}
+    stopQrPolling();
+    dashboardPanel.classList.add('hidden-panel');
+    authPanel.classList.remove('hidden-panel');
+    loginForm.reset();
+    showLogin();
+});
 
-        if (qrPollAttempts > 30) {
+async function refreshStatus() {
+    if (!currentStoreId) return;
+    const label = document.getElementById('whatsappStatus');
+    const dot = document.getElementById('statusDot');
+    try {
+        const data = await apiJson(`/api/whatsapp/status/${currentStoreId}`);
+        const state = (data.connection_state || 'unknown').toLowerCase();
+        const connected = ['open', 'connected', 'online'].includes(state);
+        label.textContent = connected ? 'متصل' : (data.connection_state || 'غير متصل');
+        dot.className = 'w-3 h-3 rounded-full ' + (connected ? 'bg-emerald-500' : 'bg-amber-500');
+        qrCard.classList.toggle('hidden-panel', connected);
+        if (connected) stopQrPolling();
+    } catch (error) {
+        label.textContent = 'تعذر فحص الحالة';
+        dot.className = 'w-3 h-3 rounded-full bg-red-500';
+    }
+}
+
+document.getElementById('refreshStatusBtn').addEventListener('click', refreshStatus);
+
+async function refreshQr() {
+    if (!currentStoreId) return;
+    qrMessage.textContent = 'جاري طلب QR Code...';
+    dashboardQr.classList.add('hidden');
+    try {
+        const data = await apiJson(`/api/whatsapp/qr/${currentStoreId}`);
+        if (data.qr_code) {
+            dashboardQr.src = data.qr_code;
+            dashboardQr.classList.remove('hidden');
+            qrMessage.classList.add('hidden');
             stopQrPolling();
             return;
         }
-
-        try {
-            const response = await fetch(
-                `/api/whatsapp/qr/${currentStoreId}`,
-                { cache: "no-store" }
-            );
-
-            const data = await response.json();
-
-            if (data.qr_code) {
-                showQr(data.qr_code);
-                errorBox.classList.add("hidden");
-                resultMessage.textContent =
-                    "تم توليد QR Code بنجاح. امسحه من واتساب.";
-                stopQrPolling();
-                return;
-            }
-
-            if (qrPollAttempts >= 5) {
-                showError(
-                    data.evolution_response ||
-                    data.message ||
-                    `بانتظار QR Code... (${qrPollAttempts}/30)`
-                );
-            }
-        } catch (error) {
-            if (qrPollAttempts >= 5) {
-                showError(error.message);
-            }
-        }
-    }, 2000);
-}
-
-
-function showError(error) {
-    errorBox.classList.remove("hidden");
-
-    if (typeof error === "string") {
-        errorText.textContent = error;
-    } else {
-        try {
-            errorText.textContent =
-                JSON.stringify(error, null, 2);
-        } catch (_) {
-            errorText.textContent =
-                String(error);
-        }
+        qrMessage.textContent = data.message || 'لم يتم استلام QR Code بعد.';
+    } catch (error) {
+        qrMessage.textContent = error.message;
     }
 }
 
+document.getElementById('refreshQrBtn').addEventListener('click', refreshQr);
 
-copyWidgetBtn.addEventListener(
-    "click",
-    async function () {
-        const text = widgetCodeOutput.value;
+function stopQrPolling() {
+    if (qrTimer) clearInterval(qrTimer);
+    qrTimer = null;
+}
+function startQrPolling() {
+    stopQrPolling();
+    let attempts = 0;
+    qrTimer = setInterval(async () => {
+        attempts += 1;
+        if (attempts > 30) return stopQrPolling();
+        await refreshQr();
+        await refreshStatus();
+    }, 5000);
+}
 
-        if (!text) {
-            return;
-        }
+document.getElementById('copyWidgetBtn').addEventListener('click', async () => {
+    const value = document.getElementById('widgetCodeOutput').value;
+    if (!value) return;
+    try { await navigator.clipboard.writeText(value); } catch (_) { document.getElementById('widgetCodeOutput').select(); document.execCommand('copy'); }
+    document.getElementById('copyWidgetBtn').textContent = 'تم النسخ ✓';
+    setTimeout(() => document.getElementById('copyWidgetBtn').textContent = 'نسخ الكود', 1800);
+});
 
-        try {
-            await navigator.clipboard.writeText(text);
-        } catch (_) {
-            widgetCodeOutput.select();
-            document.execCommand("copy");
-        }
-
-        copyWidgetBtn.textContent =
-            "تم النسخ ✓";
-
-        setTimeout(function () {
-            copyWidgetBtn.textContent =
-                "نسخ الكود";
-        }, 2000);
-    }
-);
+checkSession();
+setTimeout(startQrPolling, 2500);
 </script>
-
 </body>
 </html>
