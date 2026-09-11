@@ -62,40 +62,95 @@ from sqlalchemy.orm import (
 # =========================================================
 
 DATABASE_URL = (
-    os.getenv("DATABASE_CONNECTION_URI", "").strip()
-    or os.getenv("DATABASE_URL", "").strip()
+    os.getenv(
+        "DATABASE_CONNECTION_URI",
+        "",
+    ).strip()
+    or os.getenv(
+        "DATABASE_URL",
+        "",
+    ).strip()
 )
 
 if not DATABASE_URL:
     DATABASE_URL = "sqlite:///./saas_stores.db"
 
+
+# =========================================================
+# POSTGRES / SUPABASE DATABASE COMPATIBILITY
+# =========================================================
+
 if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    DATABASE_URL = DATABASE_URL.replace(
+        "postgres://",
+        "postgresql://",
+        1,
+    )
+
 
 if DATABASE_URL.startswith("postgresql://"):
+
     if "sslmode=" not in DATABASE_URL:
-        separator = "&" if "?" in DATABASE_URL else "?"
-        DATABASE_URL += f"{separator}sslmode=require"
+
+        separator = (
+            "&"
+            if "?" in DATABASE_URL
+            else "?"
+        )
+
+        DATABASE_URL += (
+            f"{separator}sslmode=require"
+        )
 
 
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "").strip()
+# =========================================================
+# ANTHROPIC
+# =========================================================
 
-ANTHROPIC_MODEL = os.getenv(
-    "ANTHROPIC_MODEL",
-    os.getenv("CLAUDE_MODEL", "claude-sonnet-4-5"),
-).strip()
+ANTHROPIC_API_KEY = (
+    os.getenv(
+        "ANTHROPIC_API_KEY",
+        "",
+    ).strip()
+)
+
+
+ANTHROPIC_MODEL = (
+    os.getenv(
+        "ANTHROPIC_MODEL",
+        os.getenv(
+            "CLAUDE_MODEL",
+            "claude-sonnet-4-5",
+        ),
+    ).strip()
+)
 
 
 # =========================================================
 # SUPABASE AUTH
 # =========================================================
 
-SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip().rstrip("/")
+SUPABASE_URL = (
+    os.getenv(
+        "SUPABASE_URL",
+        "",
+    )
+    .strip()
+    .rstrip("/")
+)
+
 
 SUPABASE_ANON_KEY = (
-    os.getenv("SUPABASE_ANON_KEY", "").strip()
-    or os.getenv("SUPABASE_PUBLISHABLE_KEY", "").strip()
+    os.getenv(
+        "SUPABASE_ANON_KEY",
+        "",
+    ).strip()
+    or os.getenv(
+        "SUPABASE_PUBLISHABLE_KEY",
+        "",
+    ).strip()
 )
+
 
 SUPABASE_AUTH_TIMEOUT = 30.0
 
@@ -104,25 +159,80 @@ SUPABASE_AUTH_TIMEOUT = 30.0
 # EVOLUTION API
 # =========================================================
 
-EVOLUTION_API_URL = os.getenv("EVOLUTION_API_URL", "").strip().rstrip("/")
+EVOLUTION_API_URL = (
+    os.getenv(
+        "EVOLUTION_API_URL",
+        "",
+    )
+    .strip()
+    .rstrip("/")
+)
 
-EVOLUTION_GLOBAL_KEY = os.getenv("EVOLUTION_GLOBAL_KEY", "").strip()
+
+EVOLUTION_GLOBAL_KEY = (
+    os.getenv(
+        "EVOLUTION_GLOBAL_KEY",
+        "",
+    ).strip()
+)
+
 
 if not EVOLUTION_GLOBAL_KEY:
-    EVOLUTION_GLOBAL_KEY = os.getenv("EVOLUTION_API_KEY", "").strip()
+
+    EVOLUTION_GLOBAL_KEY = (
+        os.getenv(
+            "EVOLUTION_API_KEY",
+            "",
+        ).strip()
+    )
+
 
 if not EVOLUTION_GLOBAL_KEY:
-    EVOLUTION_GLOBAL_KEY = os.getenv("AUTHENTICATION_API_KEY", "").strip()
+
+    EVOLUTION_GLOBAL_KEY = (
+        os.getenv(
+            "AUTHENTICATION_API_KEY",
+            "",
+        ).strip()
+    )
 
 
 # =========================================================
 # WEBHOOK
 # =========================================================
 
-WEBHOOK_BASE_URL = os.getenv(
-    "WEBHOOK_BASE_URL",
-    os.getenv("RENDER_EXTERNAL_URL", ""),
-).strip().rstrip("/")
+WEBHOOK_BASE_URL = (
+    os.getenv(
+        "WEBHOOK_BASE_URL",
+        os.getenv(
+            "RENDER_EXTERNAL_URL",
+            "",
+        ),
+    )
+    .strip()
+    .rstrip("/")
+)
+
+
+# =========================================================
+# FRONTEND
+# =========================================================
+
+FRONTEND_URL = (
+    os.getenv(
+        "FRONTEND_URL",
+        "",
+    )
+    .strip()
+    .rstrip("/")
+)
+
+
+CORS_ORIGINS = (
+    [FRONTEND_URL]
+    if FRONTEND_URL
+    else ["*"]
+)
 
 
 # =========================================================
@@ -130,11 +240,16 @@ WEBHOOK_BASE_URL = os.getenv(
 # =========================================================
 
 if DATABASE_URL.startswith("sqlite"):
+
     engine = create_engine(
         DATABASE_URL,
-        connect_args={"check_same_thread": False},
+        connect_args={
+            "check_same_thread": False,
+        },
     )
+
 else:
+
     engine = create_engine(
         DATABASE_URL,
         pool_pre_ping=True,
@@ -148,6 +263,7 @@ SessionLocal = sessionmaker(
     bind=engine,
 )
 
+
 Base = declarative_base()
 
 
@@ -160,16 +276,6 @@ app = FastAPI(
     version="2.1.0",
 )
 
-FRONTEND_URL = os.getenv(
-    "FRONTEND_URL",
-    "",
-).strip().rstrip("/")
-
-CORS_ORIGINS = (
-    [FRONTEND_URL]
-    if FRONTEND_URL
-    else ["*"]
-)
 
 app.add_middleware(
     CORSMiddleware,
@@ -185,24 +291,62 @@ app.add_middleware(
 # =========================================================
 
 class StoreModel(Base):
+
     __tablename__ = "stores"
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    store_name = Column(String(255), nullable=False)
-    store_url = Column(String(500), nullable=True)
-    whatsapp_number = Column(String(50), nullable=True)
-    agent_notes = Column(Text, nullable=True)
-    catalog_text = Column(Text, nullable=True)
+
+    id = Column(
+        String(36),
+        primary_key=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+
+
+    store_name = Column(
+        String(255),
+        nullable=False,
+    )
+
+
+    store_url = Column(
+        String(500),
+        nullable=True,
+    )
+
+
+    whatsapp_number = Column(
+        String(50),
+        nullable=True,
+    )
+
+
+    agent_notes = Column(
+        Text,
+        nullable=True,
+    )
+
+
+    catalog_text = Column(
+        Text,
+        nullable=True,
+    )
+
+
     created_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(
+            timezone.utc
+        ),
     )
+
 
     users = relationship(
         "UserModel",
         back_populates="store",
         cascade="all, delete-orphan",
     )
+
+
     logs = relationship(
         "ChatLogModel",
         back_populates="store",
@@ -211,54 +355,158 @@ class StoreModel(Base):
 
 
 class UserModel(Base):
+
     __tablename__ = "users"
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    id = Column(
+        String(36),
+        primary_key=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+
+
     store_id = Column(
         String(36),
         ForeignKey("stores.id"),
         nullable=False,
         unique=True,
     )
-    username = Column(String(100), nullable=False, unique=True, index=True)
-    email = Column(String(255), nullable=True, unique=True, index=True)
-    email_verified = Column(Boolean, nullable=False, default=False)
-    password_hash = Column(String(500), nullable=False)
-    created_at = Column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+
+
+    username = Column(
+        String(100),
+        nullable=False,
+        unique=True,
+        index=True,
     )
 
-    store = relationship("StoreModel", back_populates="users")
+
+    email = Column(
+        String(255),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
+
+
+    email_verified = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+
+
+    password_hash = Column(
+        String(500),
+        nullable=False,
+    )
+
+
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(
+            timezone.utc
+        ),
+    )
+
+
+    store = relationship(
+        "StoreModel",
+        back_populates="users",
+    )
 
 
 class SessionModel(Base):
+
     __tablename__ = "auth_sessions"
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
-    token_hash = Column(String(128), nullable=False, unique=True, index=True)
-    expires_at = Column(DateTime(timezone=True), nullable=False)
+
+    id = Column(
+        String(36),
+        primary_key=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+
+
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id"),
+        nullable=False,
+    )
+
+
+    token_hash = Column(
+        String(128),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+
+
+    expires_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+
+
     created_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(
+            timezone.utc
+        ),
     )
 
 
 class ChatLogModel(Base):
+
     __tablename__ = "chat_logs"
 
-    id = Column(Integer, primary_key=True, index=True)
-    store_id = Column(String(36), ForeignKey("stores.id"), nullable=False)
-    sender_id = Column(String(255), nullable=True)
-    user_message = Column(Text, nullable=False)
-    bot_response = Column(Text, nullable=False)
-    created_at = Column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True,
     )
 
-    store = relationship("StoreModel", back_populates="logs")
+
+    store_id = Column(
+        String(36),
+        ForeignKey("stores.id"),
+        nullable=False,
+    )
+
+
+    sender_id = Column(
+        String(255),
+        nullable=True,
+    )
+
+
+    user_message = Column(
+        Text,
+        nullable=False,
+    )
+
+
+    bot_response = Column(
+        Text,
+        nullable=False,
+    )
+
+
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(
+            timezone.utc
+        ),
+    )
+
+
+    store = relationship(
+        "StoreModel",
+        back_populates="logs",
+    )
 
 
 # =========================================================
@@ -266,9 +514,17 @@ class ChatLogModel(Base):
 # =========================================================
 
 try:
-    Base.metadata.create_all(bind=engine)
+
+    Base.metadata.create_all(
+        bind=engine
+    )
+
 except Exception as exc:
-    print("DATABASE CREATE ERROR:", repr(exc))
+
+    print(
+        "DATABASE CREATE ERROR:",
+        repr(exc),
+    )
 
 
 # =========================================================
@@ -276,64 +532,154 @@ except Exception as exc:
 # =========================================================
 
 def ensure_database_schema():
+
     try:
+
         inspector = inspect(engine)
+
         tables = inspector.get_table_names()
+
 
         if "users" not in tables:
             return
 
-        columns = inspector.get_columns("users")
-        column_names = {column["name"] for column in columns}
+
+        columns = inspector.get_columns(
+            "users"
+        )
+
+
+        column_names = {
+            column["name"]
+            for column in columns
+        }
+
+
+        # -------------------------------------------------
+        # EMAIL
+        # -------------------------------------------------
 
         if "email" not in column_names:
-            with engine.begin() as connection:
-                connection.execute(
-                    text("ALTER TABLE users ADD COLUMN email VARCHAR(255)")
-                )
 
-        if "email_verified" not in column_names:
             with engine.begin() as connection:
+
                 connection.execute(
                     text(
-                        "ALTER TABLE users "
-                        "ADD COLUMN email_verified BOOLEAN NOT NULL DEFAULT FALSE"
+                        """
+                        ALTER TABLE users
+                        ADD COLUMN email VARCHAR(255)
+                        """
                     )
                 )
 
-        if engine.dialect.name == "postgresql":
+
+        # -------------------------------------------------
+        # EMAIL VERIFIED
+        # -------------------------------------------------
+
+        if (
+            "email_verified"
+            not in column_names
+        ):
+
             with engine.begin() as connection:
+
+                if (
+                    engine.dialect.name
+                    == "postgresql"
+                ):
+
+                    connection.execute(
+                        text(
+                            """
+                            ALTER TABLE users
+                            ADD COLUMN email_verified
+                            BOOLEAN NOT NULL DEFAULT FALSE
+                            """
+                        )
+                    )
+
+                else:
+
+                    connection.execute(
+                        text(
+                            """
+                            ALTER TABLE users
+                            ADD COLUMN email_verified
+                            BOOLEAN NOT NULL DEFAULT 0
+                            """
+                        )
+                    )
+
+
+        # -------------------------------------------------
+        # UNIQUE EMAIL INDEX
+        # -------------------------------------------------
+
+        if (
+            engine.dialect.name
+            == "postgresql"
+        ):
+
+            with engine.begin() as connection:
+
                 connection.execute(
                     text(
-                        "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email_unique "
-                        "ON users(email) WHERE email IS NOT NULL"
+                        """
+                        CREATE UNIQUE INDEX
+                        IF NOT EXISTS
+                        ix_users_email_unique
+                        ON users(email)
+                        WHERE email IS NOT NULL
+                        """
                     )
                 )
-        elif engine.dialect.name == "sqlite":
+
+
+        elif (
+            engine.dialect.name
+            == "sqlite"
+        ):
+
             with engine.begin() as connection:
+
                 connection.execute(
                     text(
-                        "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email_unique "
-                        "ON users(email)"
+                        """
+                        CREATE UNIQUE INDEX
+                        IF NOT EXISTS
+                        ix_users_email_unique
+                        ON users(email)
+                        """
                     )
                 )
+
 
     except Exception as exc:
-        print("DATABASE MIGRATION WARNING:", repr(exc))
+
+        print(
+            "DATABASE MIGRATION WARNING:",
+            repr(exc),
+        )
 
 
 ensure_database_schema()
 
 
 # =========================================================
-# DB DEPENDENCY
+# DATABASE DEPENDENCY
 # =========================================================
 
 def get_db():
+
     db = SessionLocal()
+
     try:
+
         yield db
+
     finally:
+
         db.close()
 
 
@@ -344,14 +690,21 @@ def get_db():
 PBKDF2_ITERATIONS = 240000
 
 
-def hash_password(password: str) -> str:
+def hash_password(
+    password: str,
+) -> str:
+
     salt = secrets.token_bytes(16)
+
+
     key = hashlib.pbkdf2_hmac(
         "sha256",
         password.encode("utf-8"),
         salt,
         PBKDF2_ITERATIONS,
     )
+
+
     return (
         "pbkdf2_sha256$"
         f"{PBKDF2_ITERATIONS}$"
@@ -360,19 +713,29 @@ def hash_password(password: str) -> str:
     )
 
 
-def verify_password(password: str, stored_hash: str) -> bool:
+def verify_password(
+    password: str,
+    stored_hash: str,
+) -> bool:
+
     try:
+
         parts = stored_hash.split("$")
+
+
         if len(parts) != 4:
             return False
+
 
         algorithm = parts[0]
         iterations = int(parts[1])
         salt = bytes.fromhex(parts[2])
         expected = bytes.fromhex(parts[3])
 
+
         if algorithm != "pbkdf2_sha256":
             return False
+
 
         actual = hashlib.pbkdf2_hmac(
             "sha256",
@@ -381,9 +744,15 @@ def verify_password(password: str, stored_hash: str) -> bool:
             iterations,
         )
 
-        return secrets.compare_digest(actual, expected)
+
+        return secrets.compare_digest(
+            actual,
+            expected,
+        )
+
 
     except Exception:
+
         return False
 
 
@@ -392,24 +761,47 @@ def verify_password(password: str, stored_hash: str) -> bool:
 # =========================================================
 
 SESSION_COOKIE = "ai_store_session"
+
 SESSION_DAYS = 30
 
 
-def hash_session_token(token: str) -> str:
-    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+def hash_session_token(
+    token: str,
+) -> str:
+
+    return hashlib.sha256(
+        token.encode("utf-8")
+    ).hexdigest()
 
 
-def create_session(db: Session, user: UserModel) -> str:
+def create_session(
+    db: Session,
+    user: UserModel,
+) -> str:
+
     token = secrets.token_urlsafe(48)
+
 
     session = SessionModel(
         user_id=user.id,
-        token_hash=hash_session_token(token),
-        expires_at=(datetime.now(timezone.utc) + timedelta(days=SESSION_DAYS)),
+        token_hash=hash_session_token(
+            token
+        ),
+        expires_at=(
+            datetime.now(
+                timezone.utc
+            )
+            + timedelta(
+                days=SESSION_DAYS
+            )
+        ),
     )
 
+
     db.add(session)
+
     db.commit()
+
 
     return token
 
@@ -418,52 +810,119 @@ def get_current_user(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    token = request.cookies.get(SESSION_COOKIE)
+
+    token = request.cookies.get(
+        SESSION_COOKIE
+    )
+
 
     if not token:
-        raise HTTPException(status_code=401, detail="غير مسجل الدخول")
+
+        raise HTTPException(
+            status_code=401,
+            detail="غير مسجل الدخول",
+        )
+
 
     session = (
         db.query(SessionModel)
-        .filter(SessionModel.token_hash == hash_session_token(token))
+        .filter(
+            SessionModel.token_hash
+            == hash_session_token(
+                token
+            )
+        )
         .first()
     )
 
+
     if not session:
-        raise HTTPException(status_code=401, detail="جلسة غير صالحة")
+
+        raise HTTPException(
+            status_code=401,
+            detail="جلسة غير صالحة",
+        )
+
 
     expires_at = session.expires_at
-    if expires_at.tzinfo is None:
-        expires_at = expires_at.replace(tzinfo=timezone.utc)
 
-    if expires_at < datetime.now(timezone.utc):
+
+    if expires_at.tzinfo is None:
+
+        expires_at = expires_at.replace(
+            tzinfo=timezone.utc
+        )
+
+
+    if (
+        expires_at
+        < datetime.now(timezone.utc)
+    ):
+
         db.delete(session)
+
         db.commit()
-        raise HTTPException(status_code=401, detail="انتهت الجلسة")
+
+        raise HTTPException(
+            status_code=401,
+            detail="انتهت الجلسة",
+        )
+
 
     user = (
         db.query(UserModel)
-        .filter(UserModel.id == session.user_id)
+        .filter(
+            UserModel.id
+            == session.user_id
+        )
         .first()
     )
 
-    if not user:
-        raise HTTPException(status_code=401, detail="المستخدم غير موجود")
 
-    if not bool(user.email_verified):
-        raise HTTPException(status_code=403, detail="البريد الإلكتروني غير مؤكد")
+    if not user:
+
+        raise HTTPException(
+            status_code=401,
+            detail="المستخدم غير موجود",
+        )
+
+
+    if not bool(
+        user.email_verified
+    ):
+
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "البريد الإلكتروني غير مؤكد"
+            ),
+        )
+
 
     return user
 
 
-def set_session_cookie(response: JSONResponse, token: str):
+def set_session_cookie(
+    response: JSONResponse,
+    token: str,
+):
+
     response.set_cookie(
         key=SESSION_COOKIE,
         value=token,
-        max_age=SESSION_DAYS * 24 * 60 * 60,
+        max_age=(
+            SESSION_DAYS
+            * 24
+            * 60
+            * 60
+        ),
         httponly=True,
         secure=True,
-        samesite="none" if FRONTEND_URL else "lax",
+        samesite=(
+            "none"
+            if FRONTEND_URL
+            else "lax"
+        ),
         path="/",
     )
 
@@ -472,41 +931,82 @@ def set_session_cookie(response: JSONResponse, token: str):
 # HELPERS
 # =========================================================
 
-def normalize_phone(value: str) -> str:
+def normalize_phone(
+    value: str,
+) -> str:
+
     if not value:
         return ""
 
+
     value = str(value).strip()
+
+
     value = (
-        value.replace("+", "")
+        value
+        .replace("+", "")
         .replace(" ", "")
         .replace("-", "")
         .replace("(", "")
         .replace(")", "")
     )
 
+
     if value.startswith("00"):
         value = value[2:]
 
-    return re.sub(r"\D", "", value)
+
+    return re.sub(
+        r"\D",
+        "",
+        value,
+    )
 
 
-def make_instance_name(store_id: str) -> str:
-    clean = re.sub(r"[^A-Za-z0-9]", "", str(store_id))
-    return f"store_{clean}"
+def make_instance_name(
+    store_id: str,
+) -> str:
+
+    clean = re.sub(
+        r"[^A-Za-z0-9]",
+        "",
+        str(store_id),
+    )
 
 
-def safe_json(response: httpx.Response) -> Any:
+    return (
+        f"store_{clean}"
+    )
+
+
+def safe_json(
+    response: httpx.Response,
+) -> Any:
+
     try:
+
         return response.json()
+
     except Exception:
-        return {"raw": response.text}
+
+        return {
+            "raw": response.text
+        }
 
 
-def first_value(*values):
+def first_value(
+    *values,
+):
+
     for value in values:
-        if value is not None and value != "":
+
+        if (
+            value is not None
+            and value != ""
+        ):
+
             return value
+
     return None
 
 
@@ -515,35 +1015,65 @@ def first_value(*values):
 # =========================================================
 
 def supabase_configuration_ready() -> bool:
-    return bool(SUPABASE_URL and SUPABASE_ANON_KEY)
+
+    return bool(
+        SUPABASE_URL
+        and SUPABASE_ANON_KEY
+    )
 
 
 def supabase_auth_headers():
+
     return {
         "apikey": SUPABASE_ANON_KEY,
         "Content-Type": "application/json",
     }
 
 
-def supabase_error_message(data: Any) -> str:
-    if isinstance(data, dict):
+def supabase_error_message(
+    data: Any,
+) -> str:
+
+    if isinstance(
+        data,
+        dict,
+    ):
+
         return str(
             data.get("msg")
             or data.get("message")
-            or data.get("error_description")
+            or data.get(
+                "error_description"
+            )
             or data.get("error")
-            or data.get("error_code")
+            or data.get(
+                "error_code"
+            )
             or ""
         ).strip()
 
-    if isinstance(data, str):
+
+    if isinstance(
+        data,
+        str,
+    ):
+
         return data.strip()
+
 
     return ""
 
 
-def is_supabase_rate_limit_error(data: Any) -> bool:
-    message = supabase_error_message(data).lower()
+def is_supabase_rate_limit_error(
+    data: Any,
+) -> bool:
+
+    message = (
+        supabase_error_message(
+            data
+        ).lower()
+    )
+
 
     rate_terms = (
         "rate",
@@ -552,32 +1082,56 @@ def is_supabase_rate_limit_error(data: Any) -> bool:
         "60 second",
         "over_email_send_rate_limit",
         "429",
+        "after 60",
     )
 
-    return any(term in message for term in rate_terms)
+
+    return any(
+        term in message
+        for term in rate_terms
+    )
 
 
-async def supabase_send_email_otp(email: str):
+async def supabase_send_email_otp(
+    email: str,
+    create_user: bool = True,
+):
+
     if not supabase_configuration_ready():
+
         raise RuntimeError(
-            "SUPABASE_URL أو SUPABASE_ANON_KEY غير مضبوطين."
+            "SUPABASE_URL أو "
+            "SUPABASE_ANON_KEY غير مضبوطين."
         )
 
-    url = f"{SUPABASE_URL}/auth/v1/otp"
+
+    url = (
+        f"{SUPABASE_URL}"
+        "/auth/v1/otp"
+    )
+
 
     payload = {
         "email": email,
-        "create_user": True,
+        "create_user": create_user,
     }
 
-    async with httpx.AsyncClient(timeout=SUPABASE_AUTH_TIMEOUT) as client:
+
+    async with httpx.AsyncClient(
+        timeout=SUPABASE_AUTH_TIMEOUT
+    ) as client:
+
         response = await client.post(
             url,
             headers=supabase_auth_headers(),
             json=payload,
         )
 
-    data = safe_json(response)
+
+    data = safe_json(
+        response
+    )
+
 
     print(
         "SUPABASE SEND OTP:",
@@ -585,27 +1139,58 @@ async def supabase_send_email_otp(email: str):
         data,
     )
 
-    if response.status_code not in range(200, 300):
-        message = supabase_error_message(data)
 
-        if not message:
-            message = "تعذر إرسال رمز التحقق عبر Supabase."
+    if response.status_code not in range(
+        200,
+        300,
+    ):
 
-        error = RuntimeError(message)
-        setattr(error, "supabase_status_code", response.status_code)
-        setattr(error, "supabase_data", data)
+        error = RuntimeError(
+            supabase_error_message(
+                data
+            )
+            or "تعذر إرسال رمز التحقق عبر Supabase."
+        )
+
+
+        setattr(
+            error,
+            "supabase_status_code",
+            response.status_code,
+        )
+
+
+        setattr(
+            error,
+            "supabase_data",
+            data,
+        )
+
+
         raise error
+
 
     return data
 
 
-async def supabase_verify_email_otp(email: str, code: str):
+async def supabase_verify_email_otp(
+    email: str,
+    code: str,
+):
+
     if not supabase_configuration_ready():
+
         raise RuntimeError(
-            "SUPABASE_URL أو SUPABASE_ANON_KEY غير مضبوطين."
+            "SUPABASE_URL أو "
+            "SUPABASE_ANON_KEY غير مضبوطين."
         )
 
-    url = f"{SUPABASE_URL}/auth/v1/verify"
+
+    url = (
+        f"{SUPABASE_URL}"
+        "/auth/v1/verify"
+    )
+
 
     payload = {
         "email": email,
@@ -613,14 +1198,22 @@ async def supabase_verify_email_otp(email: str, code: str):
         "type": "email",
     }
 
-    async with httpx.AsyncClient(timeout=SUPABASE_AUTH_TIMEOUT) as client:
+
+    async with httpx.AsyncClient(
+        timeout=SUPABASE_AUTH_TIMEOUT
+    ) as client:
+
         response = await client.post(
             url,
             headers=supabase_auth_headers(),
             json=payload,
         )
 
-    data = safe_json(response)
+
+    data = safe_json(
+        response
+    )
+
 
     print(
         "SUPABASE VERIFY OTP:",
@@ -628,35 +1221,74 @@ async def supabase_verify_email_otp(email: str, code: str):
         data,
     )
 
-    return response.status_code, data
+
+    return (
+        response.status_code,
+        data,
+    )
 
 
 # =========================================================
 # PDF
 # =========================================================
 
-def extract_pdf_text(content: bytes) -> str:
+def extract_pdf_text(
+    content: bytes,
+) -> str:
+
     try:
-        reader = PdfReader(io.BytesIO(content))
+
+        reader = PdfReader(
+            io.BytesIO(content)
+        )
+
+
         parts = []
 
+
         for page in reader.pages:
+
             try:
-                value = page.extract_text() or ""
+
+                value = (
+                    page.extract_text()
+                    or ""
+                )
+
+
                 if value:
-                    parts.append(value)
+
+                    parts.append(
+                        value
+                    )
+
+
             except Exception:
+
                 continue
 
-        result = "\n\n".join(parts)
+
+        result = "\n\n".join(
+            parts
+        )
+
 
         if len(result) > 500000:
+
             result = result[:500000]
+
 
         return result.strip()
 
+
     except Exception as exc:
-        print("PDF ERROR:", repr(exc))
+
+        print(
+            "PDF ERROR:",
+            repr(exc),
+        )
+
+
         return ""
 
 
@@ -664,14 +1296,20 @@ def extract_pdf_text(content: bytes) -> str:
 # STORE
 # =========================================================
 
-def store_to_dict(store: StoreModel):
+def store_to_dict(
+    store: StoreModel,
+):
+
     return {
         "id": store.id,
         "store_name": store.store_name,
         "store_url": store.store_url,
-        "whatsapp_number": store.whatsapp_number,
-        "agent_notes": store.agent_notes,
-        "has_catalog": bool(store.catalog_text),
+        "whatsapp_number":
+            store.whatsapp_number,
+        "agent_notes":
+            store.agent_notes,
+        "has_catalog":
+            bool(store.catalog_text),
         "created_at": (
             store.created_at.isoformat()
             if store.created_at
@@ -684,11 +1322,19 @@ def store_to_dict(store: StoreModel):
 # QR HELPERS
 # =========================================================
 
-def normalize_qr(value: Any) -> Optional[str]:
+def normalize_qr(
+    value: Any,
+) -> Optional[str]:
+
     if not value:
         return None
 
-    if isinstance(value, dict):
+
+    if isinstance(
+        value,
+        dict,
+    ):
+
         value = first_value(
             value.get("base64"),
             value.get("base64Image"),
@@ -698,26 +1344,58 @@ def normalize_qr(value: Any) -> Optional[str]:
             value.get("qr"),
         )
 
-    if not isinstance(value, str):
+
+    if not isinstance(
+        value,
+        str,
+    ):
+
         return None
 
+
     value = value.strip()
+
 
     if not value:
         return None
 
-    if value.startswith("data:image"):
+
+    if value.startswith(
+        "data:image"
+    ):
+
         return value
 
-    if value.startswith("http://") or value.startswith("https://"):
+
+    if (
+        value.startswith(
+            "http://"
+        )
+        or value.startswith(
+            "https://"
+        )
+    ):
+
         return value
 
-    return "data:image/png;base64," + value
+
+    return (
+        "data:image/png;base64,"
+        + value
+    )
 
 
-def extract_qr_code(data: Any) -> Optional[str]:
-    if not isinstance(data, dict):
+def extract_qr_code(
+    data: Any,
+) -> Optional[str]:
+
+    if not isinstance(
+        data,
+        dict,
+    ):
+
         return None
+
 
     candidates = [
         data.get("qrcode"),
@@ -728,77 +1406,158 @@ def extract_qr_code(data: Any) -> Optional[str]:
         data.get("qr"),
     ]
 
-    nested_data = data.get("data")
 
-    if isinstance(nested_data, dict):
+    nested_data = data.get(
+        "data"
+    )
+
+
+    if isinstance(
+        nested_data,
+        dict,
+    ):
+
         candidates.extend(
             [
-                nested_data.get("qrcode"),
-                nested_data.get("qrCode"),
-                nested_data.get("base64"),
-                nested_data.get("base64Image"),
-                nested_data.get("code"),
-                nested_data.get("qr"),
+                nested_data.get(
+                    "qrcode"
+                ),
+                nested_data.get(
+                    "qrCode"
+                ),
+                nested_data.get(
+                    "base64"
+                ),
+                nested_data.get(
+                    "base64Image"
+                ),
+                nested_data.get(
+                    "code"
+                ),
+                nested_data.get(
+                    "qr"
+                ),
             ]
         )
 
-    instance = data.get("instance")
 
-    if isinstance(instance, dict):
+    instance = data.get(
+        "instance"
+    )
+
+
+    if isinstance(
+        instance,
+        dict,
+    ):
+
         candidates.extend(
             [
-                instance.get("qrcode"),
-                instance.get("qrCode"),
-                instance.get("base64"),
-                instance.get("base64Image"),
-                instance.get("code"),
-                instance.get("qr"),
+                instance.get(
+                    "qrcode"
+                ),
+                instance.get(
+                    "qrCode"
+                ),
+                instance.get(
+                    "base64"
+                ),
+                instance.get(
+                    "base64Image"
+                ),
+                instance.get(
+                    "code"
+                ),
+                instance.get(
+                    "qr"
+                ),
             ]
         )
+
 
     for candidate in candidates:
-        qr = normalize_qr(candidate)
+
+        qr = normalize_qr(
+            candidate
+        )
+
+
         if qr:
             return qr
+
 
     return None
 
 
-def extract_connection_state(data: Any) -> Optional[str]:
-    if not isinstance(data, dict):
+def extract_connection_state(
+    data: Any,
+) -> Optional[str]:
+
+    if not isinstance(
+        data,
+        dict,
+    ):
+
         return None
+
 
     values = [
         data.get("state"),
         data.get("status"),
-        data.get("connectionStatus"),
+        data.get(
+            "connectionStatus"
+        ),
     ]
 
-    nested = data.get("instance")
 
-    if isinstance(nested, dict):
+    nested = data.get(
+        "instance"
+    )
+
+
+    if isinstance(
+        nested,
+        dict,
+    ):
+
         values.extend(
             [
                 nested.get("state"),
                 nested.get("status"),
-                nested.get("connectionStatus"),
+                nested.get(
+                    "connectionStatus"
+                ),
             ]
         )
 
-    nested_data = data.get("data")
 
-    if isinstance(nested_data, dict):
+    nested_data = data.get(
+        "data"
+    )
+
+
+    if isinstance(
+        nested_data,
+        dict,
+    ):
+
         values.extend(
             [
                 nested_data.get("state"),
                 nested_data.get("status"),
-                nested_data.get("connectionStatus"),
+                nested_data.get(
+                    "connectionStatus"
+                ),
             ]
         )
 
+
     for value in values:
+
         if value:
+
             return str(value)
+
 
     return None
 
@@ -808,66 +1567,113 @@ def extract_connection_state(data: Any) -> Optional[str]:
 # =========================================================
 
 def require_evolution_config():
+
     if not EVOLUTION_API_URL:
+
         raise HTTPException(
             status_code=500,
-            detail="EVOLUTION_API_URL غير مضبوط",
+            detail=(
+                "EVOLUTION_API_URL غير مضبوط"
+            ),
         )
 
+
     if not EVOLUTION_GLOBAL_KEY:
+
         raise HTTPException(
             status_code=500,
-            detail="EVOLUTION_GLOBAL_KEY غير مضبوط",
+            detail=(
+                "EVOLUTION_GLOBAL_KEY غير مضبوط"
+            ),
         )
 
 
 def evolution_headers():
+
     return {
-        "apikey": EVOLUTION_GLOBAL_KEY,
-        "Content-Type": "application/json",
+        "apikey":
+            EVOLUTION_GLOBAL_KEY,
+        "Content-Type":
+            "application/json",
     }
 
 
 # =========================================================
-# EVOLUTION CREATE INSTANCE
+# EVOLUTION CREATE
 # =========================================================
 
 async def evolution_create_instance(
     client: httpx.AsyncClient,
     instance_name: str,
 ):
-    url = f"{EVOLUTION_API_URL}/instance/create"
+
+    url = (
+        f"{EVOLUTION_API_URL}"
+        "/instance/create"
+    )
+
 
     payload = {
-        "instanceName": instance_name,
-        "qrcode": True,
-        "integration": "WHATSAPP-BAILEYS",
+        "instanceName":
+            instance_name,
+        "qrcode":
+            True,
+        "integration":
+            "WHATSAPP-BAILEYS",
     }
 
+
     try:
+
         response = await client.post(
             url,
             headers=evolution_headers(),
             json=payload,
         )
 
-        data = safe_json(response)
 
-        print("EVOLUTION CREATE:", response.status_code, data)
+        data = safe_json(
+            response
+        )
+
+
+        print(
+            "EVOLUTION CREATE:",
+            response.status_code,
+            data,
+        )
+
 
         return {
-            "status_code": response.status_code,
-            "data": data,
-            "qr": extract_qr_code(data),
+            "status_code":
+                response.status_code,
+            "data":
+                data,
+            "qr":
+                extract_qr_code(
+                    data
+                ),
         }
 
+
     except Exception as exc:
-        print("EVOLUTION CREATE EXCEPTION:", repr(exc))
+
+        print(
+            "EVOLUTION CREATE EXCEPTION:",
+            repr(exc),
+        )
+
 
         return {
-            "status_code": 0,
-            "data": {"error": str(exc)},
-            "qr": None,
+            "status_code":
+                0,
+            "data":
+                {
+                    "error":
+                        str(exc)
+                },
+            "qr":
+                None,
         }
 
 
@@ -879,31 +1685,64 @@ async def evolution_connect(
     client: httpx.AsyncClient,
     instance_name: str,
 ):
-    url = f"{EVOLUTION_API_URL}/instance/connect/{instance_name}"
+
+    url = (
+        f"{EVOLUTION_API_URL}"
+        f"/instance/connect/"
+        f"{instance_name}"
+    )
+
 
     try:
+
         response = await client.get(
             url,
             headers=evolution_headers(),
         )
 
-        data = safe_json(response)
 
-        print("EVOLUTION CONNECT:", response.status_code, data)
+        data = safe_json(
+            response
+        )
+
+
+        print(
+            "EVOLUTION CONNECT:",
+            response.status_code,
+            data,
+        )
+
 
         return {
-            "status_code": response.status_code,
-            "data": data,
-            "qr": extract_qr_code(data),
+            "status_code":
+                response.status_code,
+            "data":
+                data,
+            "qr":
+                extract_qr_code(
+                    data
+                ),
         }
 
+
     except Exception as exc:
-        print("EVOLUTION CONNECT EXCEPTION:", repr(exc))
+
+        print(
+            "EVOLUTION CONNECT EXCEPTION:",
+            repr(exc),
+        )
+
 
         return {
-            "status_code": 0,
-            "data": {"error": str(exc)},
-            "qr": None,
+            "status_code":
+                0,
+            "data":
+                {
+                    "error":
+                        str(exc)
+                },
+            "qr":
+                None,
         }
 
 
@@ -915,62 +1754,111 @@ async def evolution_status(
     client: httpx.AsyncClient,
     instance_name: str,
 ):
+
     url = (
         f"{EVOLUTION_API_URL}"
-        f"/instance/connectionState/{instance_name}"
+        "/instance/connectionState/"
+        f"{instance_name}"
     )
 
+
     try:
+
         response = await client.get(
             url,
             headers=evolution_headers(),
         )
 
-        data = safe_json(response)
 
-        print("EVOLUTION STATUS:", response.status_code, data)
+        data = safe_json(
+            response
+        )
+
+
+        print(
+            "EVOLUTION STATUS:",
+            response.status_code,
+            data,
+        )
+
 
         return {
-            "status_code": response.status_code,
-            "data": data,
-            "state": extract_connection_state(data),
+            "status_code":
+                response.status_code,
+            "data":
+                data,
+            "state":
+                extract_connection_state(
+                    data
+                ),
         }
 
+
     except Exception as exc:
-        print("EVOLUTION STATUS EXCEPTION:", repr(exc))
+
+        print(
+            "EVOLUTION STATUS EXCEPTION:",
+            repr(exc),
+        )
+
 
         return {
-            "status_code": 0,
-            "data": {"error": str(exc)},
-            "state": None,
+            "status_code":
+                0,
+            "data":
+                {
+                    "error":
+                        str(exc)
+                },
+            "state":
+                None,
         }
 
 
 # =========================================================
-# EVOLUTION DELETE INSTANCE
+# EVOLUTION DELETE
 # =========================================================
 
 async def evolution_delete_instance(
     client: httpx.AsyncClient,
     instance_name: str,
 ):
-    url = f"{EVOLUTION_API_URL}/instance/logout/{instance_name}"
+
+    url = (
+        f"{EVOLUTION_API_URL}"
+        "/instance/logout/"
+        f"{instance_name}"
+    )
+
 
     try:
+
         response = await client.delete(
             url,
             headers=evolution_headers(),
         )
 
+
         return {
-            "status_code": response.status_code,
-            "data": safe_json(response),
+            "status_code":
+                response.status_code,
+            "data":
+                safe_json(
+                    response
+                ),
         }
 
+
     except Exception as exc:
+
         return {
-            "status_code": 0,
-            "data": {"error": str(exc)},
+            "status_code":
+                0,
+            "data":
+                {
+                    "error":
+                        str(exc)
+                },
         }
 
 
@@ -982,42 +1870,90 @@ async def ensure_instance(
     client: httpx.AsyncClient,
     store: StoreModel,
 ):
-    instance_name = make_instance_name(store.id)
+
+    instance_name = (
+        make_instance_name(
+            store.id
+        )
+    )
+
 
     status = await evolution_status(
         client,
         instance_name,
     )
 
-    state = (status.get("state") or "").lower()
 
-    if state in {"open", "connected", "online"}:
+    state = (
+        status.get("state")
+        or ""
+    ).lower()
+
+
+    if state in {
+        "open",
+        "connected",
+        "online",
+    }:
+
         return {
-            "instance_name": instance_name,
-            "created": False,
-            "create": None,
-            "status": status,
+            "instance_name":
+                instance_name,
+            "created":
+                False,
+            "create":
+                None,
+            "status":
+                status,
         }
 
-    create_result = await evolution_create_instance(
-        client,
-        instance_name,
+
+    create_result = (
+        await evolution_create_instance(
+            client,
+            instance_name,
+        )
     )
 
-    if create_result["status_code"] not in (200, 201, 409):
-        print("INSTANCE CREATE FAILED:", create_result)
 
-    if create_result["status_code"] == 409:
+    if create_result[
+        "status_code"
+    ] not in (
+        200,
+        201,
+        409,
+    ):
+
+        print(
+            "INSTANCE CREATE FAILED:",
+            create_result,
+        )
+
+
+    if create_result[
+        "status_code"
+    ] == 409:
+
         status = await evolution_status(
             client,
             instance_name,
         )
 
+
     return {
-        "instance_name": instance_name,
-        "created": create_result["status_code"] in (200, 201),
-        "create": create_result,
-        "status": status,
+        "instance_name":
+            instance_name,
+        "created":
+            create_result[
+                "status_code"
+            ] in (
+                200,
+                201,
+            ),
+        "create":
+            create_result,
+        "status":
+            status,
     }
 
 
@@ -1030,26 +1966,38 @@ async def configure_webhook(
     instance_name: str,
     store_id: str,
 ):
+
     if not WEBHOOK_BASE_URL:
+
         return {
-            "status_code": 0,
+            "status_code":
+                0,
             "data": {
-                "warning": "WEBHOOK_BASE_URL غير مضبوط"
+                "warning":
+                    "WEBHOOK_BASE_URL غير مضبوط"
             },
         }
 
+
     webhook_url = (
         f"{WEBHOOK_BASE_URL}"
-        f"/api/whatsapp/webhook/{store_id}"
+        f"/api/whatsapp/webhook/"
+        f"{store_id}"
     )
+
 
     payload = {
         "webhook": {
-            "enabled": True,
-            "url": webhook_url,
-            "webhookByEvents": False,
-            "webhookBase64": False,
-            "byEvents": False,
+            "enabled":
+                True,
+            "url":
+                webhook_url,
+            "webhookByEvents":
+                False,
+            "webhookBase64":
+                False,
+            "byEvents":
+                False,
             "events": [
                 "MESSAGES_UPSERT",
                 "CONNECTION_UPDATE",
@@ -1058,30 +2006,58 @@ async def configure_webhook(
         }
     }
 
-    url = f"{EVOLUTION_API_URL}/webhook/set/{instance_name}"
+
+    url = (
+        f"{EVOLUTION_API_URL}"
+        "/webhook/set/"
+        f"{instance_name}"
+    )
+
 
     try:
+
         response = await client.post(
             url,
             headers=evolution_headers(),
             json=payload,
         )
 
-        data = safe_json(response)
 
-        print("EVOLUTION WEBHOOK:", response.status_code, data)
+        data = safe_json(
+            response
+        )
+
+
+        print(
+            "EVOLUTION WEBHOOK:",
+            response.status_code,
+            data,
+        )
+
 
         return {
-            "status_code": response.status_code,
-            "data": data,
+            "status_code":
+                response.status_code,
+            "data":
+                data,
         }
 
+
     except Exception as exc:
-        print("WEBHOOK EXCEPTION:", repr(exc))
+
+        print(
+            "WEBHOOK EXCEPTION:",
+            repr(exc),
+        )
+
 
         return {
-            "status_code": 0,
-            "data": {"error": str(exc)},
+            "status_code":
+                0,
+            "data": {
+                "error":
+                    str(exc)
+            },
         }
 
 
@@ -1096,57 +2072,126 @@ async def get_qr_with_retry(
     delay_seconds: float = 1.5,
     initial_result: Optional[dict] = None,
 ):
+
     last_result = initial_result
 
-    if initial_result and initial_result.get("qr"):
+
+    if (
+        initial_result
+        and initial_result.get(
+            "qr"
+        )
+    ):
+
         return initial_result
 
-    for attempt in range(1, attempts + 1):
-        result = await evolution_connect(
-            client,
-            instance_name,
+
+    for attempt in range(
+        1,
+        attempts + 1,
+    ):
+
+        result = (
+            await evolution_connect(
+                client,
+                instance_name,
+            )
         )
+
 
         last_result = result
 
+
         if result.get("qr"):
-            print(f"QR RECEIVED ON ATTEMPT {attempt}")
+
+            print(
+                f"QR RECEIVED ON ATTEMPT {attempt}"
+            )
+
+
             return result
 
-        state = extract_connection_state(result.get("data"))
 
-        if state and state.lower() in {"open", "connected", "online"}:
+        state = (
+            extract_connection_state(
+                result.get("data")
+            )
+        )
+
+
+        if (
+            state
+            and state.lower()
+            in {
+                "open",
+                "connected",
+                "online",
+            }
+        ):
+
             return result
+
 
         if attempt < attempts:
-            await asyncio.sleep(delay_seconds)
 
-    return last_result or {
-        "status_code": 0,
-        "data": {"error": "Evolution API لم ترجع نتيجة"},
-        "qr": None,
-    }
+            await asyncio.sleep(
+                delay_seconds
+            )
+
+
+    return (
+        last_result
+        or {
+            "status_code":
+                0,
+            "data": {
+                "error":
+                    "Evolution API لم ترجع نتيجة"
+            },
+            "qr":
+                None,
+        }
+    )
 
 
 # =========================================================
 # BASIC ROUTES
 # =========================================================
 
-@app.get("/", response_class=HTMLResponse)
+@app.get(
+    "/",
+    response_class=HTMLResponse,
+)
 async def read_index():
-    if os.path.exists("index.html"):
-        with open("index.html", "r", encoding="utf-8") as file:
+
+    if os.path.exists(
+        "index.html"
+    ):
+
+        with open(
+            "index.html",
+            "r",
+            encoding="utf-8",
+        ) as file:
+
             return file.read()
+
 
     return """
     <html>
     <head>
         <meta charset="utf-8">
-        <title>Smart AI Store Assistant</title>
+        <title>
+            Smart AI Store Assistant
+        </title>
     </head>
     <body>
-        <h1>Smart AI Store Assistant</h1>
-        <p>Service is running.</p>
+        <h1>
+            Smart AI Store Assistant
+        </h1>
+        <p>
+            Service is running.
+        </p>
     </body>
     </html>
     """
@@ -1154,52 +2199,121 @@ async def read_index():
 
 @app.head("/")
 async def head_index():
-    return Response(status_code=200)
+
+    return Response(
+        status_code=200
+    )
 
 
 @app.get("/health")
 async def health():
+
     return {
-        "status": "ok",
-        "service": "Smart AI Store Assistant",
-        "evolution_api_configured": bool(EVOLUTION_API_URL),
-        "evolution_key_configured": bool(EVOLUTION_GLOBAL_KEY),
-        "anthropic_configured": bool(ANTHROPIC_API_KEY),
-        "supabase_configured": bool(supabase_configuration_ready()),
-        "supabase_url_configured": bool(SUPABASE_URL),
-        "supabase_key_configured": bool(SUPABASE_ANON_KEY),
-        "webhook_configured": bool(WEBHOOK_BASE_URL),
-        "frontend_configured": bool(FRONTEND_URL),
-        "model": ANTHROPIC_MODEL,
+        "status":
+            "ok",
+
+        "service":
+            "Smart AI Store Assistant",
+
+        "evolution_api_configured":
+            bool(
+                EVOLUTION_API_URL
+            ),
+
+        "evolution_key_configured":
+            bool(
+                EVOLUTION_GLOBAL_KEY
+            ),
+
+        "anthropic_configured":
+            bool(
+                ANTHROPIC_API_KEY
+            ),
+
+        "supabase_configured":
+            bool(
+                supabase_configuration_ready()
+            ),
+
+        "supabase_url_configured":
+            bool(
+                SUPABASE_URL
+            ),
+
+        "supabase_key_configured":
+            bool(
+                SUPABASE_ANON_KEY
+            ),
+
+        "webhook_configured":
+            bool(
+                WEBHOOK_BASE_URL
+            ),
+
+        "frontend_configured":
+            bool(
+                FRONTEND_URL
+            ),
+
+        "model":
+            ANTHROPIC_MODEL,
     }
 
 
 @app.get("/health/db")
-async def health_db(db: Session = Depends(get_db)):
+async def health_db(
+    db: Session = Depends(
+        get_db
+    ),
+):
+
     try:
-        db.execute(text("SELECT 1"))
+
+        db.execute(
+            text("SELECT 1")
+        )
+
+
         return {
-            "status": "ok",
-            "database": "connected",
+            "status":
+                "ok",
+            "database":
+                "connected",
         }
+
+
     except Exception as exc:
+
         return JSONResponse(
             status_code=500,
             content={
-                "status": "error",
-                "database": "failed",
-                "error": str(exc),
+                "status":
+                    "error",
+                "database":
+                    "failed",
+                "error":
+                    str(exc),
             },
         )
 
 
-@app.get("/widget.js", response_class=FileResponse)
+@app.get(
+    "/widget.js",
+    response_class=FileResponse,
+)
 async def get_widget():
-    if os.path.exists("widget.js"):
+
+    if os.path.exists(
+        "widget.js"
+    ):
+
         return FileResponse(
             "widget.js",
-            media_type="application/javascript",
+            media_type=(
+                "application/javascript"
+            ),
         )
+
 
     raise HTTPException(
         status_code=404,
@@ -1208,95 +2322,197 @@ async def get_widget():
 
 
 # =========================================================
-# REGISTER
+# REGISTER STORE
 # =========================================================
 
-@app.post("/api/register-store")
+@app.post(
+    "/api/register-store"
+)
 async def register_store(
+
     store_name: str = Form(...),
+
     username: str = Form(...),
+
     email: str = Form(...),
+
     password: str = Form(...),
-    db: Session = Depends(get_db),
+
+    db: Session = Depends(
+        get_db
+    ),
 ):
-    store_name = store_name.strip()
-    username = username.strip()
-    email = email.strip().lower()
+
+    store_name = (
+        store_name
+        .strip()
+    )
+
+
+    username = (
+        username
+        .strip()
+    )
+
+
+    email = (
+        email
+        .strip()
+        .lower()
+    )
+
+
+    # -----------------------------------------------------
+    # VALIDATION
+    # -----------------------------------------------------
 
     if len(store_name) < 2:
-        raise HTTPException(status_code=400, detail="اسم المتجر مطلوب")
+
+        raise HTTPException(
+            status_code=400,
+            detail="اسم المتجر مطلوب",
+        )
+
 
     if len(username) < 3:
+
         raise HTTPException(
             status_code=400,
-            detail="اسم المستخدم يجب أن يكون 3 أحرف على الأقل",
+            detail=(
+                "اسم المستخدم يجب أن يكون "
+                "3 أحرف على الأقل"
+            ),
         )
+
 
     if len(username) > 50:
-        raise HTTPException(status_code=400, detail="اسم المستخدم طويل جدًا")
 
-    username_pattern = r"^[A-Za-z0-9\u0600-\u06FF_.-]+$"
-
-    if not re.match(username_pattern, username):
         raise HTTPException(
             status_code=400,
-            detail="اسم المستخدم يحتوي على أحرف غير مسموحة",
+            detail="اسم المستخدم طويل جدًا",
         )
 
-    email_pattern = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
 
-    if not re.match(email_pattern, email):
+    username_pattern = (
+        r"^[A-Za-z0-9\u0600-\u06FF_.-]+$"
+    )
+
+
+    if not re.match(
+        username_pattern,
+        username,
+    ):
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "اسم المستخدم يحتوي على "
+                "أحرف غير مسموحة"
+            ),
+        )
+
+
+    email_pattern = (
+        r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+    )
+
+
+    if not re.match(
+        email_pattern,
+        email,
+    ):
+
         raise HTTPException(
             status_code=400,
             detail="البريد الإلكتروني غير صحيح",
         )
 
+
     if len(password) < 6:
+
         raise HTTPException(
             status_code=400,
-            detail="كلمة المرور يجب أن تكون 6 أحرف على الأقل",
+            detail=(
+                "كلمة المرور يجب أن تكون "
+                "6 أحرف على الأقل"
+            ),
         )
 
+
     if not supabase_configuration_ready():
+
         raise HTTPException(
             status_code=500,
             detail=(
                 "إعدادات Supabase غير موجودة. "
-                "أضف SUPABASE_URL و SUPABASE_ANON_KEY في Render."
+                "أضف SUPABASE_URL و "
+                "SUPABASE_ANON_KEY في Render."
             ),
         )
 
+
+    # -----------------------------------------------------
+    # CHECK DUPLICATES
+    # -----------------------------------------------------
+
     existing_username = (
         db.query(UserModel)
-        .filter(UserModel.username == username)
+        .filter(
+            UserModel.username
+            == username
+        )
         .first()
     )
 
+
     if existing_username:
+
         raise HTTPException(
             status_code=409,
-            detail="اسم المستخدم مستخدم مسبقًا",
+            detail=(
+                "اسم المستخدم مستخدم مسبقًا"
+            ),
         )
+
 
     existing_email = (
         db.query(UserModel)
-        .filter(UserModel.email == email)
+        .filter(
+            UserModel.email
+            == email
+        )
         .first()
     )
 
+
     if existing_email:
+
         raise HTTPException(
             status_code=409,
-            detail="البريد الإلكتروني مستخدم مسبقًا",
+            detail=(
+                "البريد الإلكتروني مستخدم مسبقًا"
+            ),
         )
+
+
+    # -----------------------------------------------------
+    # CREATE STORE
+    # -----------------------------------------------------
 
     store = StoreModel(
         id=str(uuid.uuid4()),
         store_name=store_name,
     )
 
+
     db.add(store)
+
     db.flush()
+
+
+    # -----------------------------------------------------
+    # CREATE LOCAL USER
+    # -----------------------------------------------------
 
     user = UserModel(
         id=str(uuid.uuid4()),
@@ -1304,73 +2520,148 @@ async def register_store(
         username=username,
         email=email,
         email_verified=False,
-        password_hash=hash_password(password),
+        password_hash=hash_password(
+            password
+        ),
     )
+
 
     db.add(user)
 
+
     try:
+
         db.commit()
+
         db.refresh(user)
         db.refresh(store)
+
+
     except IntegrityError:
+
         db.rollback()
+
         raise HTTPException(
             status_code=409,
-            detail="اسم المستخدم أو البريد الإلكتروني مستخدم مسبقًا",
+            detail=(
+                "اسم المستخدم أو البريد "
+                "الإلكتروني مستخدم مسبقًا"
+            ),
         )
 
+
     # -----------------------------------------------------
-    # SEND SUPABASE OTP
+    # SEND FIRST OTP
+    #
+    # create_user=True:
+    # creates the corresponding Supabase Auth user
+    # if it does not already exist.
     # -----------------------------------------------------
+
     try:
-        await supabase_send_email_otp(email)
+
+        await supabase_send_email_otp(
+            email,
+            create_user=True,
+        )
+
+
     except Exception as exc:
-        print("SUPABASE REGISTER OTP ERROR:", repr(exc))
+
+        print(
+            "SUPABASE REGISTER OTP ERROR:",
+            repr(exc),
+        )
+
 
         try:
+
             db.delete(user)
+
             db.delete(store)
+
             db.commit()
+
+
         except Exception:
+
             db.rollback()
 
-        status = getattr(exc, "supabase_status_code", None)
-        error_text = str(exc)
 
-        if status == 429:
-            status = 429
-        elif is_supabase_rate_limit_error(
-            getattr(exc, "supabase_data", None)
+        status = getattr(
+            exc,
+            "supabase_status_code",
+            None,
+        )
+
+
+        data = getattr(
+            exc,
+            "supabase_data",
+            None,
+        )
+
+
+        if (
+            status == 429
+            or is_supabase_rate_limit_error(
+                data
+            )
         ):
+
             status = 429
+
         else:
+
             status = 502
+
 
         raise HTTPException(
             status_code=status,
             detail=(
                 "تعذر إرسال رسالة التحقق عبر Supabase. "
-                f"{error_text}"
+                f"{str(exc)}"
             ),
         )
 
+
     return {
-        "status": "success",
-        "success": True,
-        "verification_required": True,
-        "message": (
-            "تم إنشاء الحساب. "
-            "تم إرسال رمز التحقق إلى بريدك الإلكتروني."
-        ),
-        "store_id": store.id,
+        "status":
+            "success",
+
+        "success":
+            True,
+
+        "verification_required":
+            True,
+
+        "message":
+            (
+                "تم إنشاء الحساب. "
+                "تم إرسال رمز التحقق إلى بريدك الإلكتروني."
+            ),
+
+        "store_id":
+            store.id,
+
         "user": {
-            "id": user.id,
-            "username": user.username,
-            "email": user.email,
-            "email_verified": False,
+            "id":
+                user.id,
+
+            "username":
+                user.username,
+
+            "email":
+                user.email,
+
+            "email_verified":
+                False,
         },
-        "store": store_to_dict(store),
+
+        "store":
+            store_to_dict(
+                store
+            ),
     }
 
 
@@ -1378,118 +2669,304 @@ async def register_store(
 # VERIFY EMAIL
 # =========================================================
 
-@app.post("/api/verify-email")
+@app.post(
+    "/api/verify-email"
+)
 async def verify_email(
-    email: str = Form(...),
-    code: str = Form(...),
-    db: Session = Depends(get_db),
-):
-    email = email.strip().lower()
-    code = code.strip()
 
-    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+    email: str = Form(...),
+
+    code: str = Form(...),
+
+    db: Session = Depends(
+        get_db
+    ),
+):
+
+    email = (
+        email
+        .strip()
+        .lower()
+    )
+
+
+    code = (
+        code
+        .strip()
+    )
+
+
+    if not re.match(
+        r"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+        email,
+    ):
+
         raise HTTPException(
             status_code=400,
             detail="البريد الإلكتروني غير صحيح",
         )
 
-    if not re.fullmatch(r"\d{6}", code):
+
+    if not re.fullmatch(
+        r"\d{6}",
+        code,
+    ):
+
         raise HTTPException(
             status_code=400,
-            detail="رمز التحقق يجب أن يكون 6 أرقام",
+            detail=(
+                "رمز التحقق يجب أن يكون 6 أرقام"
+            ),
         )
+
 
     user = (
         db.query(UserModel)
-        .filter(UserModel.email == email)
+        .filter(
+            UserModel.email
+            == email
+        )
         .first()
     )
 
+
     if not user:
+
         raise HTTPException(
             status_code=404,
             detail="المستخدم غير موجود",
         )
 
-    if bool(user.email_verified):
-        token = create_session(db, user)
+
+    # -----------------------------------------------------
+    # ALREADY VERIFIED
+    # -----------------------------------------------------
+
+    if bool(
+        user.email_verified
+    ):
+
+        token = create_session(
+            db,
+            user,
+        )
+
 
         response = JSONResponse(
             content={
-                "status": "success",
-                "success": True,
-                "verification_required": False,
-                "message": "البريد الإلكتروني مؤكد مسبقًا",
-                "store_id": user.store_id,
+                "status":
+                    "success",
+
+                "success":
+                    True,
+
+                "verification_required":
+                    False,
+
+                "message":
+                    (
+                        "البريد الإلكتروني "
+                        "مؤكد مسبقًا"
+                    ),
+
+                "store_id":
+                    user.store_id,
+
                 "user": {
-                    "id": user.id,
-                    "username": user.username,
-                    "email": user.email,
-                    "email_verified": True,
+                    "id":
+                        user.id,
+
+                    "username":
+                        user.username,
+
+                    "email":
+                        user.email,
+
+                    "email_verified":
+                        True,
                 },
-                "store": store_to_dict(user.store),
+
+                "store":
+                    store_to_dict(
+                        user.store
+                    ),
             }
         )
 
-        set_session_cookie(response, token)
+
+        set_session_cookie(
+            response,
+            token,
+        )
+
+
         return response
 
+
+    # -----------------------------------------------------
+    # VERIFY OTP WITH SUPABASE
+    # -----------------------------------------------------
+
     try:
-        status_code, data = await supabase_verify_email_otp(
-            email,
-            code,
-        )
-    except Exception as exc:
-        print("SUPABASE VERIFY EXCEPTION:", repr(exc))
-        raise HTTPException(
-            status_code=502,
-            detail="تعذر الاتصال بـ Supabase للتحقق من الرمز.",
+
+        status_code, data = (
+            await supabase_verify_email_otp(
+                email,
+                code,
+            )
         )
 
-    if status_code not in range(200, 300):
+
+    except Exception as exc:
+
+        print(
+            "SUPABASE VERIFY EXCEPTION:",
+            repr(exc),
+        )
+
+
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "تعذر الاتصال بـ Supabase "
+                "للتحقق من الرمز."
+            ),
+        )
+
+
+    # -----------------------------------------------------
+    # OTP FAILED
+    # -----------------------------------------------------
+
+    if status_code not in range(
+        200,
+        300,
+    ):
+
         print(
             "SUPABASE VERIFY FAILED:",
             status_code,
             data,
         )
 
-        message = supabase_error_message(data).lower()
 
-        if "expired" in message or "otp_expired" in message:
-            detail = "رمز التحقق منتهي الصلاحية. اطلب رمزًا جديدًا."
+        message = (
+            supabase_error_message(
+                data
+            ).lower()
+        )
+
+
+        if (
+            "expired" in message
+            or "otp_expired" in message
+        ):
+
+            detail = (
+                "رمز التحقق منتهي الصلاحية. "
+                "اطلب رمزًا جديدًا."
+            )
+
         else:
-            detail = "رمز التحقق غير صحيح أو منتهي الصلاحية."
+
+            detail = (
+                "رمز التحقق غير صحيح أو "
+                "منتهي الصلاحية. "
+                "استخدم أحدث رمز وصلك."
+            )
+
 
         raise HTTPException(
             status_code=400,
             detail=detail,
         )
 
+
+    # -----------------------------------------------------
+    # MARK LOCAL USER VERIFIED
+    # -----------------------------------------------------
+
     user.email_verified = True
 
+    db.add(user)
+
     db.commit()
+
     db.refresh(user)
 
-    token = create_session(db, user)
+
+    print(
+        "LOCAL EMAIL VERIFIED:",
+        {
+            "user_id":
+                user.id,
+
+            "email":
+                user.email,
+
+            "email_verified":
+                user.email_verified,
+        },
+    )
+
+
+    # -----------------------------------------------------
+    # CREATE LOCAL SESSION
+    # -----------------------------------------------------
+
+    token = create_session(
+        db,
+        user,
+    )
+
 
     response = JSONResponse(
         content={
-            "status": "success",
-            "success": True,
-            "verification_required": False,
-            "message": "تم تأكيد البريد الإلكتروني بنجاح",
-            "store_id": user.store_id,
+            "status":
+                "success",
+
+            "success":
+                True,
+
+            "verification_required":
+                False,
+
+            "message":
+                (
+                    "تم تأكيد البريد الإلكتروني بنجاح"
+                ),
+
+            "store_id":
+                user.store_id,
+
             "user": {
-                "id": user.id,
-                "username": user.username,
-                "email": user.email,
-                "email_verified": True,
+                "id":
+                    user.id,
+
+                "username":
+                    user.username,
+
+                "email":
+                    user.email,
+
+                "email_verified":
+                    True,
             },
-            "store": store_to_dict(user.store),
+
+            "store":
+                store_to_dict(
+                    user.store
+                ),
         }
     )
 
-    set_session_cookie(response, token)
+
+    set_session_cookie(
+        response,
+        token,
+    )
+
+
     return response
 
 
@@ -1497,66 +2974,150 @@ async def verify_email(
 # RESEND VERIFICATION
 # =========================================================
 
-@app.post("/api/resend-verification")
+@app.post(
+    "/api/resend-verification"
+)
 async def resend_verification(
-    email: str = Form(...),
-    db: Session = Depends(get_db),
-):
-    email = email.strip().lower()
 
-    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+    email: str = Form(...),
+
+    db: Session = Depends(
+        get_db
+    ),
+):
+
+    email = (
+        email
+        .strip()
+        .lower()
+    )
+
+
+    if not re.match(
+        r"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+        email,
+    ):
+
         raise HTTPException(
             status_code=400,
             detail="البريد الإلكتروني غير صحيح",
         )
 
+
     user = (
         db.query(UserModel)
-        .filter(UserModel.email == email)
+        .filter(
+            UserModel.email
+            == email
+        )
         .first()
     )
 
+
     if not user:
+
         raise HTTPException(
             status_code=404,
             detail="المستخدم غير موجود",
         )
 
-    if bool(user.email_verified):
+
+    if bool(
+        user.email_verified
+    ):
+
         return {
-            "status": "success",
-            "success": True,
-            "already_verified": True,
-            "message": "البريد الإلكتروني مؤكد مسبقًا",
+            "status":
+                "success",
+
+            "success":
+                True,
+
+            "already_verified":
+                True,
+
+            "message":
+                (
+                    "البريد الإلكتروني "
+                    "مؤكد مسبقًا"
+                ),
         }
 
+
+    # -----------------------------------------------------
+    # SEND NEW OTP
+    #
+    # create_user=False because this user should
+    # already exist in Supabase from initial registration.
+    # -----------------------------------------------------
+
     try:
-        await supabase_send_email_otp(email)
+
+        await supabase_send_email_otp(
+            email,
+            create_user=False,
+        )
+
+
     except Exception as exc:
-        print("SUPABASE RESEND OTP ERROR:", repr(exc))
 
-        data = getattr(exc, "supabase_data", None)
-        status = getattr(exc, "supabase_status_code", None)
+        print(
+            "SUPABASE RESEND OTP ERROR:",
+            repr(exc),
+        )
 
-        if status == 429 or is_supabase_rate_limit_error(data):
-            status = 429
-        else:
-            status = 502
+
+        data = getattr(
+            exc,
+            "supabase_data",
+            None,
+        )
+
+
+        status = getattr(
+            exc,
+            "supabase_status_code",
+            None,
+        )
+
+
+        if (
+            status == 429
+            or is_supabase_rate_limit_error(
+                data
+            )
+        ):
+
+            raise HTTPException(
+                status_code=429,
+                detail=(
+                    "تم طلب رمز مؤخرًا. "
+                    "انتظر قليلًا ثم اطلب رمزًا جديدًا."
+                ),
+            )
+
 
         raise HTTPException(
-            status_code=status,
+            status_code=502,
             detail=(
                 "تعذر إعادة إرسال رمز التحقق. "
                 f"{str(exc)}"
             ),
         )
 
+
     return {
-        "status": "success",
-        "success": True,
-        "message": (
-            "تم إرسال رمز تحقق جديد إلى بريدك الإلكتروني."
-        ),
+        "status":
+            "success",
+
+        "success":
+            True,
+
+        "message":
+            (
+                "تم إرسال رمز تحقق جديد. "
+                "استخدم أحدث رمز وصل إلى بريدك."
+            ),
     }
 
 
@@ -1566,86 +3127,175 @@ async def resend_verification(
 
 @app.post("/api/login")
 async def login(
+
     username: str = Form(...),
+
     password: str = Form(...),
-    db: Session = Depends(get_db),
+
+    db: Session = Depends(
+        get_db
+    ),
 ):
 
-    username_input = (username or "").strip()
+    username_input = (
+        username or ""
+    ).strip()
+
 
     if not username_input:
+
         raise HTTPException(
             status_code=401,
-            detail="بيانات الدخول غير صحيحة.",
+            detail=(
+                "بيانات الدخول غير صحيحة."
+            ),
         )
+
 
     user = (
         db.query(UserModel)
         .filter(
             or_(
-                UserModel.username == username_input,
-                UserModel.email == username_input.lower(),
+                UserModel.username
+                == username_input,
+
+                UserModel.email
+                == username_input.lower(),
             )
         )
         .first()
     )
 
+
     if not user:
+
         raise HTTPException(
             status_code=401,
-            detail="بيانات الدخول غير صحيحة.",
+            detail=(
+                "بيانات الدخول غير صحيحة."
+            ),
         )
+
 
     if not verify_password(
         password or "",
         user.password_hash,
     ):
+
         raise HTTPException(
             status_code=401,
-            detail="بيانات الدخول غير صحيحة.",
+            detail=(
+                "بيانات الدخول غير صحيحة."
+            ),
         )
 
-    if not bool(user.email_verified):
+
+    # -----------------------------------------------------
+    # DO NOT SEND A NEW OTP HERE
+    # -----------------------------------------------------
+    #
+    # This is important because if a new OTP is requested
+    # during login, the OTP that the user already received
+    # may become unusable.
+    # -----------------------------------------------------
+
+    if not bool(
+        user.email_verified
+    ):
+
         return JSONResponse(
             status_code=403,
             content={
-                "status": "verification_required",
-                "success": False,
-                "verification_required": True,
-                "message": (
-                    "البريد الإلكتروني غير مؤكد. "
-                    "أدخل رمز التحقق أولاً."
-                ),
-                "email": user.email,
-                "store_id": user.store_id,
+                "status":
+                    "verification_required",
+
+                "success":
+                    False,
+
+                "verification_required":
+                    True,
+
+                "message":
+                    (
+                        "البريد الإلكتروني غير مؤكد. "
+                        "أدخل رمز التحقق أو اضغط إعادة الإرسال."
+                    ),
+
+                "email":
+                    user.email,
+
+                "store_id":
+                    user.store_id,
+
                 "user": {
-                    "id": user.id,
-                    "username": user.username,
-                    "email": user.email,
-                    "email_verified": False,
+                    "id":
+                        user.id,
+
+                    "username":
+                        user.username,
+
+                    "email":
+                        user.email,
+
+                    "email_verified":
+                        False,
                 },
-            },
+            }
         )
 
-    token = create_session(db, user)
+
+    # -----------------------------------------------------
+    # VERIFIED LOGIN
+    # -----------------------------------------------------
+
+    token = create_session(
+        db,
+        user,
+    )
+
 
     response = JSONResponse(
         content={
-            "status": "success",
-            "success": True,
-            "message": "تم تسجيل الدخول بنجاح",
-            "store_id": user.store_id,
+            "status":
+                "success",
+
+            "success":
+                True,
+
+            "message":
+                "تم تسجيل الدخول بنجاح",
+
+            "store_id":
+                user.store_id,
+
             "user": {
-                "id": user.id,
-                "username": user.username,
-                "email": user.email,
-                "email_verified": True,
+                "id":
+                    user.id,
+
+                "username":
+                    user.username,
+
+                "email":
+                    user.email,
+
+                "email_verified":
+                    True,
             },
-            "store": store_to_dict(user.store),
+
+            "store":
+                store_to_dict(
+                    user.store
+                ),
         }
     )
 
-    set_session_cookie(response, token)
+
+    set_session_cookie(
+        response,
+        token,
+    )
+
+
     return response
 
 
@@ -1655,37 +3305,59 @@ async def login(
 
 @app.post("/api/logout")
 async def logout(
+
     request: Request,
-    db: Session = Depends(get_db),
+
+    db: Session = Depends(
+        get_db
+    ),
 ):
-    token = request.cookies.get(SESSION_COOKIE)
+
+    token = request.cookies.get(
+        SESSION_COOKIE
+    )
+
 
     if token:
+
         session = (
             db.query(SessionModel)
             .filter(
                 SessionModel.token_hash
-                == hash_session_token(token)
+                == hash_session_token(
+                    token
+                )
             )
             .first()
         )
 
+
         if session:
+
             db.delete(session)
+
             db.commit()
+
 
     response = JSONResponse(
         content={
-            "status": "success",
-            "success": True,
-            "message": "تم تسجيل الخروج",
+            "status":
+                "success",
+
+            "success":
+                True,
+
+            "message":
+                "تم تسجيل الخروج",
         }
     )
+
 
     response.delete_cookie(
         SESSION_COOKIE,
         path="/",
     )
+
 
     return response
 
@@ -1696,18 +3368,39 @@ async def logout(
 
 @app.get("/api/me")
 async def me(
-    user: UserModel = Depends(get_current_user),
+
+    user: UserModel = Depends(
+        get_current_user
+    ),
 ):
+
     return {
-        "status": "success",
-        "success": True,
+        "status":
+            "success",
+
+        "success":
+            True,
+
         "user": {
-            "id": user.id,
-            "username": user.username,
-            "email": user.email,
-            "email_verified": bool(user.email_verified),
+            "id":
+                user.id,
+
+            "username":
+                user.username,
+
+            "email":
+                user.email,
+
+            "email_verified":
+                bool(
+                    user.email_verified
+                ),
         },
-        "store": store_to_dict(user.store),
+
+        "store":
+            store_to_dict(
+                user.store
+            ),
     }
 
 
@@ -1717,43 +3410,101 @@ async def me(
 
 @app.post("/api/update-agent")
 async def update_agent(
+
     store_id: str = Form(...),
+
     store_url: str = Form(""),
+
     whatsapp_number: str = Form(""),
+
     agent_notes: str = Form(""),
-    pdf_file: Optional[UploadFile] = File(None),
-    user: UserModel = Depends(get_current_user),
-    db: Session = Depends(get_db),
+
+    pdf_file: Optional[
+        UploadFile
+    ] = File(None),
+
+    user: UserModel = Depends(
+        get_current_user
+    ),
+
+    db: Session = Depends(
+        get_db
+    ),
 ):
+
     if store_id != user.store_id:
-        raise HTTPException(status_code=403, detail="غير مصرح")
+
+        raise HTTPException(
+            status_code=403,
+            detail="غير مصرح",
+        )
+
 
     store = (
         db.query(StoreModel)
-        .filter(StoreModel.id == store_id)
+        .filter(
+            StoreModel.id
+            == store_id
+        )
         .first()
     )
 
-    if not store:
-        raise HTTPException(status_code=404, detail="المتجر غير موجود")
 
-    store_url = (store_url or "").strip()
-    whatsapp_number = (whatsapp_number or "").strip()
-    agent_notes = (agent_notes or "").strip()
+    if not store:
+
+        raise HTTPException(
+            status_code=404,
+            detail="المتجر غير موجود",
+        )
+
+
+    store_url = (
+        store_url
+        or ""
+    ).strip()
+
+
+    whatsapp_number = (
+        whatsapp_number
+        or ""
+    ).strip()
+
+
+    agent_notes = (
+        agent_notes
+        or ""
+    ).strip()
+
 
     if store_url:
+
         if not (
-            store_url.startswith("http://")
-            or store_url.startswith("https://")
+            store_url.startswith(
+                "http://"
+            )
+            or store_url.startswith(
+                "https://"
+            )
         ):
+
             raise HTTPException(
                 status_code=400,
-                detail="رابط المتجر يجب أن يبدأ بـ http:// أو https://",
+                detail=(
+                    "رابط المتجر يجب أن يبدأ "
+                    "بـ http:// أو https://"
+                ),
             )
 
-    normalized_phone = normalize_phone(whatsapp_number)
+
+    normalized_phone = (
+        normalize_phone(
+            whatsapp_number
+        )
+    )
+
 
     if not normalized_phone:
+
         raise HTTPException(
             status_code=400,
             detail=(
@@ -1762,67 +3513,147 @@ async def update_agent(
             ),
         )
 
-    store.store_url = store_url
-    store.whatsapp_number = normalized_phone
-    store.agent_notes = agent_notes
 
-    if pdf_file and pdf_file.filename:
-        filename = pdf_file.filename.lower()
+    store.store_url = (
+        store_url
+    )
 
-        if not filename.endswith(".pdf"):
+
+    store.whatsapp_number = (
+        normalized_phone
+    )
+
+
+    store.agent_notes = (
+        agent_notes
+    )
+
+
+    if (
+        pdf_file
+        and pdf_file.filename
+    ):
+
+        filename = (
+            pdf_file.filename
+            .lower()
+        )
+
+
+        if not filename.endswith(
+            ".pdf"
+        ):
+
             raise HTTPException(
                 status_code=400,
-                detail="الملف يجب أن يكون PDF",
+                detail=(
+                    "الملف يجب أن يكون PDF"
+                ),
             )
 
-        content = await pdf_file.read()
+
+        content = (
+            await pdf_file.read()
+        )
+
 
         if content:
-            store.catalog_text = extract_pdf_text(content)
+
+            store.catalog_text = (
+                extract_pdf_text(
+                    content
+                )
+            )
+
 
     db.commit()
+
     db.refresh(store)
+
 
     evolution_result = None
 
-    if EVOLUTION_API_URL and EVOLUTION_GLOBAL_KEY:
+
+    if (
+        EVOLUTION_API_URL
+        and EVOLUTION_GLOBAL_KEY
+    ):
+
         try:
-            async with httpx.AsyncClient(timeout=40.0) as client:
-                ensure_result = await ensure_instance(
-                    client,
-                    store,
+
+            async with httpx.AsyncClient(
+                timeout=40.0
+            ) as client:
+
+                ensure_result = (
+                    await ensure_instance(
+                        client,
+                        store,
+                    )
                 )
 
-                instance_name = ensure_result["instance_name"]
 
-                webhook_result = await configure_webhook(
-                    client,
-                    instance_name,
-                    store.id,
+                instance_name = (
+                    ensure_result[
+                        "instance_name"
+                    ]
                 )
+
+
+                webhook_result = (
+                    await configure_webhook(
+                        client,
+                        instance_name,
+                        store.id,
+                    )
+                )
+
 
                 evolution_result = {
-                    "instance_name": instance_name,
-                    "ensure": ensure_result,
-                    "webhook": webhook_result,
+                    "instance_name":
+                        instance_name,
+
+                    "ensure":
+                        ensure_result,
+
+                    "webhook":
+                        webhook_result,
                 }
 
+
         except Exception as exc:
+
             print(
                 "UPDATE AGENT EVOLUTION ERROR:",
                 repr(exc),
             )
 
+
             evolution_result = {
-                "error": str(exc)
+                "error":
+                    str(exc)
             }
 
+
     return {
-        "status": "success",
-        "success": True,
-        "message": "تم حفظ إعدادات المساعد بنجاح",
-        "store": store_to_dict(store),
-        "evolution": evolution_result,
+        "status":
+            "success",
+
+        "success":
+            True,
+
+        "message":
+            (
+                "تم حفظ إعدادات المساعد بنجاح"
+            ),
+
+        "store":
+            store_to_dict(
+                store
+            ),
+
+        "evolution":
+            evolution_result,
     }
 
 
@@ -1830,27 +3661,53 @@ async def update_agent(
 # WHATSAPP QR
 # =========================================================
 
-@app.get("/api/whatsapp/qr/{store_id}")
+@app.get(
+    "/api/whatsapp/qr/{store_id}"
+)
 async def whatsapp_qr(
+
     store_id: str,
-    user: UserModel = Depends(get_current_user),
-    db: Session = Depends(get_db),
+
+    user: UserModel = Depends(
+        get_current_user
+    ),
+
+    db: Session = Depends(
+        get_db
+    ),
 ):
+
     require_evolution_config()
 
+
     if store_id != user.store_id:
-        raise HTTPException(status_code=403, detail="غير مصرح")
+
+        raise HTTPException(
+            status_code=403,
+            detail="غير مصرح",
+        )
+
 
     store = (
         db.query(StoreModel)
-        .filter(StoreModel.id == store_id)
+        .filter(
+            StoreModel.id
+            == store_id
+        )
         .first()
     )
 
+
     if not store:
-        raise HTTPException(status_code=404, detail="المتجر غير موجود")
+
+        raise HTTPException(
+            status_code=404,
+            detail="المتجر غير موجود",
+        )
+
 
     if not store.whatsapp_number:
+
         raise HTTPException(
             status_code=400,
             detail=(
@@ -1859,59 +3716,121 @@ async def whatsapp_qr(
             ),
         )
 
-    async with httpx.AsyncClient(timeout=40.0) as client:
-        ensure_result = await ensure_instance(
-            client,
-            store,
+
+    async with httpx.AsyncClient(
+        timeout=40.0
+    ) as client:
+
+        ensure_result = (
+            await ensure_instance(
+                client,
+                store,
+            )
         )
 
-        instance_name = ensure_result["instance_name"]
 
-        webhook_result = await configure_webhook(
-            client,
-            instance_name,
-            store.id,
+        instance_name = (
+            ensure_result[
+                "instance_name"
+            ]
         )
 
-        qr_result = await get_qr_with_retry(
-            client,
-            instance_name,
-            attempts=10,
-            delay_seconds=1.5,
-            initial_result=ensure_result.get("create"),
+
+        webhook_result = (
+            await configure_webhook(
+                client,
+                instance_name,
+                store.id,
+            )
         )
+
+
+        qr_result = (
+            await get_qr_with_retry(
+                client,
+                instance_name,
+                attempts=10,
+                delay_seconds=1.5,
+                initial_result=(
+                    ensure_result.get(
+                        "create"
+                    )
+                ),
+            )
+        )
+
 
     if qr_result.get("qr"):
+
         return {
-            "status": "success",
-            "success": True,
-            "qr_code": qr_result["qr"],
-            "instance_name": instance_name,
-            "connection_state": extract_connection_state(
-                qr_result.get("data")
-            ),
-            "webhook": webhook_result,
+            "status":
+                "success",
+
+            "success":
+                True,
+
+            "qr_code":
+                qr_result["qr"],
+
+            "instance_name":
+                instance_name,
+
+            "connection_state":
+                extract_connection_state(
+                    qr_result.get(
+                        "data"
+                    )
+                ),
+
+            "webhook":
+                webhook_result,
         }
 
-    evolution_data = qr_result.get("data")
+
+    evolution_data = (
+        qr_result.get(
+            "data"
+        )
+    )
+
 
     return JSONResponse(
         status_code=502,
         content={
-            "status": "error",
-            "success": False,
-            "message": (
-                "Evolution API لم تُرجع QR Code. "
-                "راجع evolution_http_status و evolution_response."
-            ),
-            "instance_name": instance_name,
-            "evolution_http_status": qr_result.get("status_code"),
-            "connection_state": extract_connection_state(
-                evolution_data
-            ),
-            "evolution_response": evolution_data,
-            "ensure_result": ensure_result,
-            "webhook_result": webhook_result,
+            "status":
+                "error",
+
+            "success":
+                False,
+
+            "message":
+                (
+                    "Evolution API لم تُرجع QR Code. "
+                    "راجع evolution_http_status "
+                    "و evolution_response."
+                ),
+
+            "instance_name":
+                instance_name,
+
+            "evolution_http_status":
+                qr_result.get(
+                    "status_code"
+                ),
+
+            "connection_state":
+                extract_connection_state(
+                    evolution_data
+                ),
+
+            "evolution_response":
+                evolution_data,
+
+            "ensure_result":
+                ensure_result,
+
+            "webhook_result":
+                webhook_result,
         },
     )
 
@@ -1920,43 +3839,107 @@ async def whatsapp_qr(
 # WHATSAPP STATUS
 # =========================================================
 
-@app.get("/api/whatsapp/status/{store_id}")
+@app.get(
+    "/api/whatsapp/status/{store_id}"
+)
 async def whatsapp_status(
+
     store_id: str,
-    user: UserModel = Depends(get_current_user),
-    db: Session = Depends(get_db),
+
+    user: UserModel = Depends(
+        get_current_user
+    ),
+
+    db: Session = Depends(
+        get_db
+    ),
 ):
+
     require_evolution_config()
 
+
     if store_id != user.store_id:
-        raise HTTPException(status_code=403, detail="غير مصرح")
+
+        raise HTTPException(
+            status_code=403,
+            detail="غير مصرح",
+        )
+
 
     store = (
         db.query(StoreModel)
-        .filter(StoreModel.id == store_id)
+        .filter(
+            StoreModel.id
+            == store_id
+        )
         .first()
     )
 
+
     if not store:
-        raise HTTPException(status_code=404, detail="المتجر غير موجود")
 
-    instance_name = make_instance_name(store.id)
-
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        result = await evolution_status(
-            client,
-            instance_name,
+        raise HTTPException(
+            status_code=404,
+            detail="المتجر غير موجود",
         )
 
-    success = result.get("status_code") in range(200, 300)
+
+    instance_name = (
+        make_instance_name(
+            store.id
+        )
+    )
+
+
+    async with httpx.AsyncClient(
+        timeout=30.0
+    ) as client:
+
+        result = (
+            await evolution_status(
+                client,
+                instance_name,
+            )
+        )
+
+
+    success = (
+        result.get(
+            "status_code"
+        )
+        in range(
+            200,
+            300,
+        )
+    )
+
 
     return {
-        "status": "success" if success else "error",
-        "success": success,
-        "instance_name": instance_name,
-        "connection_state": result.get("state"),
-        "http_status": result.get("status_code"),
-        "evolution_response": result.get("data"),
+        "status":
+            "success"
+            if success
+            else "error",
+
+        "success":
+            success,
+
+        "instance_name":
+            instance_name,
+
+        "connection_state":
+            result.get(
+                "state"
+            ),
+
+        "http_status":
+            result.get(
+                "status_code"
+            ),
+
+        "evolution_response":
+            result.get(
+                "data"
+            ),
     }
 
 
@@ -1965,14 +3948,21 @@ async def whatsapp_status(
 # =========================================================
 
 def require_claude():
+
     if not ANTHROPIC_API_KEY:
+
         raise HTTPException(
             status_code=500,
-            detail="ANTHROPIC_API_KEY غير مضبوط",
+            detail=(
+                "ANTHROPIC_API_KEY غير مضبوط"
+            ),
         )
 
 
-def build_system_prompt(store: StoreModel):
+def build_system_prompt(
+    store: StoreModel,
+):
+
     return f"""
 أنت مساعد مبيعات ذكي يعمل لصالح متجر:
 {store.store_name}
@@ -1998,75 +3988,143 @@ def build_system_prompt(store: StoreModel):
 
 
 async def generate_ai_reply(
+
     store: StoreModel,
+
     sender_id: str,
+
     message: str,
+
     db: Session,
+
 ):
+
     require_claude()
 
+
     previous_logs = (
-        db.query(ChatLogModel)
-        .filter(
-            ChatLogModel.store_id == store.id,
-            ChatLogModel.sender_id == sender_id,
+        db.query(
+            ChatLogModel
         )
-        .order_by(ChatLogModel.created_at.desc())
+        .filter(
+            ChatLogModel.store_id
+            == store.id,
+
+            ChatLogModel.sender_id
+            == sender_id,
+        )
+        .order_by(
+            ChatLogModel.created_at.desc()
+        )
         .limit(5)
         .all()
     )
 
+
     previous_logs.reverse()
+
 
     messages = []
 
+
     for log in previous_logs:
+
         if log.user_message:
+
             messages.append(
                 {
-                    "role": "user",
-                    "content": log.user_message,
+                    "role":
+                        "user",
+
+                    "content":
+                        log.user_message,
                 }
             )
 
+
         if log.bot_response:
+
             messages.append(
                 {
-                    "role": "assistant",
-                    "content": log.bot_response,
+                    "role":
+                        "assistant",
+
+                    "content":
+                        log.bot_response,
                 }
             )
+
 
     messages.append(
         {
-            "role": "user",
-            "content": message,
+            "role":
+                "user",
+
+            "content":
+                message,
         }
     )
 
+
     client = anthropic.Anthropic(
-        api_key=ANTHROPIC_API_KEY
+        api_key=
+            ANTHROPIC_API_KEY
     )
 
-    response = client.messages.create(
-        model=ANTHROPIC_MODEL,
-        max_tokens=700,
-        system=build_system_prompt(store),
-        messages=messages,
+
+    response = (
+        client.messages.create(
+            model=
+                ANTHROPIC_MODEL,
+
+            max_tokens=
+                700,
+
+            system=
+                build_system_prompt(
+                    store
+                ),
+
+            messages=
+                messages,
+        )
     )
+
 
     if not response.content:
-        return "عذراً، لم أتمكن من إنشاء الرد."
+
+        return (
+            "عذراً، لم أتمكن من إنشاء الرد."
+        )
+
 
     parts = []
 
+
     for block in response.content:
-        if hasattr(block, "text") and block.text:
-            parts.append(block.text)
 
-    answer = "\n".join(parts).strip()
+        if (
+            hasattr(
+                block,
+                "text",
+            )
+            and block.text
+        ):
 
-    return answer or "عذراً، لم أتمكن من إنشاء الرد."
+            parts.append(
+                block.text
+            )
+
+
+    answer = "\n".join(
+        parts
+    ).strip()
+
+
+    return (
+        answer
+        or "عذراً، لم أتمكن من إنشاء الرد."
+    )
 
 
 # =========================================================
@@ -2074,9 +4132,14 @@ async def generate_ai_reply(
 # =========================================================
 
 class ChatRequest(BaseModel):
+
     store_id: str
+
     message: str
-    sender_id: Optional[str] = "preview_user"
+
+    sender_id: Optional[str] = (
+        "preview_user"
+    )
 
 
 # =========================================================
@@ -2085,54 +4148,113 @@ class ChatRequest(BaseModel):
 
 @app.post("/api/chat")
 async def widget_chat(
+
     payload: ChatRequest,
-    db: Session = Depends(get_db),
+
+    db: Session = Depends(
+        get_db
+    ),
+
 ):
+
     store = (
         db.query(StoreModel)
-        .filter(StoreModel.id == payload.store_id)
+        .filter(
+            StoreModel.id
+            == payload.store_id
+        )
         .first()
     )
 
+
     if not store:
-        raise HTTPException(status_code=404, detail="Store not found")
+
+        raise HTTPException(
+            status_code=404,
+            detail="Store not found",
+        )
+
 
     if not payload.message.strip():
-        raise HTTPException(status_code=400, detail="الرسالة فارغة")
+
+        raise HTTPException(
+            status_code=400,
+            detail="الرسالة فارغة",
+        )
+
 
     try:
-        reply_text = await generate_ai_reply(
-            store,
-            payload.sender_id or "preview_user",
-            payload.message,
-            db,
+
+        reply_text = (
+            await generate_ai_reply(
+                store,
+
+                payload.sender_id
+                or "preview_user",
+
+                payload.message,
+
+                db,
+            )
         )
+
 
         log = ChatLogModel(
-            store_id=store.id,
-            sender_id=payload.sender_id or "preview_user",
-            user_message=payload.message,
-            bot_response=reply_text,
+            store_id=
+                store.id,
+
+            sender_id=(
+                payload.sender_id
+                or "preview_user"
+            ),
+
+            user_message=
+                payload.message,
+
+            bot_response=
+                reply_text,
         )
 
+
         db.add(log)
+
         db.commit()
 
+
         return {
-            "status": "success",
-            "success": True,
-            "reply": reply_text,
-            "response": reply_text,
+            "status":
+                "success",
+
+            "success":
+                True,
+
+            "reply":
+                reply_text,
+
+            "response":
+                reply_text,
         }
 
+
     except HTTPException:
+
         raise
 
+
     except Exception as exc:
-        print("CHAT ERROR:", repr(exc))
+
+        print(
+            "CHAT ERROR:",
+            repr(exc),
+        )
+
+
         raise HTTPException(
             status_code=500,
-            detail="حدث خطأ أثناء الاتصال بالذكاء الاصطناعي",
+            detail=(
+                "حدث خطأ أثناء الاتصال "
+                "بالذكاء الاصطناعي"
+            ),
         )
 
 
@@ -2141,20 +4263,32 @@ async def widget_chat(
 # =========================================================
 
 async def evolution_send_text(
+
     client: httpx.AsyncClient,
+
     instance_name: str,
+
     number: str,
+
     message: str,
+
 ):
+
     url = (
         f"{EVOLUTION_API_URL}"
-        f"/message/sendText/{instance_name}"
+        f"/message/sendText/"
+        f"{instance_name}"
     )
 
+
     payload = {
-        "number": number,
-        "text": message,
+        "number":
+            number,
+
+        "text":
+            message,
     }
+
 
     response = await client.post(
         url,
@@ -2162,7 +4296,11 @@ async def evolution_send_text(
         json=payload,
     )
 
-    data = safe_json(response)
+
+    data = safe_json(
+        response
+    )
+
 
     print(
         "EVOLUTION SEND TEXT:",
@@ -2170,62 +4308,174 @@ async def evolution_send_text(
         data,
     )
 
+
     return {
-        "status_code": response.status_code,
-        "data": data,
+        "status_code":
+            response.status_code,
+
+        "data":
+            data,
     }
 
 
 # =========================================================
-# WHATSAPP WEBHOOK MESSAGE EXTRACTION
+# WHATSAPP MESSAGE EXTRACTION
 # =========================================================
 
-def extract_whatsapp_message(payload: dict):
-    if not isinstance(payload, dict):
+def extract_whatsapp_message(
+    payload: dict,
+):
+
+    if not isinstance(
+        payload,
+        dict,
+    ):
+
         return None, None
 
-    data = payload.get("data", payload)
 
-    if not isinstance(data, dict):
+    data = payload.get(
+        "data",
+        payload,
+    )
+
+
+    if not isinstance(
+        data,
+        dict,
+    ):
+
         return None, None
 
-    key = data.get("key", {})
 
-    if not isinstance(key, dict):
+    key = data.get(
+        "key",
+        {},
+    )
+
+
+    if not isinstance(
+        key,
+        dict,
+    ):
+
         key = {}
 
-    sender = key.get("remoteJid", "")
 
-    message_data = data.get("message", {})
+    sender = key.get(
+        "remoteJid",
+        "",
+    )
 
-    if not isinstance(message_data, dict):
+
+    message_data = data.get(
+        "message",
+        {},
+    )
+
+
+    if not isinstance(
+        message_data,
+        dict,
+    ):
+
         return sender, None
 
-    conversation = message_data.get("conversation")
+
+    conversation = (
+        message_data.get(
+            "conversation"
+        )
+    )
+
 
     if conversation:
-        return sender, str(conversation)
 
-    extended = message_data.get("extendedTextMessage", {})
+        return (
+            sender,
+            str(
+                conversation
+            ),
+        )
 
-    if isinstance(extended, dict):
-        value = extended.get("text")
+
+    extended = (
+        message_data.get(
+            "extendedTextMessage",
+            {},
+        )
+    )
+
+
+    if isinstance(
+        extended,
+        dict,
+    ):
+
+        value = extended.get(
+            "text"
+        )
+
+
         if value:
-            return sender, str(value)
 
-    image_message = message_data.get("imageMessage", {})
+            return (
+                sender,
+                str(value),
+            )
 
-    if isinstance(image_message, dict):
-        caption = image_message.get("caption")
+
+    image_message = (
+        message_data.get(
+            "imageMessage",
+            {},
+        )
+    )
+
+
+    if isinstance(
+        image_message,
+        dict,
+    ):
+
+        caption = image_message.get(
+            "caption"
+        )
+
+
         if caption:
-            return sender, str(caption)
 
-    video_message = message_data.get("videoMessage", {})
+            return (
+                sender,
+                str(caption),
+            )
 
-    if isinstance(video_message, dict):
-        caption = video_message.get("caption")
+
+    video_message = (
+        message_data.get(
+            "videoMessage",
+            {},
+        )
+    )
+
+
+    if isinstance(
+        video_message,
+        dict,
+    ):
+
+        caption = video_message.get(
+            "caption"
+        )
+
+
         if caption:
-            return sender, str(caption)
+
+            return (
+                sender,
+                str(caption),
+            )
+
 
     return sender, None
 
@@ -2234,23 +4484,45 @@ def extract_whatsapp_message(payload: dict):
 # WHATSAPP WEBHOOK
 # =========================================================
 
-@app.post("/api/whatsapp/webhook/{store_id}")
+@app.post(
+    "/api/whatsapp/webhook/{store_id}"
+)
 async def whatsapp_webhook(
+
     store_id: str,
+
     request: Request,
-    db: Session = Depends(get_db),
+
+    db: Session = Depends(
+        get_db
+    ),
+
 ):
+
     store = (
         db.query(StoreModel)
-        .filter(StoreModel.id == store_id)
+        .filter(
+            StoreModel.id
+            == store_id
+        )
         .first()
     )
 
+
     if not store:
-        return {"status": "store_not_found"}
+
+        return {
+            "status":
+                "store_not_found"
+        }
+
 
     try:
-        payload = await request.json()
+
+        payload = (
+            await request.json()
+        )
+
 
         print(
             "WHATSAPP WEBHOOK:",
@@ -2258,91 +4530,194 @@ async def whatsapp_webhook(
             payload,
         )
 
-        sender, incoming_text = extract_whatsapp_message(payload)
+
+        sender, incoming_text = (
+            extract_whatsapp_message(
+                payload
+            )
+        )
+
 
         if not sender:
+
             return {
-                "status": "ignored",
-                "reason": "sender missing",
+                "status":
+                    "ignored",
+
+                "reason":
+                    "sender missing",
             }
+
 
         if not incoming_text:
+
             return {
-                "status": "ignored",
-                "reason": "text missing",
+                "status":
+                    "ignored",
+
+                "reason":
+                    "text missing",
             }
 
-        if sender.endswith("@g.us"):
+
+        if sender.endswith(
+            "@g.us"
+        ):
+
             return {
-                "status": "ignored",
-                "reason": "group",
+                "status":
+                    "ignored",
+
+                "reason":
+                    "group",
             }
 
-        if sender.endswith("@broadcast"):
+
+        if sender.endswith(
+            "@broadcast"
+        ):
+
             return {
-                "status": "ignored",
-                "reason": "broadcast",
+                "status":
+                    "ignored",
+
+                "reason":
+                    "broadcast",
             }
 
-        data = payload.get("data", payload)
+
+        data = payload.get(
+            "data",
+            payload,
+        )
+
 
         key = (
-            data.get("key", {})
-            if isinstance(data, dict)
+            data.get(
+                "key",
+                {},
+            )
+            if isinstance(
+                data,
+                dict,
+            )
             else {}
         )
 
-        if key.get("fromMe", False):
+
+        if key.get(
+            "fromMe",
+            False,
+        ):
+
             return {
-                "status": "ignored",
-                "reason": "from_me",
+                "status":
+                    "ignored",
+
+                "reason":
+                    "from_me",
             }
 
-        incoming_text = incoming_text.strip()
 
-        reply_text = await generate_ai_reply(
-            store,
-            sender,
-            incoming_text,
-            db,
+        incoming_text = (
+            incoming_text
+            .strip()
         )
+
+
+        reply_text = (
+            await generate_ai_reply(
+                store,
+                sender,
+                incoming_text,
+                db,
+            )
+        )
+
 
         log = ChatLogModel(
-            store_id=store.id,
-            sender_id=sender,
-            user_message=incoming_text,
-            bot_response=reply_text,
+            store_id=
+                store.id,
+
+            sender_id=
+                sender,
+
+            user_message=
+                incoming_text,
+
+            bot_response=
+                reply_text,
         )
 
+
         db.add(log)
+
         db.commit()
 
-        instance_name = make_instance_name(store.id)
-        target_number = sender.split("@")[0]
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            send_result = await evolution_send_text(
-                client,
-                instance_name,
-                target_number,
-                reply_text,
+        instance_name = (
+            make_instance_name(
+                store.id
+            )
+        )
+
+
+        target_number = (
+            sender.split(
+                "@"
+            )[0]
+        )
+
+
+        async with httpx.AsyncClient(
+            timeout=30.0
+        ) as client:
+
+            send_result = (
+                await evolution_send_text(
+                    client,
+                    instance_name,
+                    target_number,
+                    reply_text,
+                )
             )
 
+
         return {
-            "status": "success",
+            "status":
+                "success",
+
             "sent": (
-                send_result["status_code"]
-                in range(200, 300)
+                send_result[
+                    "status_code"
+                ]
+                in range(
+                    200,
+                    300,
+                )
             ),
-            "evolution_status": send_result["status_code"],
+
+            "evolution_status":
+                send_result[
+                    "status_code"
+                ],
         }
 
+
     except Exception as exc:
-        print("WHATSAPP WEBHOOK ERROR:", repr(exc))
+
+        print(
+            "WHATSAPP WEBHOOK ERROR:",
+            repr(exc),
+        )
+
 
         return {
-            "status": "error",
-            "error": str(exc),
+            "status":
+                "error",
+
+            "error":
+                str(exc),
         }
 
 
@@ -2352,51 +4727,106 @@ async def whatsapp_webhook(
 
 @app.on_event("startup")
 async def startup_event():
-    print("================================================")
-    print("SMART AI STORE ASSISTANT STARTING")
+
+    print(
+        "================================================"
+    )
+
+
+    print(
+        "SMART AI STORE ASSISTANT STARTING"
+    )
+
 
     print(
         "DATABASE:",
-        "configured" if DATABASE_URL else "missing",
+        (
+            "configured"
+            if DATABASE_URL
+            else "missing"
+        ),
     )
+
 
     print(
         "EVOLUTION URL:",
-        EVOLUTION_API_URL if EVOLUTION_API_URL else "missing",
+        (
+            EVOLUTION_API_URL
+            if EVOLUTION_API_URL
+            else "missing"
+        ),
     )
+
 
     print(
         "EVOLUTION KEY:",
-        "configured" if EVOLUTION_GLOBAL_KEY else "missing",
+        (
+            "configured"
+            if EVOLUTION_GLOBAL_KEY
+            else "missing"
+        ),
     )
+
 
     print(
         "WEBHOOK BASE URL:",
-        WEBHOOK_BASE_URL if WEBHOOK_BASE_URL else "missing",
+        (
+            WEBHOOK_BASE_URL
+            if WEBHOOK_BASE_URL
+            else "missing"
+        ),
     )
+
 
     print(
         "SUPABASE URL:",
-        SUPABASE_URL if SUPABASE_URL else "missing",
+        (
+            SUPABASE_URL
+            if SUPABASE_URL
+            else "missing"
+        ),
     )
+
 
     print(
         "SUPABASE KEY:",
-        "configured" if SUPABASE_ANON_KEY else "missing",
+        (
+            "configured"
+            if SUPABASE_ANON_KEY
+            else "missing"
+        ),
     )
+
 
     print(
         "SUPABASE AUTH:",
-        "ready" if supabase_configuration_ready() else "missing",
+        (
+            "ready"
+            if supabase_configuration_ready()
+            else "missing"
+        ),
     )
+
 
     print(
         "ANTHROPIC KEY:",
-        "configured" if ANTHROPIC_API_KEY else "missing",
+        (
+            "configured"
+            if ANTHROPIC_API_KEY
+            else "missing"
+        ),
     )
 
-    print("ANTHROPIC MODEL:", ANTHROPIC_MODEL)
-    print("================================================")
+
+    print(
+        "ANTHROPIC MODEL:",
+        ANTHROPIC_MODEL,
+    )
+
+
+    print(
+        "================================================"
+    )
 
 
 # =========================================================
@@ -2404,9 +4834,17 @@ async def startup_event():
 # =========================================================
 
 if __name__ == "__main__":
+
     import uvicorn
 
-    port = int(os.getenv("PORT", "10000"))
+
+    port = int(
+        os.getenv(
+            "PORT",
+            "10000",
+        )
+    )
+
 
     uvicorn.run(
         "main:app",
