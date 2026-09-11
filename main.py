@@ -1328,31 +1328,33 @@ async def register_store(
     except Exception as exc:
         print("SUPABASE REGISTER OTP ERROR:", repr(exc))
 
-        try:
-            db.delete(user)
-            db.delete(store)
-            db.commit()
-        except Exception:
-            db.rollback()
-
         status = getattr(exc, "supabase_status_code", None)
+        data = getattr(exc, "supabase_data", None)
         error_text = str(exc)
 
-        if status == 429:
+        if status == 429 or is_supabase_rate_limit_error(data):
             status = 429
-        elif is_supabase_rate_limit_error(
-            getattr(exc, "supabase_data", None)
-        ):
-            status = 429
+            detail = (
+                "تم طلب رمز تحقق مؤخرًا. "
+                "انتظر قليلًا ثم اضغط إعادة إرسال الرمز."
+            )
         else:
             status = 502
+            detail = (
+                "تعذر إرسال رسالة التحقق عبر Supabase. "
+                f"{error_text}"
+            )
+
+        # Keep the local account. This allows the user to retry using
+        # /api/resend-verification instead of creating duplicate accounts.
+        try:
+            db.refresh(user)
+        except Exception:
+            pass
 
         raise HTTPException(
             status_code=status,
-            detail=(
-                "تعذر إرسال رسالة التحقق عبر Supabase. "
-                f"{error_text}"
-            ),
+            detail=detail,
         )
 
     return {
@@ -1607,38 +1609,26 @@ async def login(
 
     if not bool(user.email_verified):
 
-        message = (
-            "البريد الإلكتروني غير مؤكد. "
-            "تم إرسال رمز تحقق جديد إلى بريدك."
-        )
-
-        try:
-            await supabase_send_email_otp(user.email)
-        except Exception as exc:
-            print("LOGIN OTP SEND ERROR:", repr(exc))
-
-            data = getattr(exc, "supabase_data", None)
-
-            if is_supabase_rate_limit_error(data):
-                message = (
-                    "البريد الإلكتروني غير مؤكد. "
-                    "لديك رمز تحقق تم إرساله مسبقًا؛ "
-                    "حاول استخدامه أو أعد الإرسال بعد قليل."
-                )
-            else:
-                message = (
-                    "البريد الإلكتروني غير مؤكد. "
-                    "أدخل رمز التحقق الذي وصلك، "
-                    "أو استخدم إعادة الإرسال."
-                )
-
+        # IMPORTANT:
+        # Do NOT send another OTP automatically during login.
+        # Sending a new OTP invalidates/replaces the previous active code
+        # in Supabase, which can make a user enter an older code and receive
+        # an "expired" / "invalid" error.
+        #
+        # A new OTP is sent only from:
+        #   1) registration
+        #   2) explicit resend action
         return JSONResponse(
             status_code=403,
             content={
                 "status": "verification_required",
                 "success": False,
                 "verification_required": True,
-                "message": message,
+                "message": (
+                    "البريد الإلكتروني غير مؤكد. "
+                    "استخدم رمز التحقق الذي وصلك، "
+                    "أو اضغط إعادة إرسال للحصول على رمز جديد."
+                ),
                 "email": user.email,
                 "store_id": user.store_id,
                 "user": {
