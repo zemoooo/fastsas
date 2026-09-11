@@ -8,3 +8,15 @@ sqlalchemy
 python-multipart
 httpx
 psycopg2-binary
+langgraph
+langchain-core
+langchain-anthropic
+firecrawl-py
+tavily-python
+playwright
+google-api-python-client
+google-auth-oauthlib
+google-auth-httplib2
+shopify-python-api
+pgvector
+numpy
