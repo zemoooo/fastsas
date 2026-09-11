@@ -1606,16 +1606,39 @@ async def login(
         )
 
     if not bool(user.email_verified):
+
+        message = (
+            "البريد الإلكتروني غير مؤكد. "
+            "تم إرسال رمز تحقق جديد إلى بريدك."
+        )
+
+        try:
+            await supabase_send_email_otp(user.email)
+        except Exception as exc:
+            print("LOGIN OTP SEND ERROR:", repr(exc))
+
+            data = getattr(exc, "supabase_data", None)
+
+            if is_supabase_rate_limit_error(data):
+                message = (
+                    "البريد الإلكتروني غير مؤكد. "
+                    "لديك رمز تحقق تم إرساله مسبقًا؛ "
+                    "حاول استخدامه أو أعد الإرسال بعد قليل."
+                )
+            else:
+                message = (
+                    "البريد الإلكتروني غير مؤكد. "
+                    "أدخل رمز التحقق الذي وصلك، "
+                    "أو استخدم إعادة الإرسال."
+                )
+
         return JSONResponse(
             status_code=403,
             content={
                 "status": "verification_required",
                 "success": False,
                 "verification_required": True,
-                "message": (
-                    "البريد الإلكتروني غير مؤكد. "
-                    "أدخل رمز التحقق أولاً."
-                ),
+                "message": message,
                 "email": user.email,
                 "store_id": user.store_id,
                 "user": {
