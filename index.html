@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>منصة المساعد الذكي للمتاجر</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -18,29 +17,24 @@
             font-family: 'Cairo', sans-serif;
         }
 
-        .hidden-force {
+        .hidden {
             display: none !important;
-        }
-
-        button:disabled {
-            cursor: not-allowed;
-            opacity: 0.65;
         }
     </style>
 </head>
 
 <body class="bg-slate-100 min-h-screen text-slate-800 flex items-center justify-center p-4">
 
-    <!-- =====================================================
+    <!-- =========================================================
          AUTH SECTION
-    ====================================================== -->
+    ========================================================== -->
 
     <div
         id="authSection"
         class="w-full max-w-5xl bg-white rounded-3xl shadow-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-2 my-auto"
     >
 
-        <!-- الجانب الخاص بالتسجيل والدخول -->
+        <!-- FORM SIDE -->
         <div class="p-8 md:p-12 flex flex-col justify-center order-2 lg:order-1">
 
             <div
@@ -48,10 +42,7 @@
                 class="hidden mb-6 p-4 rounded-xl text-sm font-semibold border"
             ></div>
 
-            <!-- =================================================
-                 REGISTER
-            ================================================== -->
-
+            <!-- REGISTER -->
             <div id="registerFormContainer">
 
                 <div class="text-center lg:text-right mb-6">
@@ -67,16 +58,11 @@
                     </h2>
 
                     <p class="text-slate-500 text-sm mt-1">
-                        أدخل بيانات متجرك للبدء في استخدام المساعد الذكي.
+                        أنشئ حساب متجرك للبدء في استخدام المساعد الذكي.
                     </p>
-
                 </div>
 
-                <form
-                    id="registerForm"
-                    class="space-y-4"
-                    novalidate
-                >
+                <form id="registerForm" class="space-y-4">
 
                     <!-- اسم المتجر -->
                     <div>
@@ -96,10 +82,29 @@
                         >
                     </div>
 
-                    <!-- البريد -->
+                    <!-- اسم المستخدم -->
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 mb-1">
-                            إيميل المتجر
+                            اسم المستخدم
+                            <span class="text-red-500">*</span>
+                        </label>
+
+                        <input
+                            type="text"
+                            id="reg_username"
+                            name="username"
+                            required
+                            minlength="3"
+                            autocomplete="username"
+                            placeholder="مثال: store_admin"
+                            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm"
+                        >
+                    </div>
+
+                    <!-- الايميل -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">
+                            الإيميل
                             <span class="text-red-500">*</span>
                         </label>
 
@@ -114,35 +119,12 @@
                         >
                     </div>
 
-                    <!-- واتساب -->
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">
-                            رقم واتساب المتجر
-                            <span class="text-red-500">*</span>
-                        </label>
-
-                        <input
-                            type="tel"
-                            id="reg_whatsapp_number"
-                            name="whatsapp_number"
-                            required
-                            autocomplete="tel"
-                            inputmode="numeric"
-                            placeholder="مثال: 967770000000"
-                            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm"
-                        >
-
-                        <p class="text-[11px] text-slate-400 mt-1">
-                            أدخل الرقم مع مفتاح الدولة وبدون علامة +
-                        </p>
-                    </div>
-
-                    <!-- كلمات السر -->
+                    <!-- كلمات المرور -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
 
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 mb-1">
-                                كلمة السر
+                                كلمة المرور
                                 <span class="text-red-500">*</span>
                             </label>
 
@@ -160,7 +142,7 @@
 
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 mb-1">
-                                تأكيد كلمة السر
+                                تأكيد كلمة المرور
                                 <span class="text-red-500">*</span>
                             </label>
 
@@ -178,63 +160,12 @@
 
                     </div>
 
-                    <!-- رابط المتجر -->
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">
-                            رابط المتجر
-                            <span class="text-slate-400">(اختياري)</span>
-                        </label>
-
-                        <input
-                            type="url"
-                            id="reg_store_url"
-                            name="store_url"
-                            placeholder="https://example.com"
-                            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm"
-                        >
-                    </div>
-
-                    <!-- تعليمات -->
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">
-                            تعليمات المساعد
-                            <span class="text-slate-400">(اختياري ويمكن تعديلها لاحقًا)</span>
-                        </label>
-
-                        <textarea
-                            id="reg_agent_notes"
-                            name="agent_notes"
-                            rows="3"
-                            placeholder="مثال: رحب بالعميل، اذكر الأسعار من الكتالوج، أوقات العمل..."
-                            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm"
-                        ></textarea>
-                    </div>
-
-                    <!-- PDF -->
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">
-                            كتالوج المنتجات PDF
-                            <span class="text-slate-400">(اختياري)</span>
-                        </label>
-
-                        <input
-                            type="file"
-                            id="reg_pdf_file"
-                            name="pdf_file"
-                            accept=".pdf,application/pdf"
-                            class="w-full text-xs text-slate-500 file:mr-3 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-slate-200 rounded-xl bg-slate-50"
-                        >
-                    </div>
-
-                    <!-- زر التسجيل -->
                     <button
                         type="submit"
                         id="registerBtn"
                         class="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/30 transition text-sm flex justify-center items-center gap-2 mt-2"
                     >
-                        <span id="registerBtnText">
-                            تسجيل الحساب
-                        </span>
+                        <span>تسجيل الحساب</span>
 
                         <span
                             id="registerSpinner"
@@ -255,14 +186,10 @@
                     </button>
 
                 </div>
-
             </div>
 
 
-            <!-- =================================================
-                 LOGIN
-            ================================================== -->
-
+            <!-- LOGIN -->
             <div id="loginFormContainer" class="hidden">
 
                 <div class="text-center lg:text-right mb-6">
@@ -278,51 +205,40 @@
                     </h2>
 
                     <p class="text-slate-500 text-sm mt-1">
-                        أدخل إيميل متجرك وكلمة السر للمتابعة.
+                        أدخل اسم المستخدم أو الإيميل وكلمة المرور.
                     </p>
-
                 </div>
 
-                <form
-                    id="loginForm"
-                    class="space-y-4"
-                    novalidate
-                >
+                <form id="loginForm" class="space-y-4">
 
                     <div>
-
                         <label class="block text-xs font-semibold text-slate-700 mb-1">
-                            إيميل المتجر
+                            اسم المستخدم أو الإيميل
                         </label>
 
                         <input
-                            type="email"
-                            id="loginUsername"
+                            type="text"
                             name="username"
                             required
                             autocomplete="username"
-                            placeholder="store@example.com"
+                            placeholder="اسم المستخدم أو store@example.com"
                             class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm"
                         >
-
                     </div>
 
                     <div>
-
                         <label class="block text-xs font-semibold text-slate-700 mb-1">
-                            كلمة السر
+                            كلمة المرور
                         </label>
 
                         <input
                             type="password"
-                            id="loginPassword"
                             name="password"
                             required
                             autocomplete="current-password"
                             placeholder="••••••••"
                             class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm"
                         >
-
                     </div>
 
                     <button
@@ -330,16 +246,12 @@
                         id="loginBtn"
                         class="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/30 transition text-sm flex justify-center items-center gap-2"
                     >
-
-                        <span id="loginBtnText">
-                            دخول
-                        </span>
+                        <span>دخول</span>
 
                         <span
                             id="loginSpinner"
                             class="hidden animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"
                         ></span>
-
                     </button>
 
                 </form>
@@ -355,16 +267,12 @@
                     </button>
 
                 </div>
-
             </div>
 
         </div>
 
 
-        <!-- =====================================================
-             الجانب البصري
-        ====================================================== -->
-
+        <!-- INFO SIDE -->
         <div
             class="bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 p-8 lg:p-12 text-white flex flex-col justify-between order-1 lg:order-2 relative overflow-hidden"
         >
@@ -383,32 +291,37 @@
             <div class="my-12 relative z-10 text-center lg:text-right">
 
                 <h1 class="text-3xl lg:text-4xl font-extrabold leading-tight mb-4">
-                    إعداد المساعد الذكي
-                    <br class="hidden lg:block">
-                    لمتجرك بكل سهولة
+                    مساعد ذكي<br class="hidden lg:block">
+                    لمتجرك عبر الواتساب
                 </h1>
 
                 <p class="text-indigo-100 text-sm lg:text-base leading-relaxed max-w-md">
-                    سجل حسابك الآن، أضف رقم واتساب وخصص تعليمات الذكاء الاصطناعي وكتالوج منتجاتك، ثم اربط المساعد بالواتساب.
+                    أنشئ حسابك، أضف رابط متجرك ورقم الواتساب وتعليمات المساعد، ثم قم بربط واتساب بواسطة رمز QR.
                 </p>
 
             </div>
 
             <div class="grid grid-cols-3 gap-3 relative z-10">
 
-                <div class="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/15 text-center">
-                    <div class="text-base mb-1">📝</div>
-                    <div class="text-xs font-bold">1. التسجيل</div>
+                <div
+                    class="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/15 text-center"
+                >
+                    <div class="text-base mb-1">👤</div>
+                    <div class="text-xs font-bold">1. الحساب</div>
                 </div>
 
-                <div class="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/15 text-center">
+                <div
+                    class="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/15 text-center"
+                >
                     <div class="text-base mb-1">⚙️</div>
-                    <div class="text-xs font-bold">2. الإعدادات</div>
+                    <div class="text-xs font-bold">2. الإعداد</div>
                 </div>
 
-                <div class="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/15 text-center">
-                    <div class="text-base mb-1">🚀</div>
-                    <div class="text-xs font-bold">3. ربط واتساب</div>
+                <div
+                    class="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/15 text-center"
+                >
+                    <div class="text-base mb-1">📱</div>
+                    <div class="text-xs font-bold">3. واتساب</div>
                 </div>
 
             </div>
@@ -418,16 +331,16 @@
     </div>
 
 
-    <!-- =====================================================
+    <!-- =========================================================
          AGENT SECTION
-    ====================================================== -->
+    ========================================================== -->
 
     <div
         id="agentSection"
         class="hidden w-full max-w-4xl bg-white rounded-3xl shadow-2xl p-6 md:p-10 space-y-8 border border-slate-200 my-auto"
     >
 
-        <!-- العنوان -->
+        <!-- HEADER -->
         <div class="flex justify-between items-center border-b pb-6 gap-4">
 
             <div class="flex items-center gap-4">
@@ -439,7 +352,6 @@
                 </div>
 
                 <div>
-
                     <h2
                         id="displayStoreName"
                         class="text-2xl font-black text-slate-900"
@@ -454,6 +366,10 @@
                         store@example.com
                     </p>
 
+                    <p
+                        id="displayUsername"
+                        class="text-xs text-indigo-600 font-bold mt-1"
+                    ></p>
                 </div>
 
             </div>
@@ -469,103 +385,169 @@
         </div>
 
 
-        <!-- رسالة لوحة التحكم -->
-        <div
-            id="agentAlert"
-            class="hidden p-4 rounded-xl text-sm font-semibold border"
-        ></div>
+        <!-- STEPS -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
 
-
-        <!-- =================================================
-             إعداد الوكيل
-        ================================================== -->
-
-        <form
-            id="agentSetupForm"
-            class="space-y-6"
-            enctype="multipart/form-data"
-        >
-
-            <h3 class="text-lg font-bold text-slate-800 border-r-4 border-indigo-600 pr-3">
-                إعداد بيانات الوكيل الذكي
-            </h3>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                <!-- رقم الواتساب -->
-                <div>
-
-                    <label class="block text-xs font-bold text-slate-700 mb-1.5">
-                        رقم المتجر - واتساب
-                        <span class="text-red-500">*</span>
-                    </label>
-
-                    <input
-                        type="tel"
-                        id="whatsapp_number"
-                        name="whatsapp_number"
-                        required
-                        inputmode="numeric"
-                        placeholder="مثال: 967770000000"
-                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm"
-                    >
-
-                    <p class="text-[11px] text-slate-400 mt-1">
-                        استخدم المفتاح الدولي، مثال اليمن: 967770000000
-                    </p>
-
+            <div class="p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
+                <div class="text-indigo-600 font-black text-sm">
+                    1
                 </div>
-
-
-                <!-- PDF -->
-                <div>
-
-                    <label class="block text-xs font-bold text-slate-700 mb-1.5">
-                        كتالوج المنتجات PDF
-                    </label>
-
-                    <input
-                        type="file"
-                        id="pdf_file"
-                        name="pdf_file"
-                        accept=".pdf,application/pdf"
-                        class="w-full text-xs text-slate-500 file:mr-3 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-slate-200 rounded-xl bg-slate-50"
-                    >
-
+                <div class="font-bold text-sm mt-1">
+                    بيانات المتجر
                 </div>
+            </div>
+
+            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                <div class="text-slate-500 font-black text-sm">
+                    2
+                </div>
+                <div class="font-bold text-sm mt-1">
+                    إعداد المساعد
+                </div>
+            </div>
+
+            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                <div class="text-slate-500 font-black text-sm">
+                    3
+                </div>
+                <div class="font-bold text-sm mt-1">
+                    ربط واتساب
+                </div>
+            </div>
+
+        </div>
+
+
+        <!-- AGENT FORM -->
+        <form id="agentSetupForm" class="space-y-6">
+
+            <div>
+
+                <h3
+                    class="text-lg font-bold text-slate-800 border-r-4 border-indigo-600 pr-3"
+                >
+                    إعداد بيانات المتجر والمساعد
+                </h3>
+
+                <p class="text-xs text-slate-500 mt-2">
+                    أدخل بيانات متجرك. يمكنك تعديلها لاحقاً بعد تسجيل الدخول.
+                </p>
 
             </div>
 
 
-            <!-- التعليمات -->
+            <!-- STORE URL -->
             <div>
 
                 <label class="block text-xs font-bold text-slate-700 mb-1.5">
-                    تعليمات الذكاء الاصطناعي
+                    رابط المتجر
+                    <span class="text-red-500">*</span>
+                </label>
+
+                <input
+                    type="url"
+                    id="store_url"
+                    name="store_url"
+                    required
+                    placeholder="https://example.com"
+                    class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm"
+                >
+
+                <p class="text-[11px] text-slate-400 mt-1.5">
+                    مثال: https://my-store.com
+                </p>
+
+            </div>
+
+
+            <!-- WHATSAPP -->
+            <div>
+
+                <label class="block text-xs font-bold text-slate-700 mb-1.5">
+                    رقم المتجر / واتساب
+                    <span class="text-red-500">*</span>
+                </label>
+
+                <input
+                    type="tel"
+                    id="whatsapp_number"
+                    name="whatsapp_number"
+                    required
+                    placeholder="967770000000"
+                    class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm"
+                >
+
+                <p class="text-[11px] text-slate-400 mt-1.5">
+                    اكتب الرقم مع مفتاح الدولة وبدون علامة + أو مسافات.
+                    مثال اليمن: 967770000000
+                </p>
+
+            </div>
+
+
+            <!-- AI NOTES -->
+            <div>
+
+                <label class="block text-xs font-bold text-slate-700 mb-1.5">
+                    تعليمات المساعد الذكي
                     <span class="text-red-500">*</span>
                 </label>
 
                 <textarea
                     id="agent_notes"
                     name="agent_notes"
-                    rows="5"
+                    rows="6"
                     required
-                    placeholder="اكتب كيفية التعامل مع العملاء، سياسة الإرجاع، أوقات العمل، طرق الدفع..."
+                    placeholder="مثال:
+أنت مساعد متجر الأناقة.
+رحب بالعميل.
+أجب عن المنتجات والأسعار.
+اذكر سياسة الاستبدال والاسترجاع.
+أوقات العمل من 9 صباحاً إلى 10 مساءً.
+لا تعطِ معلومات غير موجودة في بيانات المتجر."
                     class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm leading-relaxed"
                 ></textarea>
 
             </div>
 
 
-            <!-- زر بدء المساعد -->
+            <!-- PDF -->
+            <div>
+
+                <label class="block text-xs font-bold text-slate-700 mb-1.5">
+                    كتالوج المنتجات PDF
+                    <span class="text-slate-400 font-normal">
+                        (اختياري)
+                    </span>
+                </label>
+
+                <input
+                    type="file"
+                    id="pdf_file"
+                    name="pdf_file"
+                    accept=".pdf,application/pdf"
+                    class="w-full text-xs text-slate-500 file:mr-3 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-slate-200 rounded-xl bg-slate-50"
+                >
+
+                <p
+                    id="catalogStatus"
+                    class="text-[11px] text-slate-400 mt-2"
+                >
+                    يمكنك رفع ملف PDF يحتوي على المنتجات والأسعار.
+                </p>
+
+            </div>
+
+
+            <!-- BUTTON -->
             <button
                 type="submit"
                 id="startAgentBtn"
-                class="w-full py-4 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-2xl shadow-xl shadow-emerald-600/30 transition text-base flex justify-center items-center gap-2"
+                class="w-full py-4 px-6 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-extrabold rounded-2xl shadow-xl shadow-emerald-600/30 transition text-base flex justify-center items-center gap-2"
             >
 
                 <span id="startAgentText">
-                    🚀 حفظ وتشغيل المساعد
+                    💾 حفظ البيانات وتشغيل المساعد
                 </span>
 
                 <span
@@ -578,33 +560,38 @@
         </form>
 
 
-        <!-- =================================================
-             QR
-        ================================================== -->
+        <!-- STATUS -->
+        <div
+            id="agentStatus"
+            class="hidden p-4 rounded-2xl border text-sm font-semibold"
+        ></div>
 
+
+        <!-- QR SECTION -->
         <div
             id="qrSection"
-            class="hidden bg-gradient-to-br from-slate-900 to-indigo-950 p-6 md:p-8 rounded-3xl text-white shadow-xl space-y-6 transition-all duration-300"
+            class="hidden bg-gradient-to-br from-slate-900 to-indigo-950 p-6 md:p-8 rounded-3xl text-white shadow-xl space-y-6"
         >
 
             <div class="text-center max-w-md mx-auto space-y-2">
 
                 <span
-                    class="px-3 py-1 bg-emerald-500/20 text-emerald-300 text-xs font-bold rounded-full border border-emerald-400/30"
+                    class="inline-block px-3 py-1 bg-emerald-500/20 text-emerald-300 text-xs font-bold rounded-full border border-emerald-400/30"
                 >
-                    تم تجهيز الربط
+                    جاهز لربط واتساب
                 </span>
 
                 <h3 class="font-black text-xl text-white">
-                    امسح QR لربط الواتساب
+                    امسح رمز QR
                 </h3>
 
                 <p class="text-xs text-slate-300">
-                    افتح تطبيق الواتساب في هاتفك ← الأجهزة المرتبطة ← ربط جهاز، ثم وجه الكاميرا نحو الرمز.
+                    افتح واتساب في هاتفك، ثم:
+                    الأجهزة المرتبطة ← ربط جهاز
+                    وبعدها امسح رمز QR.
                 </p>
 
             </div>
-
 
             <div class="flex flex-col items-center justify-center py-2">
 
@@ -623,36 +610,14 @@
 
             </div>
 
-        </div>
-
-
-        <!-- حالة الواتساب -->
-        <div
-            id="whatsappStatusBox"
-            class="hidden border rounded-2xl p-5 bg-slate-50"
-        >
-
-            <div class="flex items-center justify-between gap-4">
-
-                <div>
-                    <div class="text-sm font-bold text-slate-800">
-                        حالة واتساب
-                    </div>
-
-                    <div
-                        id="whatsappStatusText"
-                        class="text-xs text-slate-500 mt-1"
-                    >
-                        جاري الفحص...
-                    </div>
-                </div>
+            <div class="text-center">
 
                 <button
                     type="button"
-                    onclick="checkWhatsAppStatus()"
-                    class="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700"
+                    onclick="refreshQRCode()"
+                    class="px-5 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-xs font-bold transition"
                 >
-                    تحديث
+                    🔄 تحديث رمز QR
                 </button>
 
             </div>
@@ -663,864 +628,720 @@
 
 
 <script>
-/* ============================================================
-   AI STORE ASSISTANT - FRONTEND
-============================================================ */
-
-(function () {
-
-    "use strict";
 
     let currentStoreId = null;
-    let currentStoreData = null;
 
 
-    /* ========================================================
-       HELPERS
-    ======================================================== */
+    /* =========================================================
+       API HELPERS
+    ========================================================== */
 
-    function $(id) {
-        return document.getElementById(id);
+    async function parseResponse(response) {
+
+        const text = await response.text();
+
+        if (!text) {
+            return {};
+        }
+
+        try {
+            return JSON.parse(text);
+        } catch (error) {
+            return {
+                detail: text || 'استجابة غير صالحة من الخادم.'
+            };
+        }
     }
 
 
+    async function apiFetch(url, options = {}) {
+
+        options.credentials = 'same-origin';
+
+        const response = await fetch(url, options);
+
+        const data = await parseResponse(response);
+
+        return {
+            response,
+            data
+        };
+    }
+
+
+    /* =========================================================
+       ALERT
+    ========================================================== */
+
     function showAlert(message, isError = false) {
 
-        const alertBox = $("alertBox");
-
-        if (!alertBox) {
-            alert(message);
-            return;
-        }
+        const alertBox = document.getElementById('alertBox');
 
         alertBox.classList.remove(
-            "hidden",
-            "bg-red-50",
-            "text-red-700",
-            "border-red-200",
-            "bg-emerald-50",
-            "text-emerald-700",
-            "border-emerald-200"
+            'hidden',
+            'bg-red-50',
+            'text-red-700',
+            'border-red-200',
+            'bg-emerald-50',
+            'text-emerald-700',
+            'border-emerald-200'
         );
 
         if (isError) {
 
             alertBox.classList.add(
-                "bg-red-50",
-                "text-red-700",
-                "border-red-200"
+                'bg-red-50',
+                'text-red-700',
+                'border-red-200'
             );
 
         } else {
 
             alertBox.classList.add(
-                "bg-emerald-50",
-                "text-emerald-700",
-                "border-emerald-200"
+                'bg-emerald-50',
+                'text-emerald-700',
+                'border-emerald-200'
             );
 
         }
 
         alertBox.innerText = message;
 
-        alertBox.scrollIntoView({
-            behavior: "smooth",
-            block: "nearest"
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
         });
     }
 
 
     function hideAlert() {
 
-        const alertBox = $("alertBox");
+        document
+            .getElementById('alertBox')
+            .classList.add('hidden');
 
-        if (alertBox) {
-            alertBox.classList.add("hidden");
-        }
     }
 
 
-    function showAgentAlert(message, isError = false) {
-
-        const box = $("agentAlert");
-
-        if (!box) {
-            alert(message);
-            return;
-        }
-
-        box.classList.remove(
-            "hidden",
-            "bg-red-50",
-            "text-red-700",
-            "border-red-200",
-            "bg-emerald-50",
-            "text-emerald-700",
-            "border-emerald-200"
-        );
-
-        if (isError) {
-
-            box.classList.add(
-                "bg-red-50",
-                "text-red-700",
-                "border-red-200"
-            );
-
-        } else {
-
-            box.classList.add(
-                "bg-emerald-50",
-                "text-emerald-700",
-                "border-emerald-200"
-            );
-
-        }
-
-        box.innerText = message;
-    }
-
-
-    function normalizePhone(value) {
-
-        return String(value || "")
-            .replace(/\+/g, "")
-            .replace(/\s+/g, "")
-            .replace(/-/g, "")
-            .replace(/\(/g, "")
-            .replace(/\)/g, "")
-            .trim();
-    }
-
-
-    async function readResponse(response) {
-
-        const text = await response.text();
-
-        let data = {};
-
-        try {
-            data = text ? JSON.parse(text) : {};
-        } catch (e) {
-
-            data = {
-                detail: text || "استجابة غير صالحة من الخادم."
-            };
-
-        }
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.detail ||
-                data.message ||
-                "حدث خطأ في الخادم."
-            );
-        }
-
-        return data;
-    }
-
-
-    /* ========================================================
+    /* =========================================================
        AUTH MODE
-    ======================================================== */
+    ========================================================== */
 
-    window.toggleAuthMode = function (mode) {
+    function toggleAuthMode(mode) {
 
         hideAlert();
 
-        const register = $("registerFormContainer");
-        const login = $("loginFormContainer");
+        if (mode === 'login') {
 
-        if (!register || !login) {
-            return;
-        }
+            document
+                .getElementById('registerFormContainer')
+                .classList.add('hidden');
 
-        if (mode === "login") {
-
-            register.classList.add("hidden");
-            login.classList.remove("hidden");
+            document
+                .getElementById('loginFormContainer')
+                .classList.remove('hidden');
 
         } else {
 
-            login.classList.add("hidden");
-            register.classList.remove("hidden");
-
-        }
-
-    };
-
-
-    /* ========================================================
-       REGISTER
-    ======================================================== */
-
-    async function handleRegister(event) {
-
-        event.preventDefault();
-        event.stopPropagation();
-
-        hideAlert();
-
-        console.log("REGISTER: submit");
-
-        const storeName = $("reg_store_name");
-        const email = $("reg_email");
-        const whatsapp = $("reg_whatsapp_number");
-        const password = $("reg_password");
-        const confirmPassword = $("reg_confirm_password");
-        const storeUrl = $("reg_store_url");
-        const agentNotes = $("reg_agent_notes");
-        const pdf = $("reg_pdf_file");
-
-        const btn = $("registerBtn");
-        const spinner = $("registerSpinner");
-        const btnText = $("registerBtnText");
-
-
-        if (!storeName || !email || !whatsapp || !password || !confirmPassword) {
-
-            showAlert(
-                "حدث خطأ في نموذج التسجيل. بعض الحقول غير موجودة.",
-                true
-            );
-
-            console.error(
-                "Registration fields are missing."
-            );
-
-            return;
-        }
-
-
-        const storeNameValue = storeName.value.trim();
-        const emailValue = email.value.trim().toLowerCase();
-        const whatsappValue = normalizePhone(whatsapp.value);
-        const passwordValue = password.value;
-        const confirmValue = confirmPassword.value;
-
-
-        if (!storeNameValue) {
-
-            showAlert(
-                "يرجى إدخال اسم المتجر.",
-                true
-            );
-
-            storeName.focus();
-            return;
-        }
-
-
-        if (!emailValue || !emailValue.includes("@")) {
-
-            showAlert(
-                "يرجى إدخال بريد إلكتروني صحيح.",
-                true
-            );
-
-            email.focus();
-            return;
-        }
-
-
-        if (!whatsappValue) {
-
-            showAlert(
-                "يرجى إدخال رقم واتساب المتجر.",
-                true
-            );
-
-            whatsapp.focus();
-            return;
-        }
-
-
-        if (!/^\d+$/.test(whatsappValue)) {
-
-            showAlert(
-                "رقم الواتساب يجب أن يحتوي على أرقام فقط مع المفتاح الدولي.",
-                true
-            );
-
-            whatsapp.focus();
-            return;
-        }
-
-
-        if (passwordValue.length < 6) {
-
-            showAlert(
-                "كلمة السر يجب أن تكون 6 أحرف على الأقل.",
-                true
-            );
-
-            password.focus();
-            return;
-        }
-
-
-        if (passwordValue !== confirmValue) {
-
-            showAlert(
-                "كلمة السر وتأكيد كلمة السر غير متطابقين.",
-                true
-            );
-
-            confirmPassword.focus();
-            return;
-        }
-
-
-        if (btn) {
-            btn.disabled = true;
-        }
-
-        if (spinner) {
-            spinner.classList.remove("hidden");
-        }
-
-        if (btnText) {
-            btnText.textContent = "جاري إنشاء الحساب...";
-        }
-
-
-        const formData = new FormData();
-
-        formData.append(
-            "store_name",
-            storeNameValue
-        );
-
-        formData.append(
-            "username",
-            emailValue
-        );
-
-        formData.append(
-            "password",
-            passwordValue
-        );
-
-        formData.append(
-            "store_url",
-            storeUrl ? storeUrl.value.trim() : ""
-        );
-
-        formData.append(
-            "whatsapp_number",
-            whatsappValue
-        );
-
-        formData.append(
-            "agent_notes",
-            agentNotes ? agentNotes.value.trim() : ""
-        );
-
-
-        if (
-            pdf &&
-            pdf.files &&
-            pdf.files.length > 0
-        ) {
-
-            formData.append(
-                "pdf_file",
-                pdf.files[0]
-            );
-
-        }
-
-
-        try {
-
-            console.log(
-                "REGISTER: sending /api/register-store"
-            );
-
-            const response = await fetch(
-                "/api/register-store",
-                {
-                    method: "POST",
-                    credentials: "same-origin",
-                    body: formData
-                }
-            );
-
-
-            const data = await readResponse(response);
-
-
-            console.log(
-                "REGISTER: success",
-                data
-            );
-
-
-            currentStoreId =
-                data.store_id ||
-                data.id ||
-                null;
-
-
-            currentStoreData = {
-                id: currentStoreId,
-                store_name: storeNameValue,
-                username: data.username || emailValue,
-                store_url: storeUrl ? storeUrl.value.trim() : "",
-                whatsapp_number: whatsappValue,
-                agent_notes: agentNotes ? agentNotes.value.trim() : ""
-            };
-
-
-            goToAgentPage(
-                currentStoreData
-            );
-
-
-            if (data.evolution_error) {
-
-                showAgentAlert(
-                    "تم إنشاء الحساب بنجاح، لكن تعذر تجهيز واتساب الآن. يمكنك المحاولة من زر تشغيل المساعد.",
-                    true
-                );
-
-            } else {
-
-                showAgentAlert(
-                    "تم إنشاء الحساب بنجاح. أكمل إعداد المساعد ثم اضغط تشغيل.",
-                    false
-                );
-
-            }
-
-
-        } catch (error) {
-
-            console.error(
-                "REGISTER ERROR:",
-                error
-            );
-
-            showAlert(
-                error.message ||
-                "حدث خطأ أثناء إنشاء الحساب.",
-                true
-            );
-
-        } finally {
-
-            if (btn) {
-                btn.disabled = false;
-            }
-
-            if (spinner) {
-                spinner.classList.add("hidden");
-            }
-
-            if (btnText) {
-                btnText.textContent = "تسجيل الحساب";
-            }
+            document
+                .getElementById('loginFormContainer')
+                .classList.add('hidden');
+
+            document
+                .getElementById('registerFormContainer')
+                .classList.remove('hidden');
 
         }
 
     }
 
 
-    /* ========================================================
-       LOGIN
-    ======================================================== */
-
-    async function handleLogin(event) {
-
-        event.preventDefault();
-        event.stopPropagation();
-
-        hideAlert();
-
-        const form = event.target;
-
-        const btn = $("loginBtn");
-        const spinner = $("loginSpinner");
-        const btnText = $("loginBtnText");
-
-
-        if (btn) {
-            btn.disabled = true;
-        }
-
-        if (spinner) {
-            spinner.classList.remove("hidden");
-        }
-
-        if (btnText) {
-            btnText.textContent = "جاري الدخول...";
-        }
-
-
-        try {
-
-            const formData = new FormData(form);
-
-            const usernameField =
-                formData.get("username");
-
-            if (usernameField) {
-
-                formData.set(
-                    "username",
-                    String(usernameField)
-                        .trim()
-                        .toLowerCase()
-                );
-
-            }
-
-
-            const response = await fetch(
-                "/api/login",
-                {
-                    method: "POST",
-                    credentials: "same-origin",
-                    body: formData
-                }
-            );
-
-
-            const data =
-                await readResponse(response);
-
-
-            currentStoreId =
-                data.store &&
-                data.store.id
-                    ? data.store.id
-                    : null;
-
-
-            currentStoreData = {
-                id: currentStoreId,
-                store_name:
-                    data.store &&
-                    data.store.store_name
-                        ? data.store.store_name
-                        : "متجري",
-
-                username:
-                    data.username || "",
-
-                store_url:
-                    data.store &&
-                    data.store.store_url
-                        ? data.store.store_url
-                        : "",
-
-                whatsapp_number:
-                    data.store &&
-                    data.store.whatsapp_number
-                        ? data.store.whatsapp_number
-                        : "",
-
-                agent_notes:
-                    data.store &&
-                    data.store.agent_notes
-                        ? data.store.agent_notes
-                        : ""
-            };
-
-
-            goToAgentPage(
-                currentStoreData
-            );
-
-
-        } catch (error) {
-
-            console.error(
-                "LOGIN ERROR:",
-                error
-            );
-
-            showAlert(
-                error.message ||
-                "بيانات الدخول غير صحيحة.",
-                true
-            );
-
-        } finally {
-
-            if (btn) {
-                btn.disabled = false;
-            }
-
-            if (spinner) {
-                spinner.classList.add("hidden");
-            }
-
-            if (btnText) {
-                btnText.textContent = "دخول";
-            }
-
-        }
-
-    }
-
-
-    /* ========================================================
-       AGENT PAGE
-    ======================================================== */
+    /* =========================================================
+       GO TO AGENT
+    ========================================================== */
 
     function goToAgentPage(store) {
 
-        if (!store) {
-            return;
-        }
+        document
+            .getElementById('authSection')
+            .classList.add('hidden');
 
+        document
+            .getElementById('agentSection')
+            .classList.remove('hidden');
 
-        const authSection = $("authSection");
-        const agentSection = $("agentSection");
+        currentStoreId = store.id;
 
+        document.getElementById('displayStoreName').innerText =
+            store.store_name || 'متجري';
 
-        if (authSection) {
-            authSection.classList.add("hidden");
-        }
+        document.getElementById('displayEmail').innerText =
+            store.email || '';
 
-        if (agentSection) {
-            agentSection.classList.remove("hidden");
-        }
+        document.getElementById('displayUsername').innerText =
+            store.username
+                ? 'اسم المستخدم: ' + store.username
+                : '';
 
+        document.getElementById('store_url').value =
+            store.store_url || '';
 
-        $("displayStoreName").innerText =
-            store.store_name || "متجري";
+        document.getElementById('whatsapp_number').value =
+            store.whatsapp_number || '';
 
-        $("displayEmail").innerText =
-            store.username || "";
+        document.getElementById('agent_notes').value =
+            store.agent_notes || '';
 
-
-        $("whatsapp_number").value =
-            store.whatsapp_number || "";
-
-        $("agent_notes").value =
-            store.agent_notes ||
-            "كن ودوداً ومفيداً مع العملاء. لا تخترع أسعاراً أو منتجات غير موجودة في الكتالوج.";
-
-
-        $("qrSection").classList.add("hidden");
-
-
-        if (store.whatsapp_number) {
-
-            $("whatsappStatusBox").classList.remove("hidden");
-
-            checkWhatsAppStatus();
-
-        } else {
-
-            $("whatsappStatusBox").classList.add("hidden");
-
-        }
-
-
-        window.scrollTo({
-            top: 0,
-            behavior: "smooth"
-        });
+        document.getElementById('catalogStatus').innerText =
+            store.has_catalog
+                ? '✅ يوجد كتالوج محفوظ لهذا المتجر.'
+                : 'يمكنك رفع ملف PDF يحتوي على المنتجات والأسعار.';
 
     }
 
 
-    /* ========================================================
-       UPDATE AGENT
-    ======================================================== */
+    /* =========================================================
+       REGISTER
+    ========================================================== */
 
-    async function handleAgentSetup(event) {
+    document
+        .getElementById('registerForm')
+        .addEventListener('submit', async function (e) {
 
-        event.preventDefault();
-        event.stopPropagation();
+            e.preventDefault();
 
-        const btn = $("startAgentBtn");
-        const spinner = $("agentSpinner");
-        const btnText = $("startAgentText");
+            hideAlert();
 
+            const storeName =
+                document.getElementById('reg_store_name').value.trim();
 
-        const whatsappInput =
-            $("whatsapp_number");
+            const username =
+                document.getElementById('reg_username').value.trim();
 
-        const notesInput =
-            $("agent_notes");
+            const email =
+                document.getElementById('reg_email').value.trim();
 
-        const pdfInput =
-            $("pdf_file");
+            const password =
+                document.getElementById('reg_password').value;
 
-
-        const phone =
-            normalizePhone(
-                whatsappInput.value
-            );
+            const confirmPassword =
+                document.getElementById('reg_confirm_password').value;
 
 
-        const notes =
-            notesInput.value.trim();
+            if (!storeName) {
+
+                showAlert('أدخل اسم المتجر.', true);
+                return;
+
+            }
 
 
-        if (!phone) {
+            if (!username || username.length < 3) {
 
-            showAgentAlert(
-                "يرجى إدخال رقم واتساب.",
-                true
-            );
+                showAlert(
+                    'اسم المستخدم يجب أن يكون 3 أحرف على الأقل.',
+                    true
+                );
 
-            whatsappInput.focus();
-            return;
-        }
+                return;
 
-
-        if (!/^\d+$/.test(phone)) {
-
-            showAgentAlert(
-                "رقم الواتساب يجب أن يحتوي على أرقام فقط.",
-                true
-            );
-
-            whatsappInput.focus();
-            return;
-        }
+            }
 
 
-        if (!notes) {
+            if (!email) {
 
-            showAgentAlert(
-                "يرجى كتابة تعليمات المساعد.",
-                true
-            );
+                showAlert('أدخل الإيميل.', true);
+                return;
 
-            notesInput.focus();
-            return;
-        }
+            }
 
 
-        if (!currentStoreId) {
+            if (password.length < 6) {
 
-            showAgentAlert(
-                "انتهت جلسة الحساب. يرجى تسجيل الدخول مرة أخرى.",
-                true
-            );
+                showAlert(
+                    'كلمة المرور يجب أن تكون 6 أحرف على الأقل.',
+                    true
+                );
 
-            return;
-        }
+                return;
+
+            }
 
 
-        if (btn) {
+            if (password !== confirmPassword) {
+
+                showAlert(
+                    'كلمة المرور وتأكيد كلمة المرور غير متطابقين.',
+                    true
+                );
+
+                return;
+
+            }
+
+
+            const btn =
+                document.getElementById('registerBtn');
+
+            const spinner =
+                document.getElementById('registerSpinner');
+
+
             btn.disabled = true;
-        }
-
-        if (spinner) {
-            spinner.classList.remove("hidden");
-        }
-
-        if (btnText) {
-            btnText.textContent = "جاري الحفظ وتجهيز واتساب...";
-        }
+            spinner.classList.remove('hidden');
 
 
-        const formData = new FormData();
-
-        formData.append(
-            "store_id",
-            currentStoreId
-        );
-
-        formData.append(
-            "whatsapp_number",
-            phone
-        );
-
-        formData.append(
-            "agent_notes",
-            notes
-        );
-
-
-        if (
-            pdfInput &&
-            pdfInput.files &&
-            pdfInput.files.length > 0
-        ) {
+            const formData = new FormData();
 
             formData.append(
-                "pdf_file",
-                pdfInput.files[0]
+                'store_name',
+                storeName
             );
 
-        }
+            formData.append(
+                'username',
+                username
+            );
+
+            formData.append(
+                'email',
+                email
+            );
+
+            formData.append(
+                'password',
+                password
+            );
 
 
-        try {
+            try {
 
-            const updateResponse =
-                await fetch(
-                    "/api/update-agent",
+                const result = await apiFetch(
+                    '/api/register-store',
                     {
-                        method: "POST",
-                        credentials: "same-origin",
+                        method: 'POST',
                         body: formData
                     }
                 );
 
 
-            const updateData =
-                await readResponse(
-                    updateResponse
+                if (!result.response.ok) {
+
+                    throw new Error(
+                        result.data.detail ||
+                        result.data.message ||
+                        'حدث خطأ أثناء إنشاء الحساب.'
+                    );
+
+                }
+
+
+                currentStoreId =
+                    result.data.store_id ||
+                    result.data.id;
+
+
+                showAlert(
+                    'تم إنشاء الحساب بنجاح. أكمل بيانات المتجر والمساعد.',
+                    false
                 );
 
 
-            currentStoreData.whatsapp_number =
-                phone;
+                const store =
+                    result.data.store || {
+                        id: currentStoreId,
+                        store_name: storeName,
+                        username: username,
+                        email: email
+                    };
 
-            currentStoreData.agent_notes =
-                notes;
+
+                goToAgentPage(store);
 
 
-            showAgentAlert(
-                "تم حفظ بيانات المساعد بنجاح.",
+            } catch (error) {
+
+                showAlert(
+                    error.message ||
+                    'تعذر إنشاء الحساب.',
+                    true
+                );
+
+            } finally {
+
+                btn.disabled = false;
+                spinner.classList.add('hidden');
+
+            }
+
+        });
+
+
+    /* =========================================================
+       LOGIN
+    ========================================================== */
+
+    document
+        .getElementById('loginForm')
+        .addEventListener('submit', async function (e) {
+
+            e.preventDefault();
+
+            hideAlert();
+
+            const btn =
+                document.getElementById('loginBtn');
+
+            const spinner =
+                document.getElementById('loginSpinner');
+
+
+            btn.disabled = true;
+            spinner.classList.remove('hidden');
+
+
+            const formData =
+                new FormData(e.target);
+
+
+            try {
+
+                const result = await apiFetch(
+                    '/api/login',
+                    {
+                        method: 'POST',
+                        body: formData
+                    }
+                );
+
+
+                if (!result.response.ok) {
+
+                    throw new Error(
+                        result.data.detail ||
+                        'بيانات الدخول غير صحيحة.'
+                    );
+
+                }
+
+
+                const store =
+                    result.data.store || {};
+
+
+                store.username =
+                    result.data.username ||
+                    store.username ||
+                    formData.get('username');
+
+
+                store.email =
+                    result.data.email ||
+                    store.email ||
+                    '';
+
+
+                goToAgentPage(store);
+
+
+            } catch (error) {
+
+                showAlert(
+                    error.message ||
+                    'تعذر تسجيل الدخول.',
+                    true
+                );
+
+            } finally {
+
+                btn.disabled = false;
+                spinner.classList.add('hidden');
+
+            }
+
+        });
+
+
+    /* =========================================================
+       SAVE AGENT + START
+    ========================================================== */
+
+    document
+        .getElementById('agentSetupForm')
+        .addEventListener('submit', async function (e) {
+
+            e.preventDefault();
+
+            if (!currentStoreId) {
+
+                showAgentStatus(
+                    'انتهت جلسة الدخول. يرجى تسجيل الدخول مرة أخرى.',
+                    true
+                );
+
+                return;
+
+            }
+
+
+            const storeUrl =
+                document.getElementById('store_url').value.trim();
+
+            const whatsapp =
+                document.getElementById('whatsapp_number').value.trim();
+
+            const notes =
+                document.getElementById('agent_notes').value.trim();
+
+            const pdfFile =
+                document.getElementById('pdf_file').files[0];
+
+
+            if (!storeUrl) {
+
+                showAgentStatus(
+                    'أدخل رابط المتجر.',
+                    true
+                );
+
+                return;
+
+            }
+
+
+            if (!whatsapp) {
+
+                showAgentStatus(
+                    'أدخل رقم المتجر / واتساب مع مفتاح الدولة.',
+                    true
+                );
+
+                return;
+
+            }
+
+
+            if (!notes) {
+
+                showAgentStatus(
+                    'أدخل تعليمات المساعد الذكي.',
+                    true
+                );
+
+                return;
+
+            }
+
+
+            const btn =
+                document.getElementById('startAgentBtn');
+
+            const spinner =
+                document.getElementById('agentSpinner');
+
+            const buttonText =
+                document.getElementById('startAgentText');
+
+
+            btn.disabled = true;
+            spinner.classList.remove('hidden');
+
+            buttonText.innerText =
+                '⏳ جاري حفظ البيانات...';
+
+
+            const formData =
+                new FormData();
+
+
+            formData.append(
+                'store_id',
+                currentStoreId
+            );
+
+            formData.append(
+                'store_url',
+                storeUrl
+            );
+
+            formData.append(
+                'whatsapp_number',
+                whatsapp
+            );
+
+            formData.append(
+                'agent_notes',
+                notes
+            );
+
+
+            if (pdfFile) {
+
+                formData.append(
+                    'pdf_file',
+                    pdfFile
+                );
+
+            }
+
+
+            try {
+
+                /* -----------------------------------------
+                   STEP 1: UPDATE STORE
+                ----------------------------------------- */
+
+                const updateResult =
+                    await apiFetch(
+                        '/api/update-agent',
+                        {
+                            method: 'POST',
+                            body: formData
+                        }
+                    );
+
+
+                if (!updateResult.response.ok) {
+
+                    throw new Error(
+                        updateResult.data.detail ||
+                        updateResult.data.message ||
+                        'تعذر حفظ بيانات المتجر.'
+                    );
+
+                }
+
+
+                showAgentStatus(
+                    '✅ تم حفظ بيانات المتجر والمساعد بنجاح.',
+                    false
+                );
+
+
+                /* -----------------------------------------
+                   STEP 2: GET QR
+                ----------------------------------------- */
+
+                buttonText.innerText =
+                    '📱 جاري تجهيز واتساب...';
+
+
+                await loadQRCode();
+
+
+            } catch (error) {
+
+                showAgentStatus(
+                    error.message ||
+                    'حدث خطأ أثناء إعداد المساعد.',
+                    true
+                );
+
+            } finally {
+
+                btn.disabled = false;
+                spinner.classList.add('hidden');
+
+                buttonText.innerText =
+                    '💾 حفظ البيانات وتشغيل المساعد';
+
+            }
+
+        });
+
+
+    /* =========================================================
+       LOAD QR
+    ========================================================== */
+
+    async function loadQRCode() {
+
+        if (!currentStoreId) {
+            return;
+        }
+
+
+        const qrSection =
+            document.getElementById('qrSection');
+
+        const qrImage =
+            document.getElementById('qrImage');
+
+
+        qrImage.removeAttribute('src');
+
+
+        const result =
+            await apiFetch(
+                `/api/whatsapp/qr/${currentStoreId}`
+            );
+
+
+        if (
+            result.response.ok &&
+            result.data.qr_code
+        ) {
+
+            qrImage.src =
+                result.data.qr_code;
+
+            qrSection.classList.remove('hidden');
+
+            qrSection.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+
+
+            showAgentStatus(
+                '✅ تم حفظ الإعدادات وتجهيز رمز QR لربط واتساب.',
                 false
             );
 
+            return;
 
-            /* ---------------------------------------------
-               محاولة جلب QR
-            ---------------------------------------------- */
+        }
 
-            await loadWhatsAppQR();
 
+        throw new Error(
+            result.data.detail ||
+            result.data.message ||
+            'تم حفظ البيانات، ولكن لم يتم تجهيز QR. تأكد من إعداد Evolution API.'
+        );
+
+    }
+
+
+    /* =========================================================
+       REFRESH QR
+    ========================================================== */
+
+    async function refreshQRCode() {
+
+        const button =
+            event?.target;
+
+        if (button) {
+            button.disabled = true;
+        }
+
+
+        try {
+
+            await loadQRCode();
 
         } catch (error) {
 
-            console.error(
-                "AGENT ERROR:",
-                error
-            );
-
-            showAgentAlert(
+            showAgentStatus(
                 error.message ||
-                "حدث خطأ أثناء حفظ إعدادات المساعد.",
+                'تعذر تحديث رمز QR.',
                 true
             );
 
         } finally {
 
-            if (btn) {
-                btn.disabled = false;
-            }
-
-            if (spinner) {
-                spinner.classList.add("hidden");
-            }
-
-            if (btnText) {
-                btnText.textContent =
-                    "🚀 حفظ وتشغيل المساعد";
+            if (button) {
+                button.disabled = false;
             }
 
         }
@@ -1528,307 +1349,147 @@
     }
 
 
-    /* ========================================================
-       LOAD QR
-    ======================================================== */
+    /* =========================================================
+       AGENT STATUS
+    ========================================================== */
 
-    async function loadWhatsAppQR() {
+    function showAgentStatus(message, isError = false) {
 
-        if (!currentStoreId) {
+        const box =
+            document.getElementById('agentStatus');
 
-            showAgentAlert(
-                "معرف المتجر غير موجود.",
-                true
+
+        box.classList.remove(
+            'hidden',
+            'bg-red-50',
+            'text-red-700',
+            'border-red-200',
+            'bg-emerald-50',
+            'text-emerald-700',
+            'border-emerald-200'
+        );
+
+
+        if (isError) {
+
+            box.classList.add(
+                'bg-red-50',
+                'text-red-700',
+                'border-red-200'
             );
 
-            return;
+        } else {
+
+            box.classList.add(
+                'bg-emerald-50',
+                'text-emerald-700',
+                'border-emerald-200'
+            );
+
         }
 
+
+        box.innerText = message;
+
+    }
+
+
+    /* =========================================================
+       LOGOUT
+    ========================================================== */
+
+    async function logout() {
 
         try {
 
-            const response =
-                await fetch(
-                    `/api/whatsapp/qr/${currentStoreId}`,
-                    {
-                        method: "GET",
-                        credentials: "same-origin",
-                        cache: "no-store"
-                    }
-                );
-
-
-            const data =
-                await readResponse(
-                    response
-                );
-
-
-            if (
-                data.qr_code
-            ) {
-
-                $("qrImage").src =
-                    data.qr_code;
-
-                $("qrSection")
-                    .classList
-                    .remove("hidden");
-
-
-                $("qrSection")
-                    .scrollIntoView({
-                        behavior: "smooth",
-                        block: "center"
-                    });
-
-
-                showAgentAlert(
-                    "تم تجهيز رمز QR. امسحه من تطبيق واتساب.",
-                    false
-                );
-
-
-            } else {
-
-                $("qrSection")
-                    .classList
-                    .add("hidden");
-
-
-                showAgentAlert(
-                    data.message ||
-                    "تم حفظ البيانات، لكن Evolution API لم يرجع QR حتى الآن.",
-                    true
-                );
-
-            }
-
+            await apiFetch(
+                '/api/logout',
+                {
+                    method: 'POST'
+                }
+            );
 
         } catch (error) {
-
-            console.error(
-                "QR ERROR:",
-                error
-            );
-
-            showAgentAlert(
-                error.message ||
-                "تعذر الحصول على رمز QR.",
-                true
-            );
-
+            console.error(error);
         }
+
+
+        currentStoreId = null;
+
+
+        document
+            .getElementById('agentSection')
+            .classList.add('hidden');
+
+
+        document
+            .getElementById('qrSection')
+            .classList.add('hidden');
+
+
+        document
+            .getElementById('authSection')
+            .classList.remove('hidden');
+
+
+        document
+            .getElementById('registerForm')
+            .reset();
+
+
+        document
+            .getElementById('loginForm')
+            .reset();
+
+
+        document
+            .getElementById('agentSetupForm')
+            .reset();
+
+
+        toggleAuthMode('register');
 
     }
 
 
-    /* ========================================================
-       WHATSAPP STATUS
-    ======================================================== */
-
-    window.checkWhatsAppStatus =
-        async function () {
-
-            if (!currentStoreId) {
-                return;
-            }
-
-
-            const box =
-                $("whatsappStatusBox");
-
-            const text =
-                $("whatsappStatusText");
-
-
-            if (box) {
-                box.classList.remove("hidden");
-            }
-
-            if (text) {
-                text.textContent =
-                    "جاري الفحص...";
-            }
-
-
-            try {
-
-                const response =
-                    await fetch(
-                        `/api/whatsapp/status/${currentStoreId}`,
-                        {
-                            credentials: "same-origin",
-                            cache: "no-store"
-                        }
-                    );
-
-
-                const data =
-                    await readResponse(
-                        response
-                    );
-
-
-                const state =
-                    data.connection_state ||
-                    "غير متصل";
-
-
-                if (text) {
-
-                    text.textContent =
-                        `الحالة: ${state}`;
-
-                }
-
-
-            } catch (error) {
-
-                if (text) {
-
-                    text.textContent =
-                        error.message ||
-                        "تعذر فحص حالة واتساب.";
-
-                }
-
-            }
-
-        };
-
-
-    /* ========================================================
-       LOGOUT
-    ======================================================== */
-
-    window.logout =
-        async function () {
-
-            try {
-
-                await fetch(
-                    "/api/logout",
-                    {
-                        method: "POST",
-                        credentials: "same-origin"
-                    }
-                );
-
-            } catch (error) {
-
-                console.error(
-                    "Logout error:",
-                    error
-                );
-
-            }
-
-
-            currentStoreId = null;
-            currentStoreData = null;
-
-
-            $("agentSection")
-                .classList
-                .add("hidden");
-
-            $("qrSection")
-                .classList
-                .add("hidden");
-
-            $("authSection")
-                .classList
-                .remove("hidden");
-
-
-            $("registerForm").reset();
-            $("loginForm").reset();
-
-
-            toggleAuthMode(
-                "register"
-            );
-
-
-            window.scrollTo({
-                top: 0,
-                behavior: "smooth"
-            });
-
-        };
-
-
-    /* ========================================================
-       SESSION CHECK
-    ======================================================== */
+    /* =========================================================
+       SESSION
+    ========================================================== */
 
     async function checkSession() {
 
         try {
 
-            const response =
-                await fetch(
-                    "/api/me",
-                    {
-                        credentials: "same-origin",
-                        cache: "no-store"
-                    }
-                );
+            const result =
+                await apiFetch('/api/me');
 
 
-            if (!response.ok) {
-                return;
-            }
+            if (result.response.ok && result.data.store) {
+
+                const store =
+                    result.data.store;
 
 
-            const data =
-                await response.json();
+                store.username =
+                    result.data.username ||
+                    store.username ||
+                    '';
 
 
-            if (
-                data &&
-                data.store &&
-                data.store.id
-            ) {
-
-                currentStoreId =
-                    data.store.id;
+                store.email =
+                    result.data.email ||
+                    store.email ||
+                    '';
 
 
-                currentStoreData = {
-
-                    id:
-                        data.store.id,
-
-                    store_name:
-                        data.store.store_name,
-
-                    username:
-                        data.username,
-
-                    store_url:
-                        data.store.store_url || "",
-
-                    whatsapp_number:
-                        data.store.whatsapp_number || "",
-
-                    agent_notes:
-                        data.store.agent_notes || ""
-
-                };
-
-
-                goToAgentPage(
-                    currentStoreData
-                );
+                goToAgentPage(store);
 
             }
 
         } catch (error) {
 
             console.log(
-                "No active session."
+                'No active session'
             );
 
         }
@@ -1836,71 +1497,19 @@
     }
 
 
-    /* ========================================================
-       INITIALIZE
-    ======================================================== */
+    /* =========================================================
+       START
+    ========================================================== */
 
     document.addEventListener(
-        "DOMContentLoaded",
+        'DOMContentLoaded',
         function () {
-
-            console.log(
-                "AI Store Assistant frontend loaded."
-            );
-
-
-            const registerForm =
-                $("registerForm");
-
-            const loginForm =
-                $("loginForm");
-
-            const agentSetupForm =
-                $("agentSetupForm");
-
-
-            if (registerForm) {
-
-                registerForm.addEventListener(
-                    "submit",
-                    handleRegister
-                );
-
-            } else {
-
-                console.error(
-                    "registerForm not found."
-                );
-
-            }
-
-
-            if (loginForm) {
-
-                loginForm.addEventListener(
-                    "submit",
-                    handleLogin
-                );
-
-            }
-
-
-            if (agentSetupForm) {
-
-                agentSetupForm.addEventListener(
-                    "submit",
-                    handleAgentSetup
-                );
-
-            }
-
 
             checkSession();
 
         }
     );
 
-})();
 </script>
 
 </body>
