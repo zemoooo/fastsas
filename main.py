@@ -5,9 +5,11 @@ import uuid
 import hashlib
 import secrets
 import asyncio
+import smtplib
 
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Any
+from email.message import EmailMessage
 
 import anthropic
 import httpx
@@ -34,6 +36,7 @@ from fastapi.responses import (
 from pydantic import BaseModel
 
 from sqlalchemy import (
+    Boolean,
     Column,
     String,
     Text,
@@ -132,7 +135,6 @@ if not EVOLUTION_GLOBAL_KEY:
 
 
 # Render automatically exposes the public URL through RENDER_EXTERNAL_URL.
-# WEBHOOK_BASE_URL remains an explicit override for non-Render deployments.
 WEBHOOK_BASE_URL = (
     os.getenv(
         "WEBHOOK_BASE_URL",
@@ -141,6 +143,89 @@ WEBHOOK_BASE_URL = (
     .strip()
     .rstrip("/")
 )
+
+
+# =========================================================
+# EMAIL VERIFICATION CONFIGURATION
+# =========================================================
+
+EMAIL_VERIFICATION_REQUIRED = (
+    os.getenv(
+        "EMAIL_VERIFICATION_REQUIRED",
+        "true",
+    )
+    .strip()
+    .lower()
+    in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+)
+
+SMTP_HOST = (
+    os.getenv(
+        "SMTP_HOST",
+        "smtp.gmail.com",
+    )
+    .strip()
+)
+
+try:
+    SMTP_PORT = int(
+        os.getenv(
+            "SMTP_PORT",
+            "587",
+        )
+    )
+except ValueError:
+    SMTP_PORT = 587
+
+SMTP_USERNAME = (
+    os.getenv(
+        "SMTP_USERNAME",
+        "",
+    )
+    .strip()
+)
+
+SMTP_PASSWORD = (
+    os.getenv(
+        "SMTP_PASSWORD",
+        "",
+    )
+    .strip()
+)
+
+SMTP_FROM_EMAIL = (
+    os.getenv(
+        "SMTP_FROM_EMAIL",
+        SMTP_USERNAME,
+    )
+    .strip()
+)
+
+SMTP_FROM_NAME = (
+    os.getenv(
+        "SMTP_FROM_NAME",
+        "FastSAS",
+    )
+    .strip()
+)
+
+try:
+    EMAIL_CODE_TTL_MINUTES = int(
+        os.getenv(
+            "EMAIL_CODE_TTL_MINUTES",
+            "15",
+        )
+    )
+except ValueError:
+    EMAIL_CODE_TTL_MINUTES = 15
+
+if EMAIL_CODE_TTL_MINUTES < 1:
+    EMAIL_CODE_TTL_MINUTES = 15
 
 
 # =========================================================
@@ -180,7 +265,7 @@ Base = declarative_base()
 
 app = FastAPI(
     title="Smart AI Store Assistant",
-    version="2.0.0",
+    version="2.1.0",
 )
 
 
@@ -284,6 +369,26 @@ class UserModel(Base):
     password_hash = Column(
         String(500),
         nullable=False,
+    )
+
+    # =====================================================
+    # EMAIL VERIFICATION
+    # =====================================================
+
+    email_verified = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+
+    verification_code_hash = Column(
+        String(128),
+        nullable=True,
+    )
+
+    verification_expires_at = Column(
+        DateTime(timezone=True),
+        nullable=True,
     )
 
     created_at = Column(
@@ -415,6 +520,10 @@ def ensure_database_schema():
             for column in columns
         }
 
+        # -------------------------------------------------
+        # EMAIL COLUMN
+        # -------------------------------------------------
+
         if "email" not in column_names:
 
             with engine.begin() as connection:
@@ -428,7 +537,78 @@ def ensure_database_schema():
                     )
                 )
 
-        # Email unique index
+        # -------------------------------------------------
+        # EMAIL VERIFIED
+        # -------------------------------------------------
+
+        if "email_verified" not in column_names:
+
+            with engine.begin() as connection:
+
+                if engine.dialect.name == "postgresql":
+
+                    connection.execute(
+                        text(
+                            """
+                            ALTER TABLE users
+                            ADD COLUMN email_verified
+                            BOOLEAN NOT NULL DEFAULT FALSE
+                            """
+                        )
+                    )
+
+                else:
+
+                    connection.execute(
+                        text(
+                            """
+                            ALTER TABLE users
+                            ADD COLUMN email_verified
+                            BOOLEAN NOT NULL DEFAULT 0
+                            """
+                        )
+                    )
+
+        # -------------------------------------------------
+        # VERIFICATION CODE HASH
+        # -------------------------------------------------
+
+        if "verification_code_hash" not in column_names:
+
+            with engine.begin() as connection:
+
+                connection.execute(
+                    text(
+                        """
+                        ALTER TABLE users
+                        ADD COLUMN verification_code_hash
+                        VARCHAR(128)
+                        """
+                    )
+                )
+
+        # -------------------------------------------------
+        # VERIFICATION EXPIRY
+        # -------------------------------------------------
+
+        if "verification_expires_at" not in column_names:
+
+            with engine.begin() as connection:
+
+                connection.execute(
+                    text(
+                        """
+                        ALTER TABLE users
+                        ADD COLUMN verification_expires_at
+                        TIMESTAMP
+                        """
+                    )
+                )
+
+        # -------------------------------------------------
+        # EMAIL UNIQUE INDEX
+        # -------------------------------------------------
+
         if engine.dialect.name == "postgresql":
 
             with engine.begin() as connection:
@@ -552,6 +732,184 @@ def verify_password(
 
 
 # =========================================================
+# EMAIL VERIFICATION
+# =========================================================
+
+def generate_verification_code() -> str:
+
+    return f"{secrets.randbelow(1000000):06d}"
+
+
+def hash_verification_code(
+    user_id: str,
+    code: str,
+) -> str:
+
+    raw = (
+        f"{user_id}:{code}"
+    ).encode("utf-8")
+
+    return hashlib.sha256(
+        raw
+    ).hexdigest()
+
+
+def is_email_verified(
+    user: UserModel,
+) -> bool:
+
+    if not EMAIL_VERIFICATION_REQUIRED:
+        return True
+
+    return bool(
+        user.email_verified
+    )
+
+
+def email_configuration_ready() -> bool:
+
+    return bool(
+        SMTP_HOST
+        and SMTP_PORT
+        and SMTP_USERNAME
+        and SMTP_PASSWORD
+        and SMTP_FROM_EMAIL
+    )
+
+
+def send_verification_email(
+    recipient_email: str,
+    verification_code: str,
+):
+
+    if not email_configuration_ready():
+
+        raise RuntimeError(
+            "إعدادات SMTP غير مكتملة. "
+            "تأكد من SMTP_HOST و SMTP_PORT و "
+            "SMTP_USERNAME و SMTP_PASSWORD و "
+            "SMTP_FROM_EMAIL في Render."
+        )
+
+    message = EmailMessage()
+
+    message["Subject"] = (
+        "رمز تأكيد البريد الإلكتروني - FastSAS"
+    )
+
+    message["From"] = (
+        f"{SMTP_FROM_NAME} <{SMTP_FROM_EMAIL}>"
+    )
+
+    message["To"] = recipient_email
+
+    message.set_content(
+        f"""
+مرحباً،
+
+شكراً لتسجيلك في {SMTP_FROM_NAME}.
+
+رمز تأكيد البريد الإلكتروني الخاص بك هو:
+
+{verification_code}
+
+صلاحية هذا الرمز {EMAIL_CODE_TTL_MINUTES} دقيقة.
+
+إذا لم تقم بإنشاء هذا الحساب، يمكنك تجاهل هذه الرسالة.
+
+تحياتنا،
+فريق {SMTP_FROM_NAME}
+""".strip()
+    )
+
+    with smtplib.SMTP(
+        SMTP_HOST,
+        SMTP_PORT,
+        timeout=30,
+    ) as smtp:
+
+        smtp.ehlo()
+        smtp.starttls()
+        smtp.ehlo()
+
+        smtp.login(
+            SMTP_USERNAME,
+            SMTP_PASSWORD,
+        )
+
+        smtp.send_message(
+            message
+        )
+
+
+def prepare_verification_code(
+    user: UserModel,
+) -> str:
+
+    code = generate_verification_code()
+
+    user.verification_code_hash = (
+        hash_verification_code(
+            user.id,
+            code,
+        )
+    )
+
+    user.verification_expires_at = (
+        datetime.now(timezone.utc)
+        + timedelta(
+            minutes=EMAIL_CODE_TTL_MINUTES
+        )
+    )
+
+    user.email_verified = False
+
+    return code
+
+
+def verification_expired(
+    user: UserModel,
+) -> bool:
+
+    if not user.verification_expires_at:
+        return True
+
+    expires_at = (
+        user.verification_expires_at
+    )
+
+    if expires_at.tzinfo is None:
+
+        expires_at = expires_at.replace(
+            tzinfo=timezone.utc
+        )
+
+    return (
+        expires_at
+        < datetime.now(timezone.utc)
+    )
+
+
+def email_verification_response(
+    email: str,
+    message: str,
+    status_code: int = 403,
+):
+
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "status": "verification_required",
+            "success": False,
+            "requires_email_verification": True,
+            "email": email,
+            "message": message,
+            "detail": message,
+        },
+    )
+
+
+# =========================================================
 # SESSION
 # =========================================================
 
@@ -661,6 +1019,30 @@ def get_current_user(
             detail="المستخدم غير موجود",
         )
 
+    # =====================================================
+    # SECURITY:
+    # Prevent old sessions from bypassing verification.
+    # =====================================================
+
+    if (
+        EMAIL_VERIFICATION_REQUIRED
+        and not user.email_verified
+    ):
+
+        db.delete(session)
+        db.commit()
+
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "requires_email_verification": True,
+                "email": user.email,
+                "message": (
+                    "يجب تأكيد البريد الإلكتروني أولاً"
+                ),
+            },
+        )
+
     return user
 
 
@@ -720,10 +1102,6 @@ def normalize_phone(
 def make_instance_name(
     store_id: str,
 ) -> str:
-
-    # IMPORTANT:
-    # Instance is now permanently tied
-    # to the store, NOT the WhatsApp number.
 
     clean = re.sub(
         r"[^A-Za-z0-9]",
@@ -1065,7 +1443,11 @@ async def evolution_create_instance(
         )
         data = safe_json(response)
 
-        print("EVOLUTION CREATE:", response.status_code, data)
+        print(
+            "EVOLUTION CREATE:",
+            response.status_code,
+            data,
+        )
 
         return {
             "status_code": response.status_code,
@@ -1074,7 +1456,12 @@ async def evolution_create_instance(
         }
 
     except Exception as exc:
-        print("EVOLUTION CREATE EXCEPTION:", repr(exc))
+
+        print(
+            "EVOLUTION CREATE EXCEPTION:",
+            repr(exc),
+        )
+
         return {
             "status_code": 0,
             "data": {"error": str(exc)},
@@ -1234,12 +1621,25 @@ async def ensure_instance(
     store: StoreModel,
 ):
 
-    instance_name = make_instance_name(store.id)
+    instance_name = make_instance_name(
+        store.id
+    )
 
-    status = await evolution_status(client, instance_name)
-    state = (status.get("state") or "").lower()
+    status = await evolution_status(
+        client,
+        instance_name,
+    )
 
-    if state in {"open", "connected", "online"}:
+    state = (
+        status.get("state") or ""
+    ).lower()
+
+    if state in {
+        "open",
+        "connected",
+        "online",
+    }:
+
         return {
             "instance_name": instance_name,
             "created": False,
@@ -1247,21 +1647,43 @@ async def ensure_instance(
             "status": status,
         }
 
-    create_result = await evolution_create_instance(
-        client, instance_name
+    create_result = (
+        await evolution_create_instance(
+            client,
+            instance_name,
+        )
     )
 
-    if create_result["status_code"] not in (200, 201, 409):
-        print("INSTANCE CREATE FAILED:", create_result)
+    if create_result[
+        "status_code"
+    ] not in (
+        200,
+        201,
+        409,
+    ):
 
-    # A 409 normally means the instance already exists. Refresh its state so
-    # diagnostics contain the current state rather than the pre-create 404.
-    if create_result["status_code"] == 409:
-        status = await evolution_status(client, instance_name)
+        print(
+            "INSTANCE CREATE FAILED:",
+            create_result,
+        )
+
+    if create_result[
+        "status_code"
+    ] == 409:
+
+        status = await evolution_status(
+            client,
+            instance_name,
+        )
 
     return {
         "instance_name": instance_name,
-        "created": create_result["status_code"] in (200, 201),
+        "created": (
+            create_result[
+                "status_code"
+            ]
+            in (200, 201)
+        ),
         "create": create_result,
         "status": status,
     }
@@ -1294,7 +1716,6 @@ async def configure_webhook(
         f"{store_id}"
     )
 
-    # Evolution API versions differ slightly.
     payload = {
         "webhook": {
             "enabled": True,
@@ -1363,35 +1784,65 @@ async def get_qr_with_retry(
     delay_seconds: float = 1.5,
     initial_result: Optional[dict] = None,
 ):
-    """Return a QR code, a connected state, or the last Evolution response.
-
-    Some Evolution API versions return the QR from /instance/create while
-    others return it only from /instance/connect. We support both flows.
-    """
 
     last_result = initial_result
 
-    if initial_result and initial_result.get("qr"):
+    if (
+        initial_result
+        and initial_result.get("qr")
+    ):
+
         return initial_result
 
-    for attempt in range(1, attempts + 1):
-        result = await evolution_connect(client, instance_name)
+    for attempt in range(
+        1,
+        attempts + 1,
+    ):
+
+        result = await evolution_connect(
+            client,
+            instance_name,
+        )
+
         last_result = result
 
         if result.get("qr"):
-            print(f"QR RECEIVED ON ATTEMPT {attempt}")
+
+            print(
+                f"QR RECEIVED ON ATTEMPT {attempt}"
+            )
+
             return result
 
-        state = extract_connection_state(result.get("data"))
-        if state and state.lower() in {"open", "connected", "online"}:
+        state = extract_connection_state(
+            result.get("data")
+        )
+
+        if (
+            state
+            and state.lower()
+            in {
+                "open",
+                "connected",
+                "online",
+            }
+        ):
+
             return result
 
         if attempt < attempts:
-            await asyncio.sleep(delay_seconds)
+
+            await asyncio.sleep(
+                delay_seconds
+            )
 
     return last_result or {
         "status_code": 0,
-        "data": {"error": "Evolution API لم ترجع نتيجة"},
+        "data": {
+            "error": (
+                "Evolution API لم ترجع نتيجة"
+            )
+        },
         "qr": None,
     }
 
@@ -1457,6 +1908,12 @@ async def health():
         ),
         "webhook_configured": bool(
             WEBHOOK_BASE_URL
+        ),
+        "email_verification_required": (
+            EMAIL_VERIFICATION_REQUIRED
+        ),
+        "smtp_configured": (
+            email_configuration_ready()
         ),
         "model": ANTHROPIC_MODEL,
     }
@@ -1554,7 +2011,6 @@ async def register_store(
             detail="اسم المستخدم طويل جدًا",
         )
 
-    # Arabic + English + numbers + _ . -
     username_pattern = (
         r"^[A-Za-z0-9\u0600-\u06FF_.-]+$"
     )
@@ -1632,6 +2088,23 @@ async def register_store(
             ),
         )
 
+    # =====================================================
+    # CHECK SMTP BEFORE CREATING ACCOUNT
+    # =====================================================
+
+    if (
+        EMAIL_VERIFICATION_REQUIRED
+        and not email_configuration_ready()
+    ):
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "خدمة البريد الإلكتروني غير مضبوطة. "
+                "تأكد من إعدادات SMTP في Render."
+            ),
+        )
+
     store = StoreModel(
         id=str(uuid.uuid4()),
         store_name=store_name,
@@ -1649,9 +2122,26 @@ async def register_store(
         password_hash=hash_password(
             password
         ),
+        email_verified=(
+            not EMAIL_VERIFICATION_REQUIRED
+        ),
     )
 
     db.add(user)
+
+    # =====================================================
+    # PREPARE VERIFICATION CODE
+    # =====================================================
+
+    verification_code = None
+
+    if EMAIL_VERIFICATION_REQUIRED:
+
+        verification_code = (
+            prepare_verification_code(
+                user
+            )
+        )
 
     try:
 
@@ -1668,6 +2158,99 @@ async def register_store(
                 "الإلكتروني مستخدم مسبقًا"
             ),
         )
+
+    # =====================================================
+    # SEND EMAIL
+    # =====================================================
+
+    if EMAIL_VERIFICATION_REQUIRED:
+
+        try:
+
+            send_verification_email(
+                email,
+                verification_code,
+            )
+
+        except Exception as exc:
+
+            print(
+                "VERIFICATION EMAIL ERROR:",
+                repr(exc),
+            )
+
+            # Remove account if email could not be sent.
+            try:
+
+                db.rollback()
+
+                user_to_delete = (
+                    db.query(UserModel)
+                    .filter(
+                        UserModel.id
+                        == user.id
+                    )
+                    .first()
+                )
+
+                store_to_delete = (
+                    db.query(StoreModel)
+                    .filter(
+                        StoreModel.id
+                        == store.id
+                    )
+                    .first()
+                )
+
+                if user_to_delete:
+                    db.delete(
+                        user_to_delete
+                    )
+
+                if store_to_delete:
+                    db.delete(
+                        store_to_delete
+                    )
+
+                db.commit()
+
+            except Exception as cleanup_exc:
+
+                db.rollback()
+
+                print(
+                    "EMAIL FAILURE CLEANUP ERROR:",
+                    repr(cleanup_exc),
+                )
+
+            raise HTTPException(
+                status_code=500,
+                detail=(
+                    "تم إنشاء الحساب لكن تعذر إرسال "
+                    "رمز التحقق. تأكد من إعدادات Gmail SMTP."
+                ),
+            )
+
+        return {
+            "status": "verification_required",
+            "success": True,
+            "requires_email_verification": True,
+            "message": (
+                "تم إنشاء الحساب. أرسلنا رمز "
+                "التحقق إلى بريدك الإلكتروني."
+            ),
+            "email": email,
+            "store_id": store.id,
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+            },
+        }
+
+    # =====================================================
+    # VERIFICATION DISABLED
+    # =====================================================
 
     token = create_session(
         db,
@@ -1699,6 +2282,280 @@ async def register_store(
     )
 
     return response
+
+
+# =========================================================
+# VERIFY EMAIL
+# =========================================================
+
+@app.post("/api/verify-email")
+async def verify_email(
+    email: str = Form(...),
+    code: str = Form(...),
+    db: Session = Depends(get_db),
+):
+
+    email = email.strip().lower()
+    code = code.strip()
+
+    if not EMAIL_VERIFICATION_REQUIRED:
+
+        return {
+            "status": "success",
+            "success": True,
+            "message": (
+                "تأكيد البريد الإلكتروني غير مفعل"
+            ),
+        }
+
+    if not re.fullmatch(
+        r"\d{6}",
+        code,
+    ):
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "رمز التحقق يجب أن يكون "
+                "6 أرقام"
+            ),
+        )
+
+    user = (
+        db.query(UserModel)
+        .filter(
+            UserModel.email
+            == email
+        )
+        .first()
+    )
+
+    if not user:
+
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "لا يوجد حساب بهذا البريد الإلكتروني"
+            ),
+        )
+
+    if user.email_verified:
+
+        # If already verified, simply allow login.
+        token = create_session(
+            db,
+            user,
+        )
+
+        response = JSONResponse(
+            content={
+                "status": "success",
+                "success": True,
+                "message": (
+                    "البريد الإلكتروني مؤكد مسبقًا"
+                ),
+                "store_id": user.store_id,
+                "user": {
+                    "id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                },
+                "store": store_to_dict(
+                    user.store
+                ),
+            }
+        )
+
+        set_session_cookie(
+            response,
+            token,
+        )
+
+        return response
+
+    if not user.verification_code_hash:
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "لا يوجد رمز تحقق صالح. "
+                "اطلب إرسال رمز جديد."
+            ),
+        )
+
+    if verification_expired(user):
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "انتهت صلاحية رمز التحقق. "
+                "اطلب رمزًا جديدًا."
+            ),
+        )
+
+    expected_hash = (
+        hash_verification_code(
+            user.id,
+            code,
+        )
+    )
+
+    if not secrets.compare_digest(
+        expected_hash,
+        user.verification_code_hash,
+    ):
+
+        raise HTTPException(
+            status_code=400,
+            detail="رمز التحقق غير صحيح",
+        )
+
+    # =====================================================
+    # VERIFIED
+    # =====================================================
+
+    user.email_verified = True
+
+    user.verification_code_hash = None
+
+    user.verification_expires_at = None
+
+    db.commit()
+    db.refresh(user)
+
+    token = create_session(
+        db,
+        user,
+    )
+
+    response = JSONResponse(
+        content={
+            "status": "success",
+            "success": True,
+            "message": (
+                "تم تأكيد البريد الإلكتروني بنجاح"
+            ),
+            "store_id": user.store_id,
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+            },
+            "store": store_to_dict(
+                user.store
+            ),
+        }
+    )
+
+    set_session_cookie(
+        response,
+        token,
+    )
+
+    return response
+
+
+# =========================================================
+# RESEND VERIFICATION
+# =========================================================
+
+@app.post("/api/resend-verification")
+async def resend_verification(
+    email: str = Form(...),
+    db: Session = Depends(get_db),
+):
+
+    email = email.strip().lower()
+
+    if not EMAIL_VERIFICATION_REQUIRED:
+
+        return {
+            "status": "success",
+            "success": True,
+            "message": (
+                "تأكيد البريد الإلكتروني غير مفعل"
+            ),
+        }
+
+    if not email_configuration_ready():
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "إعدادات SMTP غير مكتملة في Render."
+            ),
+        )
+
+    user = (
+        db.query(UserModel)
+        .filter(
+            UserModel.email
+            == email
+        )
+        .first()
+    )
+
+    if not user:
+
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "لا يوجد حساب بهذا البريد الإلكتروني"
+            ),
+        )
+
+    if user.email_verified:
+
+        return {
+            "status": "success",
+            "success": True,
+            "already_verified": True,
+            "message": (
+                "البريد الإلكتروني مؤكد بالفعل"
+            ),
+        }
+
+    verification_code = (
+        prepare_verification_code(
+            user
+        )
+    )
+
+    db.commit()
+
+    try:
+
+        send_verification_email(
+            email,
+            verification_code,
+        )
+
+    except Exception as exc:
+
+        print(
+            "RESEND VERIFICATION EMAIL ERROR:",
+            repr(exc),
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "تعذر إرسال رمز التحقق. "
+                "تأكد من إعدادات Gmail SMTP."
+            ),
+        )
+
+    return {
+        "status": "success",
+        "success": True,
+        "message": (
+            "تم إرسال رمز تحقق جديد إلى بريدك الإلكتروني."
+        ),
+        "email": email,
+        "expires_in_minutes": (
+            EMAIL_CODE_TTL_MINUTES
+        ),
+    }
 
 
 # =========================================================
@@ -1747,6 +2604,60 @@ async def login(
                 "اسم المستخدم أو كلمة المرور غير صحيحة"
             ),
         )
+
+    # =====================================================
+    # BLOCK LOGIN UNTIL EMAIL IS VERIFIED
+    # =====================================================
+
+    if (
+        EMAIL_VERIFICATION_REQUIRED
+        and not user.email_verified
+    ):
+
+        # If the account has no active code, generate one.
+        if (
+            not user.verification_code_hash
+            or verification_expired(user)
+        ):
+
+            try:
+
+                verification_code = (
+                    prepare_verification_code(
+                        user
+                    )
+                )
+
+                db.commit()
+
+                if email_configuration_ready():
+
+                    send_verification_email(
+                        user.email,
+                        verification_code,
+                    )
+
+            except Exception as exc:
+
+                db.rollback()
+
+                print(
+                    "LOGIN VERIFICATION EMAIL ERROR:",
+                    repr(exc),
+                )
+
+        return email_verification_response(
+            user.email,
+            (
+                "يجب تأكيد بريدك الإلكتروني أولاً. "
+                "تم إرسال رمز التحقق إلى بريدك."
+            ),
+            403,
+        )
+
+    # =====================================================
+    # VERIFIED LOGIN
+    # =====================================================
 
     token = create_session(
         db,
@@ -1941,9 +2852,7 @@ async def update_agent(
         normalized_phone
     )
 
-    store.agent_notes = (
-        agent_notes
-    )
+    store.agent_notes = agent_notes
 
     if pdf_file and pdf_file.filename:
 
@@ -1976,14 +2885,12 @@ async def update_agent(
     db.commit()
     db.refresh(store)
 
-    # =====================================================
-    # IMPORTANT:
-    # Create Evolution instance immediately.
-    # =====================================================
-
     evolution_result = None
 
-    if EVOLUTION_API_URL and EVOLUTION_GLOBAL_KEY:
+    if (
+        EVOLUTION_API_URL
+        and EVOLUTION_GLOBAL_KEY
+    ):
 
         try:
 
@@ -2095,10 +3002,6 @@ async def whatsapp_qr(
         timeout=40.0
     ) as client:
 
-        # =================================================
-        # 1. ENSURE INSTANCE EXISTS
-        # =================================================
-
         ensure_result = (
             await ensure_instance(
                 client,
@@ -2112,10 +3015,6 @@ async def whatsapp_qr(
             ]
         )
 
-        # =================================================
-        # 2. CONFIGURE WEBHOOK
-        # =================================================
-
         webhook_result = (
             await configure_webhook(
                 client,
@@ -2124,17 +3023,17 @@ async def whatsapp_qr(
             )
         )
 
-        # =================================================
-        # 3. CONNECT / GET QR
-        # =================================================
-
         qr_result = (
             await get_qr_with_retry(
                 client,
                 instance_name,
                 attempts=10,
                 delay_seconds=1.5,
-                initial_result=ensure_result.get("create"),
+                initial_result=(
+                    ensure_result.get(
+                        "create"
+                    )
+                ),
             )
         )
 
@@ -2153,11 +3052,6 @@ async def whatsapp_qr(
             "webhook": webhook_result,
         }
 
-    # =====================================================
-    # DO NOT HIDE EVOLUTION ERROR.
-    # Return diagnostic information.
-    # =====================================================
-
     evolution_data = qr_result.get(
         "data"
     )
@@ -2168,11 +3062,15 @@ async def whatsapp_qr(
             "status": "error",
             "success": False,
             "message": (
-                "Evolution API لم تُرجع QR Code. راجع evolution_http_status و evolution_response."
+                "Evolution API لم تُرجع QR Code. "
+                "راجع evolution_http_status "
+                "و evolution_response."
             ),
             "instance_name": instance_name,
-            "evolution_http_status": qr_result.get(
-                "status_code"
+            "evolution_http_status": (
+                qr_result.get(
+                    "status_code"
+                )
             ),
             "connection_state": (
                 extract_connection_state(
@@ -2471,8 +3369,6 @@ async def widget_chat(
             )
         )
 
-        # IMPORTANT:
-        # "=" not ":"
         log = ChatLogModel(
             store_id=store.id,
             sender_id=(
@@ -2746,7 +3642,6 @@ async def whatsapp_webhook(
                 "reason": "text missing",
             }
 
-        # Ignore groups.
         if sender.endswith(
             "@g.us"
         ):
@@ -2756,7 +3651,6 @@ async def whatsapp_webhook(
                 "reason": "group",
             }
 
-        # Ignore broadcasts.
         if sender.endswith(
             "@broadcast"
         ):
@@ -2766,7 +3660,6 @@ async def whatsapp_webhook(
                 "reason": "broadcast",
             }
 
-        # Ignore messages generated by us.
         data = payload.get(
             "data",
             payload,
@@ -2795,10 +3688,6 @@ async def whatsapp_webhook(
             incoming_text.strip()
         )
 
-        # =================================================
-        # Generate Claude response
-        # =================================================
-
         reply_text = (
             await generate_ai_reply(
                 store,
@@ -2807,10 +3696,6 @@ async def whatsapp_webhook(
                 db,
             )
         )
-
-        # =================================================
-        # Save conversation
-        # =================================================
 
         log = ChatLogModel(
             store_id=store.id,
@@ -2821,10 +3706,6 @@ async def whatsapp_webhook(
 
         db.add(log)
         db.commit()
-
-        # =================================================
-        # Send WhatsApp reply
-        # =================================================
 
         instance_name = make_instance_name(
             store.id
@@ -2882,6 +3763,12 @@ async def whatsapp_webhook(
 @app.on_event("startup")
 async def startup_event():
 
+    # Run schema migration again at startup.
+    # This makes sure Render/Supabase receives the new
+    # verification columns even when the tables already exist.
+
+    ensure_database_schema()
+
     print(
         "================================================"
     )
@@ -2938,6 +3825,29 @@ async def startup_event():
     print(
         "ANTHROPIC MODEL:",
         ANTHROPIC_MODEL,
+    )
+
+    print(
+        "EMAIL VERIFICATION:",
+        (
+            "ENABLED"
+            if EMAIL_VERIFICATION_REQUIRED
+            else "DISABLED"
+        ),
+    )
+
+    print(
+        "SMTP:",
+        (
+            "configured"
+            if email_configuration_ready()
+            else "NOT CONFIGURED"
+        ),
+    )
+
+    print(
+        "EMAIL CODE TTL:",
+        f"{EMAIL_CODE_TTL_MINUTES} minutes",
     )
 
     print(
