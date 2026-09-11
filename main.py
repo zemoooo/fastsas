@@ -1,6 +1,8 @@
+import hashlib
 import os
+import secrets
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, Any
 
 import anthropic
@@ -8,7 +10,7 @@ import httpx
 import pypdf
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, create_engine
 from sqlalchemy.orm import Session, declarative_base, relationship, sessionmaker
@@ -25,11 +27,30 @@ if not DATABASE_URL:
 if not DATABASE_URL:
     DATABASE_URL = "sqlite:///./saas_stores.db"
 
+# Supabase usually provides a PostgreSQL URL. Normalize older postgres:// URLs
+# and require SSL for external PostgreSQL connections when sslmode was not set.
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = "postgresql://" + DATABASE_URL[len("postgres://"): ]
+
+if DATABASE_URL.startswith("postgresql") and "sslmode=" not in DATABASE_URL:
+    separator = "&" if "?" in DATABASE_URL else "?"
+    DATABASE_URL = f"{DATABASE_URL}{separator}sslmode=require"
+
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 
-engine_kwargs = {}
+engine_kwargs = {
+    "pool_pre_ping": True,
+    "pool_recycle": 1800,
+}
+
 if not DATABASE_URL.startswith("sqlite"):
-    engine_kwargs["pool_pre_ping"] = True
+    # Keep the pool small because Supabase/Render free plans have connection limits.
+    engine_kwargs.update({
+        "pool_size": int(os.getenv("DB_POOL_SIZE", "3")),
+        "max_overflow": int(os.getenv("DB_MAX_OVERFLOW", "2")),
+    })
+else:
+    engine_kwargs = {}
 
 engine = create_engine(
     DATABASE_URL,
@@ -62,6 +83,9 @@ if not EVOLUTION_GLOBAL_KEY:
 
 WEBHOOK_BASE_URL = os.getenv("WEBHOOK_BASE_URL", "").strip().rstrip("/")
 
+SESSION_COOKIE_NAME = "ai_store_session"
+SESSION_DAYS = int(os.getenv("SESSION_DAYS", "30"))
+
 if ANTHROPIC_API_KEY:
     claude_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 else:
@@ -88,6 +112,30 @@ class StoreModel(Base):
         back_populates="store",
         cascade="all, delete-orphan",
     )
+
+
+class UserModel(Base):
+    __tablename__ = "users"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    store_id = Column(String, ForeignKey("stores.id"), nullable=False, unique=True)
+    username = Column(String, nullable=False, unique=True, index=True)
+    password_hash = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    store = relationship("StoreModel", backref="owner", uselist=False)
+
+
+class SessionModel(Base):
+    __tablename__ = "auth_sessions"
+
+    id = Column(String, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    token_hash = Column(String, nullable=False, unique=True, index=True)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("UserModel")
 
 
 class ChatLogModel(Base):
@@ -264,6 +312,91 @@ def extract_instance_status(data: Any) -> Optional[str]:
             return str(value)
 
     return None
+
+
+def hash_password(password: str, salt: Optional[bytes] = None) -> str:
+    if salt is None:
+        salt = secrets.token_bytes(16)
+    derived = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt,
+        240_000,
+    )
+    return f"pbkdf2_sha256$240000${salt.hex()}${derived.hex()}"
+
+
+def verify_password(password: str, stored_hash: str) -> bool:
+    try:
+        algorithm, rounds, salt_hex, digest_hex = stored_hash.split("$", 3)
+        if algorithm != "pbkdf2_sha256":
+            return False
+        derived = hashlib.pbkdf2_hmac(
+            "sha256",
+            password.encode("utf-8"),
+            bytes.fromhex(salt_hex),
+            int(rounds),
+        )
+        return secrets.compare_digest(derived.hex(), digest_hex)
+    except Exception:
+        return False
+
+
+def hash_session_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def get_user_from_token(db: Session, token: Optional[str]) -> Optional[UserModel]:
+    if not token:
+        return None
+
+    token_hash = hash_session_token(token)
+    session = (
+        db.query(SessionModel)
+        .filter(SessionModel.token_hash == token_hash)
+        .first()
+    )
+
+    if not session:
+        return None
+
+    if session.expires_at <= datetime.utcnow():
+        db.delete(session)
+        db.commit()
+        return None
+
+    user = db.query(UserModel).filter(UserModel.id == session.user_id).first()
+    return user
+
+
+def set_session_cookie(response: JSONResponse, db: Session, user: UserModel) -> str:
+    token = secrets.token_urlsafe(48)
+    session = SessionModel(
+        id=str(uuid.uuid4()),
+        user_id=user.id,
+        token_hash=hash_session_token(token),
+        expires_at=datetime.utcnow() + timedelta(days=SESSION_DAYS),
+    )
+    db.add(session)
+    db.commit()
+
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=token,
+        max_age=SESSION_DAYS * 24 * 60 * 60,
+        httponly=True,
+        secure=os.getenv("COOKIE_SECURE", "true").lower() == "true",
+        samesite="lax",
+        path="/",
+    )
+    return token
+
+
+def current_user_from_request(request: Request, db: Session) -> UserModel:
+    user = get_user_from_token(db, request.cookies.get(SESSION_COOKIE_NAME))
+    if not user:
+        raise HTTPException(status_code=401, detail="يجب تسجيل الدخول أولاً.")
+    return user
 
 
 def require_evolution_config():
@@ -567,7 +700,10 @@ async def get_widget_script():
 
 @app.post("/api/register-store")
 async def register_store(
+    request: Request,
     store_name: str = Form(...),
+    username: str = Form(...),
+    password: str = Form(...),
     store_url: Optional[str] = Form(None),
     whatsapp_number: Optional[str] = Form(None),
     agent_notes: Optional[str] = Form(None),
@@ -580,6 +716,16 @@ async def register_store(
         if pdf_file.filename.lower().endswith(".pdf"):
             catalog_content = extract_pdf_text(pdf_file.file)
 
+    username = username.strip().lower()
+    if len(username) < 3:
+        raise HTTPException(status_code=400, detail="اسم المستخدم يجب أن يكون 3 أحرف على الأقل.")
+    if len(password) < 6:
+        raise HTTPException(status_code=400, detail="كلمة المرور يجب أن تكون 6 أحرف على الأقل.")
+
+    existing_user = db.query(UserModel).filter(UserModel.username == username).first()
+    if existing_user:
+        raise HTTPException(status_code=409, detail="اسم المستخدم مستخدم بالفعل.")
+
     new_store = StoreModel(
         store_name=store_name,
         store_url=store_url,
@@ -591,6 +737,15 @@ async def register_store(
     db.add(new_store)
     db.commit()
     db.refresh(new_store)
+
+    new_user = UserModel(
+        store_id=new_store.id,
+        username=username,
+        password_hash=hash_password(password),
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
 
     qr_code_data = None
     evolution_error = None
@@ -675,7 +830,7 @@ async def register_store(
                 evolution_error = str(exc)
                 print(f"Evolution registration error: {exc}")
 
-    return {
+    result_payload = {
         "status": "success",
         "message": (
             "تم تسجيل المتجر بنجاح وتم توليد QR Code."
@@ -692,12 +847,74 @@ async def register_store(
             f'<script src="{WEBHOOK_BASE_URL}/widget.js" '
             f'data-store-id="{new_store.id}"></script>'
         ),
+        "username": username,
+    }
+
+    response = JSONResponse(result_payload)
+    set_session_cookie(response, db, new_user)
+    return response
+
+
+@app.post("/api/login")
+async def login(
+    username: str = Form(...),
+    password: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    user = db.query(UserModel).filter(UserModel.username == username.strip().lower()).first()
+    if not user or not verify_password(password, user.password_hash):
+        raise HTTPException(status_code=401, detail="اسم المستخدم أو كلمة المرور غير صحيحة.")
+
+    response = JSONResponse({
+        "status": "success",
+        "message": "تم تسجيل الدخول بنجاح.",
+        "username": user.username,
+        "store": {
+            "id": user.store.id,
+            "store_name": user.store.store_name,
+            "store_url": user.store.store_url,
+            "whatsapp_number": user.store.whatsapp_number,
+        },
+    })
+    set_session_cookie(response, db, user)
+    return response
+
+
+@app.post("/api/logout")
+async def logout(request: Request, db: Session = Depends(get_db)):
+    token = request.cookies.get(SESSION_COOKIE_NAME)
+    if token:
+        session = db.query(SessionModel).filter(SessionModel.token_hash == hash_session_token(token)).first()
+        if session:
+            db.delete(session)
+            db.commit()
+
+    response = JSONResponse({"status": "success"})
+    response.delete_cookie(SESSION_COOKIE_NAME, path="/")
+    return response
+
+
+@app.get("/api/me")
+async def me(request: Request, db: Session = Depends(get_db)):
+    user = current_user_from_request(request, db)
+    return {
+        "status": "success",
+        "username": user.username,
+        "store": {
+            "id": user.store.id,
+            "store_name": user.store.store_name,
+            "store_url": user.store.store_url,
+            "whatsapp_number": user.store.whatsapp_number,
+            "agent_notes": user.store.agent_notes,
+            "catalog_text": user.store.catalog_text,
+        },
     }
 
 
 @app.get("/api/whatsapp/qr/{store_id}")
 async def whatsapp_qr(
     store_id: str,
+    request: Request,
     db: Session = Depends(get_db),
 ):
     require_evolution_config()
@@ -713,6 +930,10 @@ async def whatsapp_qr(
             status_code=404,
             detail="Store not found",
         )
+
+    user = current_user_from_request(request, db)
+    if user.store_id != store.id:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا المتجر.")
 
     if not store.whatsapp_number:
         raise HTTPException(
@@ -756,6 +977,7 @@ async def whatsapp_qr(
 @app.get("/api/whatsapp/status/{store_id}")
 async def whatsapp_status(
     store_id: str,
+    request: Request,
     db: Session = Depends(get_db),
 ):
     require_evolution_config()
@@ -771,6 +993,10 @@ async def whatsapp_status(
             status_code=404,
             detail="Store not found",
         )
+
+    user = current_user_from_request(request, db)
+    if user.store_id != store.id:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا المتجر.")
 
     if not store.whatsapp_number:
         raise HTTPException(
@@ -966,18 +1192,29 @@ async def whatsapp_evolution_webhook(
     try:
         data = await request.json()
 
+        event_name = str(data.get("event", ""))
         print(
-            f"WhatsApp webhook received for store={store_id}: "
+            f"WhatsApp webhook received for store={store_id}, event={event_name}: "
             f"{data}"
         )
 
         msg_data = data.get("data", data)
 
+        if isinstance(msg_data, list):
+            msg_data = msg_data[0] if msg_data else {}
+
         if not isinstance(msg_data, dict):
             return {"status": "ignored"}
 
-        # Ignore non-message webhook events.
+        # Evolution normally sends the message as data.message. Some proxies
+        # may forward it as data.messages[0], so support both shapes.
         message_obj = msg_data.get("message")
+
+        if not message_obj and isinstance(msg_data.get("messages"), list):
+            messages = msg_data.get("messages") or []
+            if messages and isinstance(messages[0], dict):
+                msg_data = messages[0]
+                message_obj = msg_data.get("message") or msg_data.get("text")
 
         if not message_obj:
             return {"status": "event_received"}
@@ -995,14 +1232,31 @@ async def whatsapp_evolution_webhook(
 
         if "g.us" in sender_remote_jid:
             return {"status": "ignored"}
-
         msg_body = message_obj if isinstance(message_obj, dict) else {}
+
+        # Unwrap common WhatsApp containers.
+        for wrapper in (
+            "ephemeralMessage",
+            "viewOnceMessage",
+            "viewOnceMessageV2",
+            "viewOnceMessageV2Extension",
+            "documentWithCaptionMessage",
+        ):
+            nested = msg_body.get(wrapper)
+            if isinstance(nested, dict) and isinstance(nested.get("message"), dict):
+                msg_body = nested["message"]
+
+        extended = msg_body.get("extendedTextMessage")
+        image = msg_body.get("imageMessage")
+        video = msg_body.get("videoMessage")
+        document = msg_body.get("documentMessage")
 
         message_content = (
             msg_body.get("conversation")
-            or msg_body.get("extendedTextMessage", {}).get("text")
-            or msg_body.get("imageMessage", {}).get("caption")
-            or msg_body.get("videoMessage", {}).get("caption")
+            or (extended.get("text") if isinstance(extended, dict) else None)
+            or (image.get("caption") if isinstance(image, dict) else None)
+            or (video.get("caption") if isinstance(video, dict) else None)
+            or (document.get("caption") if isinstance(document, dict) else None)
             or ""
         )
 
@@ -1040,8 +1294,14 @@ async def whatsapp_evolution_webhook(
 
         clean_phone = normalize_phone(store.whatsapp_number)
         instance_name = make_instance_name(clean_phone)
-
-        target_number = sender_remote_jid.split("@")[0]
+        # Prefer a real phone JID when Evolution provides an alternative for LID users.
+        target_jid = (
+            key.get("remoteJidAlt")
+            or key.get("senderPn")
+            or key.get("remoteJid")
+            or sender_remote_jid
+        )
+        target_number = str(target_jid).split("@")[0]
 
         send_url = (
             f"{EVOLUTION_API_URL}/message/sendText/"
@@ -1053,9 +1313,16 @@ async def whatsapp_evolution_webhook(
             "Content-Type": "application/json",
         }
 
+        # Evolution API v2 documents sendText with textMessage.text.
         send_payload = {
             "number": target_number,
-            "text": reply_text,
+            "textMessage": {
+                "text": reply_text,
+            },
+            "options": {
+                "delay": 500,
+                "presence": "composing",
+            },
         }
 
         async with httpx.AsyncClient(timeout=20.0) as client:
