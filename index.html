@@ -3,397 +3,1905 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>منصة المساعد الذكي للمتاجر</title>
+
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet"
+    >
+
     <style>
-        body { font-family: 'Cairo', sans-serif; }
+        body {
+            font-family: 'Cairo', sans-serif;
+        }
+
+        .hidden-force {
+            display: none !important;
+        }
+
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.65;
+        }
     </style>
 </head>
+
 <body class="bg-slate-100 min-h-screen text-slate-800 flex items-center justify-center p-4">
 
-    <!-- ==================== 1. قسم تسجيل الحساب وتطابق البيانات ==================== -->
-    <div id="authSection" class="w-full max-w-5xl bg-white rounded-3xl shadow-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-2 my-auto">
-        
-        <!-- الجانب الأيسر: نماذج التسجيل والدخول -->
-        <div class="p-8 md:p-12 flex flex-col justify-center order-2 lg:order-1">
-            
-            <div id="alertBox" class="hidden mb-6 p-4 rounded-xl text-sm font-semibold border"></div>
+    <!-- =====================================================
+         AUTH SECTION
+    ====================================================== -->
 
-            <!-- نموذج إنشاء حساب جديد (الافتراضي) -->
+    <div
+        id="authSection"
+        class="w-full max-w-5xl bg-white rounded-3xl shadow-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-2 my-auto"
+    >
+
+        <!-- الجانب الخاص بالتسجيل والدخول -->
+        <div class="p-8 md:p-12 flex flex-col justify-center order-2 lg:order-1">
+
+            <div
+                id="alertBox"
+                class="hidden mb-6 p-4 rounded-xl text-sm font-semibold border"
+            ></div>
+
+            <!-- =================================================
+                 REGISTER
+            ================================================== -->
+
             <div id="registerFormContainer">
+
                 <div class="text-center lg:text-right mb-6">
-                    <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-xl mb-3 mx-auto lg:mx-0 shadow-sm border border-indigo-100">
+
+                    <div
+                        class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-xl mb-3 mx-auto lg:mx-0 shadow-sm border border-indigo-100"
+                    >
                         ✨
                     </div>
-                    <h2 class="text-2xl font-extrabold text-slate-900">إنشاء حساب جديد</h2>
-                    <p class="text-slate-500 text-sm mt-1">أدخل بيانات متجرك للبدء في استخدام المساعد الذكي.</p>
+
+                    <h2 class="text-2xl font-extrabold text-slate-900">
+                        إنشاء حساب جديد
+                    </h2>
+
+                    <p class="text-slate-500 text-sm mt-1">
+                        أدخل بيانات متجرك للبدء في استخدام المساعد الذكي.
+                    </p>
+
                 </div>
 
-                <form id="registerForm" class="space-y-4">
+                <form
+                    id="registerForm"
+                    class="space-y-4"
+                    novalidate
+                >
+
+                    <!-- اسم المتجر -->
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">اسم المتجر <span class="text-red-500">*</span></label>
-                        <input type="text" id="reg_store_name" name="store_name" required placeholder="مثال: متجر الأناقة" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">
+                            اسم المتجر
+                            <span class="text-red-500">*</span>
+                        </label>
+
+                        <input
+                            type="text"
+                            id="reg_store_name"
+                            name="store_name"
+                            required
+                            autocomplete="organization"
+                            placeholder="مثال: متجر الأناقة"
+                            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm"
+                        >
                     </div>
 
+                    <!-- البريد -->
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">إيميل المتجر <span class="text-red-500">*</span></label>
-                        <input type="email" id="reg_email" name="email" required placeholder="store@example.com" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">
+                            إيميل المتجر
+                            <span class="text-red-500">*</span>
+                        </label>
+
+                        <input
+                            type="email"
+                            id="reg_email"
+                            name="email"
+                            required
+                            autocomplete="email"
+                            placeholder="store@example.com"
+                            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm"
+                        >
                     </div>
 
+                    <!-- واتساب -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">
+                            رقم واتساب المتجر
+                            <span class="text-red-500">*</span>
+                        </label>
+
+                        <input
+                            type="tel"
+                            id="reg_whatsapp_number"
+                            name="whatsapp_number"
+                            required
+                            autocomplete="tel"
+                            inputmode="numeric"
+                            placeholder="مثال: 967770000000"
+                            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm"
+                        >
+
+                        <p class="text-[11px] text-slate-400 mt-1">
+                            أدخل الرقم مع مفتاح الدولة وبدون علامة +
+                        </p>
+                    </div>
+
+                    <!-- كلمات السر -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+
                         <div>
-                            <label class="block text-xs font-semibold text-slate-700 mb-1">كلمة السر <span class="text-red-500">*</span></label>
-                            <input type="password" id="reg_password" name="password" required placeholder="••••••••" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm">
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">
+                                كلمة السر
+                                <span class="text-red-500">*</span>
+                            </label>
+
+                            <input
+                                type="password"
+                                id="reg_password"
+                                name="password"
+                                required
+                                minlength="6"
+                                autocomplete="new-password"
+                                placeholder="••••••••"
+                                class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm"
+                            >
                         </div>
+
                         <div>
-                            <label class="block text-xs font-semibold text-slate-700 mb-1">تأكيد كلمة السر <span class="text-red-500">*</span></label>
-                            <input type="password" id="reg_confirm_password" name="confirm_password" required placeholder="••••••••" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm">
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">
+                                تأكيد كلمة السر
+                                <span class="text-red-500">*</span>
+                            </label>
+
+                            <input
+                                type="password"
+                                id="reg_confirm_password"
+                                name="confirm_password"
+                                required
+                                minlength="6"
+                                autocomplete="new-password"
+                                placeholder="••••••••"
+                                class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm"
+                            >
                         </div>
+
                     </div>
 
-                    <button type="submit" id="registerBtn" class="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/30 transition text-sm flex justify-center items-center gap-2 mt-2">
-                        <span>تسجيل الحساب</span>
-                        <span id="registerSpinner" class="hidden animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                    <!-- رابط المتجر -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">
+                            رابط المتجر
+                            <span class="text-slate-400">(اختياري)</span>
+                        </label>
+
+                        <input
+                            type="url"
+                            id="reg_store_url"
+                            name="store_url"
+                            placeholder="https://example.com"
+                            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm"
+                        >
+                    </div>
+
+                    <!-- تعليمات -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">
+                            تعليمات المساعد
+                            <span class="text-slate-400">(اختياري ويمكن تعديلها لاحقًا)</span>
+                        </label>
+
+                        <textarea
+                            id="reg_agent_notes"
+                            name="agent_notes"
+                            rows="3"
+                            placeholder="مثال: رحب بالعميل، اذكر الأسعار من الكتالوج، أوقات العمل..."
+                            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm"
+                        ></textarea>
+                    </div>
+
+                    <!-- PDF -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">
+                            كتالوج المنتجات PDF
+                            <span class="text-slate-400">(اختياري)</span>
+                        </label>
+
+                        <input
+                            type="file"
+                            id="reg_pdf_file"
+                            name="pdf_file"
+                            accept=".pdf,application/pdf"
+                            class="w-full text-xs text-slate-500 file:mr-3 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-slate-200 rounded-xl bg-slate-50"
+                        >
+                    </div>
+
+                    <!-- زر التسجيل -->
+                    <button
+                        type="submit"
+                        id="registerBtn"
+                        class="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/30 transition text-sm flex justify-center items-center gap-2 mt-2"
+                    >
+                        <span id="registerBtnText">
+                            تسجيل الحساب
+                        </span>
+
+                        <span
+                            id="registerSpinner"
+                            class="hidden animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"
+                        ></span>
                     </button>
+
                 </form>
 
                 <div class="mt-4 text-center border-t pt-4">
-                    <button onclick="toggleAuthMode('login')" class="text-xs text-indigo-600 hover:text-indigo-800 font-bold hover:underline">
+
+                    <button
+                        type="button"
+                        onclick="toggleAuthMode('login')"
+                        class="text-xs text-indigo-600 hover:text-indigo-800 font-bold hover:underline"
+                    >
                         لديك حساب بالفعل؟ تسجيل الدخول
                     </button>
+
                 </div>
+
             </div>
 
-            <!-- نموذج تسجيل الدخول -->
+
+            <!-- =================================================
+                 LOGIN
+            ================================================== -->
+
             <div id="loginFormContainer" class="hidden">
+
                 <div class="text-center lg:text-right mb-6">
-                    <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-xl mb-3 mx-auto lg:mx-0 shadow-sm border border-indigo-100">
+
+                    <div
+                        class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-xl mb-3 mx-auto lg:mx-0 shadow-sm border border-indigo-100"
+                    >
                         🔑
                     </div>
-                    <h2 class="text-2xl font-extrabold text-slate-900">تسجيل الدخول</h2>
-                    <p class="text-slate-500 text-sm mt-1">أدخل إيميل متجرك وكلمة السر للمتابعة.</p>
+
+                    <h2 class="text-2xl font-extrabold text-slate-900">
+                        تسجيل الدخول
+                    </h2>
+
+                    <p class="text-slate-500 text-sm mt-1">
+                        أدخل إيميل متجرك وكلمة السر للمتابعة.
+                    </p>
+
                 </div>
 
-                <form id="loginForm" class="space-y-4">
+                <form
+                    id="loginForm"
+                    class="space-y-4"
+                    novalidate
+                >
+
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">إيميل المتجر</label>
-                        <input type="email" name="username" required placeholder="store@example.com" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm">
+
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">
+                            إيميل المتجر
+                        </label>
+
+                        <input
+                            type="email"
+                            id="loginUsername"
+                            name="username"
+                            required
+                            autocomplete="username"
+                            placeholder="store@example.com"
+                            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm"
+                        >
+
                     </div>
 
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">كلمة السر</label>
-                        <input type="password" name="password" required placeholder="••••••••" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm">
+
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">
+                            كلمة السر
+                        </label>
+
+                        <input
+                            type="password"
+                            id="loginPassword"
+                            name="password"
+                            required
+                            autocomplete="current-password"
+                            placeholder="••••••••"
+                            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm"
+                        >
+
                     </div>
 
-                    <button type="submit" id="loginBtn" class="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/30 transition text-sm flex justify-center items-center gap-2">
-                        <span>دخول</span>
-                        <span id="loginSpinner" class="hidden animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                    <button
+                        type="submit"
+                        id="loginBtn"
+                        class="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/30 transition text-sm flex justify-center items-center gap-2"
+                    >
+
+                        <span id="loginBtnText">
+                            دخول
+                        </span>
+
+                        <span
+                            id="loginSpinner"
+                            class="hidden animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"
+                        ></span>
+
                     </button>
+
                 </form>
 
                 <div class="mt-4 text-center border-t pt-4">
-                    <button onclick="toggleAuthMode('register')" class="text-xs text-indigo-600 hover:text-indigo-800 font-bold hover:underline">
+
+                    <button
+                        type="button"
+                        onclick="toggleAuthMode('register')"
+                        class="text-xs text-indigo-600 hover:text-indigo-800 font-bold hover:underline"
+                    >
                         ليس لديك حساب؟ إنشاء حساب جديد
                     </button>
+
                 </div>
+
             </div>
 
         </div>
 
-        <!-- الجانب الأيمن: العرض البصري -->
-        <div class="bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 p-8 lg:p-12 text-white flex flex-col justify-between order-1 lg:order-2 relative overflow-hidden">
+
+        <!-- =====================================================
+             الجانب البصري
+        ====================================================== -->
+
+        <div
+            class="bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 p-8 lg:p-12 text-white flex flex-col justify-between order-1 lg:order-2 relative overflow-hidden"
+        >
+
             <div class="relative z-10 flex justify-end">
-                <div class="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-3.5 py-1.5 rounded-full text-xs font-medium border border-white/20">
+
+                <div
+                    class="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-3.5 py-1.5 rounded-full text-xs font-medium border border-white/20"
+                >
                     <span>منصة المساعد الذكي</span>
                     <span>🤖</span>
                 </div>
+
             </div>
 
             <div class="my-12 relative z-10 text-center lg:text-right">
+
                 <h1 class="text-3xl lg:text-4xl font-extrabold leading-tight mb-4">
-                    إعداد المساعد الذكي<br class="hidden lg:block"/> لمتجرك بكل سهولة
+                    إعداد المساعد الذكي
+                    <br class="hidden lg:block">
+                    لمتجرك بكل سهولة
                 </h1>
+
                 <p class="text-indigo-100 text-sm lg:text-base leading-relaxed max-w-md">
-                    سجل حسابك الآن، خصص تعليمات الذكاء الاصطناعي وكتالوج منتجاتك، ثم أطلق الوكيل الذكي عبر الواتساب.
+                    سجل حسابك الآن، أضف رقم واتساب وخصص تعليمات الذكاء الاصطناعي وكتالوج منتجاتك، ثم اربط المساعد بالواتساب.
                 </p>
+
             </div>
 
             <div class="grid grid-cols-3 gap-3 relative z-10">
+
                 <div class="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/15 text-center">
                     <div class="text-base mb-1">📝</div>
                     <div class="text-xs font-bold">1. التسجيل</div>
                 </div>
+
                 <div class="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/15 text-center">
                     <div class="text-base mb-1">⚙️</div>
                     <div class="text-xs font-bold">2. الإعدادات</div>
                 </div>
+
                 <div class="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/15 text-center">
                     <div class="text-base mb-1">🚀</div>
-                    <div class="text-xs font-bold">3. بدء المساعد</div>
+                    <div class="text-xs font-bold">3. ربط واتساب</div>
                 </div>
+
             </div>
+
         </div>
 
     </div>
 
 
-    <!-- ==================== 2. صفحة الأيجنت (تظهر بعد التسجيل/الدخول) ==================== -->
-    <div id="agentSection" class="hidden w-full max-w-4xl bg-white rounded-3xl shadow-2xl p-6 md:p-10 space-y-8 border border-slate-200 my-auto">
-        
-        <!-- الشريط العلوي -->
-        <div class="flex justify-between items-center border-b pb-6">
+    <!-- =====================================================
+         AGENT SECTION
+    ====================================================== -->
+
+    <div
+        id="agentSection"
+        class="hidden w-full max-w-4xl bg-white rounded-3xl shadow-2xl p-6 md:p-10 space-y-8 border border-slate-200 my-auto"
+    >
+
+        <!-- العنوان -->
+        <div class="flex justify-between items-center border-b pb-6 gap-4">
+
             <div class="flex items-center gap-4">
-                <div class="w-14 h-14 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-2xl font-bold shadow-lg shadow-indigo-600/30">
+
+                <div
+                    class="w-14 h-14 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-2xl font-bold shadow-lg shadow-indigo-600/30"
+                >
                     🤖
                 </div>
+
                 <div>
-                    <h2 id="displayStoreName" class="text-2xl font-black text-slate-900">اسم المتجر</h2>
-                    <p id="displayEmail" class="text-sm text-slate-500 font-medium">store@example.com</p>
+
+                    <h2
+                        id="displayStoreName"
+                        class="text-2xl font-black text-slate-900"
+                    >
+                        اسم المتجر
+                    </h2>
+
+                    <p
+                        id="displayEmail"
+                        class="text-sm text-slate-500 font-medium"
+                    >
+                        store@example.com
+                    </p>
+
                 </div>
+
             </div>
 
-            <button onclick="logout()" class="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-xl transition border border-red-100">
+            <button
+                type="button"
+                onclick="logout()"
+                class="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-xl transition border border-red-100"
+            >
                 تسجيل الخروج
             </button>
+
         </div>
 
-        <!-- نموذج إعدادات الوكيل الذكي -->
-        <form id="agentSetupForm" class="space-y-6">
-            <h3 class="text-lg font-bold text-slate-800 border-r-4 border-indigo-600 pr-3">إعداد بيانات الوكيل الذكي</h3>
+
+        <!-- رسالة لوحة التحكم -->
+        <div
+            id="agentAlert"
+            class="hidden p-4 rounded-xl text-sm font-semibold border"
+        ></div>
+
+
+        <!-- =================================================
+             إعداد الوكيل
+        ================================================== -->
+
+        <form
+            id="agentSetupForm"
+            class="space-y-6"
+            enctype="multipart/form-data"
+        >
+
+            <h3 class="text-lg font-bold text-slate-800 border-r-4 border-indigo-600 pr-3">
+                إعداد بيانات الوكيل الذكي
+            </h3>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                <!-- رقم الواتساب -->
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1.5">رقم المتجر (الواتساب مع المفتاح الدولي) <span class="text-red-500">*</span></label>
-                    <input type="text" id="whatsapp_number" name="whatsapp_number" required placeholder="مثال: 967770000000" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm">
+
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">
+                        رقم المتجر - واتساب
+                        <span class="text-red-500">*</span>
+                    </label>
+
+                    <input
+                        type="tel"
+                        id="whatsapp_number"
+                        name="whatsapp_number"
+                        required
+                        inputmode="numeric"
+                        placeholder="مثال: 967770000000"
+                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm"
+                    >
+
+                    <p class="text-[11px] text-slate-400 mt-1">
+                        استخدم المفتاح الدولي، مثال اليمن: 967770000000
+                    </p>
+
                 </div>
 
+
+                <!-- PDF -->
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1.5">كتالوج المنتجات (ملف PDF)</label>
-                    <input type="file" id="pdf_file" name="pdf_file" accept=".pdf" class="w-full text-xs text-slate-500 file:mr-3 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-slate-200 rounded-xl bg-slate-50">
+
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">
+                        كتالوج المنتجات PDF
+                    </label>
+
+                    <input
+                        type="file"
+                        id="pdf_file"
+                        name="pdf_file"
+                        accept=".pdf,application/pdf"
+                        class="w-full text-xs text-slate-500 file:mr-3 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-slate-200 rounded-xl bg-slate-50"
+                    >
+
                 </div>
+
             </div>
 
+
+            <!-- التعليمات -->
             <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1.5">تعليمات الذكاء الاصطناعي <span class="text-red-500">*</span></label>
-                <textarea id="agent_notes" name="agent_notes" rows="4" required placeholder="اكتب كيفية التعامل مع العملاء، سياسة الإرجاع، أوقات العمل، طرق الدفع..." class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm leading-relaxed"></textarea>
+
+                <label class="block text-xs font-bold text-slate-700 mb-1.5">
+                    تعليمات الذكاء الاصطناعي
+                    <span class="text-red-500">*</span>
+                </label>
+
+                <textarea
+                    id="agent_notes"
+                    name="agent_notes"
+                    rows="5"
+                    required
+                    placeholder="اكتب كيفية التعامل مع العملاء، سياسة الإرجاع، أوقات العمل، طرق الدفع..."
+                    class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm leading-relaxed"
+                ></textarea>
+
             </div>
+
 
             <!-- زر بدء المساعد -->
-            <button type="submit" id="startAgentBtn" class="w-full py-4 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-2xl shadow-xl shadow-emerald-600/30 transition text-base flex justify-center items-center gap-2">
-                <span>🚀 بدء المساعد</span>
-                <span id="agentSpinner" class="hidden animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></span>
+            <button
+                type="submit"
+                id="startAgentBtn"
+                class="w-full py-4 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-2xl shadow-xl shadow-emerald-600/30 transition text-base flex justify-center items-center gap-2"
+            >
+
+                <span id="startAgentText">
+                    🚀 حفظ وتشغيل المساعد
+                </span>
+
+                <span
+                    id="agentSpinner"
+                    class="hidden animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"
+                ></span>
+
             </button>
+
         </form>
 
-        <!-- ==================== 3. قسم الكيو ار (يظهر فقط بعد عمل "بدء المساعد") ==================== -->
-        <div id="qrSection" class="hidden bg-gradient-to-br from-slate-900 to-indigo-950 p-6 md:p-8 rounded-3xl text-white shadow-xl space-y-6 transition-all duration-300">
+
+        <!-- =================================================
+             QR
+        ================================================== -->
+
+        <div
+            id="qrSection"
+            class="hidden bg-gradient-to-br from-slate-900 to-indigo-950 p-6 md:p-8 rounded-3xl text-white shadow-xl space-y-6 transition-all duration-300"
+        >
+
             <div class="text-center max-w-md mx-auto space-y-2">
-                <span class="px-3 py-1 bg-emerald-500/20 text-emerald-300 text-xs font-bold rounded-full border border-emerald-400/30">تم تشغيل المساعد بنجاح</span>
-                <h3 class="font-black text-xl text-white">امسح الكيو ار (QR Code) لربط الواتساب</h3>
-                <p class="text-xs text-slate-300">افتح تطبيق الواتساب في هاتفك > الأجهزة المرتبطة > ربط جهاز، ثم وجه الكاميرا نحو الرمز التالي:</p>
+
+                <span
+                    class="px-3 py-1 bg-emerald-500/20 text-emerald-300 text-xs font-bold rounded-full border border-emerald-400/30"
+                >
+                    تم تجهيز الربط
+                </span>
+
+                <h3 class="font-black text-xl text-white">
+                    امسح QR لربط الواتساب
+                </h3>
+
+                <p class="text-xs text-slate-300">
+                    افتح تطبيق الواتساب في هاتفك ← الأجهزة المرتبطة ← ربط جهاز، ثم وجه الكاميرا نحو الرمز.
+                </p>
+
             </div>
 
+
             <div class="flex flex-col items-center justify-center py-2">
-                <div class="relative bg-white p-4 rounded-2xl shadow-2xl border-4 border-white/20">
-                    <img id="qrImage" src="" alt="QR Code" class="w-60 h-60 rounded-xl object-contain">
+
+                <div
+                    class="relative bg-white p-4 rounded-2xl shadow-2xl border-4 border-white/20"
+                >
+
+                    <img
+                        id="qrImage"
+                        src=""
+                        alt="QR Code"
+                        class="w-60 h-60 rounded-xl object-contain"
+                    >
+
                 </div>
+
             </div>
+
+        </div>
+
+
+        <!-- حالة الواتساب -->
+        <div
+            id="whatsappStatusBox"
+            class="hidden border rounded-2xl p-5 bg-slate-50"
+        >
+
+            <div class="flex items-center justify-between gap-4">
+
+                <div>
+                    <div class="text-sm font-bold text-slate-800">
+                        حالة واتساب
+                    </div>
+
+                    <div
+                        id="whatsappStatusText"
+                        class="text-xs text-slate-500 mt-1"
+                    >
+                        جاري الفحص...
+                    </div>
+                </div>
+
+                <button
+                    type="button"
+                    onclick="checkWhatsAppStatus()"
+                    class="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700"
+                >
+                    تحديث
+                </button>
+
+            </div>
+
         </div>
 
     </div>
 
-    <script>
-        let currentStoreId = null;
 
-        // التبديل بين نموذج التسجيل والدخول
-        function toggleAuthMode(mode) {
-            hideAlert();
-            if (mode === 'login') {
-                document.getElementById('registerFormContainer').classList.add('hidden');
-                document.getElementById('loginFormContainer').classList.remove('hidden');
+<script>
+/* ============================================================
+   AI STORE ASSISTANT - FRONTEND
+============================================================ */
+
+(function () {
+
+    "use strict";
+
+    let currentStoreId = null;
+    let currentStoreData = null;
+
+
+    /* ========================================================
+       HELPERS
+    ======================================================== */
+
+    function $(id) {
+        return document.getElementById(id);
+    }
+
+
+    function showAlert(message, isError = false) {
+
+        const alertBox = $("alertBox");
+
+        if (!alertBox) {
+            alert(message);
+            return;
+        }
+
+        alertBox.classList.remove(
+            "hidden",
+            "bg-red-50",
+            "text-red-700",
+            "border-red-200",
+            "bg-emerald-50",
+            "text-emerald-700",
+            "border-emerald-200"
+        );
+
+        if (isError) {
+
+            alertBox.classList.add(
+                "bg-red-50",
+                "text-red-700",
+                "border-red-200"
+            );
+
+        } else {
+
+            alertBox.classList.add(
+                "bg-emerald-50",
+                "text-emerald-700",
+                "border-emerald-200"
+            );
+
+        }
+
+        alertBox.innerText = message;
+
+        alertBox.scrollIntoView({
+            behavior: "smooth",
+            block: "nearest"
+        });
+    }
+
+
+    function hideAlert() {
+
+        const alertBox = $("alertBox");
+
+        if (alertBox) {
+            alertBox.classList.add("hidden");
+        }
+    }
+
+
+    function showAgentAlert(message, isError = false) {
+
+        const box = $("agentAlert");
+
+        if (!box) {
+            alert(message);
+            return;
+        }
+
+        box.classList.remove(
+            "hidden",
+            "bg-red-50",
+            "text-red-700",
+            "border-red-200",
+            "bg-emerald-50",
+            "text-emerald-700",
+            "border-emerald-200"
+        );
+
+        if (isError) {
+
+            box.classList.add(
+                "bg-red-50",
+                "text-red-700",
+                "border-red-200"
+            );
+
+        } else {
+
+            box.classList.add(
+                "bg-emerald-50",
+                "text-emerald-700",
+                "border-emerald-200"
+            );
+
+        }
+
+        box.innerText = message;
+    }
+
+
+    function normalizePhone(value) {
+
+        return String(value || "")
+            .replace(/\+/g, "")
+            .replace(/\s+/g, "")
+            .replace(/-/g, "")
+            .replace(/\(/g, "")
+            .replace(/\)/g, "")
+            .trim();
+    }
+
+
+    async function readResponse(response) {
+
+        const text = await response.text();
+
+        let data = {};
+
+        try {
+            data = text ? JSON.parse(text) : {};
+        } catch (e) {
+
+            data = {
+                detail: text || "استجابة غير صالحة من الخادم."
+            };
+
+        }
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.detail ||
+                data.message ||
+                "حدث خطأ في الخادم."
+            );
+        }
+
+        return data;
+    }
+
+
+    /* ========================================================
+       AUTH MODE
+    ======================================================== */
+
+    window.toggleAuthMode = function (mode) {
+
+        hideAlert();
+
+        const register = $("registerFormContainer");
+        const login = $("loginFormContainer");
+
+        if (!register || !login) {
+            return;
+        }
+
+        if (mode === "login") {
+
+            register.classList.add("hidden");
+            login.classList.remove("hidden");
+
+        } else {
+
+            login.classList.add("hidden");
+            register.classList.remove("hidden");
+
+        }
+
+    };
+
+
+    /* ========================================================
+       REGISTER
+    ======================================================== */
+
+    async function handleRegister(event) {
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        hideAlert();
+
+        console.log("REGISTER: submit");
+
+        const storeName = $("reg_store_name");
+        const email = $("reg_email");
+        const whatsapp = $("reg_whatsapp_number");
+        const password = $("reg_password");
+        const confirmPassword = $("reg_confirm_password");
+        const storeUrl = $("reg_store_url");
+        const agentNotes = $("reg_agent_notes");
+        const pdf = $("reg_pdf_file");
+
+        const btn = $("registerBtn");
+        const spinner = $("registerSpinner");
+        const btnText = $("registerBtnText");
+
+
+        if (!storeName || !email || !whatsapp || !password || !confirmPassword) {
+
+            showAlert(
+                "حدث خطأ في نموذج التسجيل. بعض الحقول غير موجودة.",
+                true
+            );
+
+            console.error(
+                "Registration fields are missing."
+            );
+
+            return;
+        }
+
+
+        const storeNameValue = storeName.value.trim();
+        const emailValue = email.value.trim().toLowerCase();
+        const whatsappValue = normalizePhone(whatsapp.value);
+        const passwordValue = password.value;
+        const confirmValue = confirmPassword.value;
+
+
+        if (!storeNameValue) {
+
+            showAlert(
+                "يرجى إدخال اسم المتجر.",
+                true
+            );
+
+            storeName.focus();
+            return;
+        }
+
+
+        if (!emailValue || !emailValue.includes("@")) {
+
+            showAlert(
+                "يرجى إدخال بريد إلكتروني صحيح.",
+                true
+            );
+
+            email.focus();
+            return;
+        }
+
+
+        if (!whatsappValue) {
+
+            showAlert(
+                "يرجى إدخال رقم واتساب المتجر.",
+                true
+            );
+
+            whatsapp.focus();
+            return;
+        }
+
+
+        if (!/^\d+$/.test(whatsappValue)) {
+
+            showAlert(
+                "رقم الواتساب يجب أن يحتوي على أرقام فقط مع المفتاح الدولي.",
+                true
+            );
+
+            whatsapp.focus();
+            return;
+        }
+
+
+        if (passwordValue.length < 6) {
+
+            showAlert(
+                "كلمة السر يجب أن تكون 6 أحرف على الأقل.",
+                true
+            );
+
+            password.focus();
+            return;
+        }
+
+
+        if (passwordValue !== confirmValue) {
+
+            showAlert(
+                "كلمة السر وتأكيد كلمة السر غير متطابقين.",
+                true
+            );
+
+            confirmPassword.focus();
+            return;
+        }
+
+
+        if (btn) {
+            btn.disabled = true;
+        }
+
+        if (spinner) {
+            spinner.classList.remove("hidden");
+        }
+
+        if (btnText) {
+            btnText.textContent = "جاري إنشاء الحساب...";
+        }
+
+
+        const formData = new FormData();
+
+        formData.append(
+            "store_name",
+            storeNameValue
+        );
+
+        formData.append(
+            "username",
+            emailValue
+        );
+
+        formData.append(
+            "password",
+            passwordValue
+        );
+
+        formData.append(
+            "store_url",
+            storeUrl ? storeUrl.value.trim() : ""
+        );
+
+        formData.append(
+            "whatsapp_number",
+            whatsappValue
+        );
+
+        formData.append(
+            "agent_notes",
+            agentNotes ? agentNotes.value.trim() : ""
+        );
+
+
+        if (
+            pdf &&
+            pdf.files &&
+            pdf.files.length > 0
+        ) {
+
+            formData.append(
+                "pdf_file",
+                pdf.files[0]
+            );
+
+        }
+
+
+        try {
+
+            console.log(
+                "REGISTER: sending /api/register-store"
+            );
+
+            const response = await fetch(
+                "/api/register-store",
+                {
+                    method: "POST",
+                    credentials: "same-origin",
+                    body: formData
+                }
+            );
+
+
+            const data = await readResponse(response);
+
+
+            console.log(
+                "REGISTER: success",
+                data
+            );
+
+
+            currentStoreId =
+                data.store_id ||
+                data.id ||
+                null;
+
+
+            currentStoreData = {
+                id: currentStoreId,
+                store_name: storeNameValue,
+                username: data.username || emailValue,
+                store_url: storeUrl ? storeUrl.value.trim() : "",
+                whatsapp_number: whatsappValue,
+                agent_notes: agentNotes ? agentNotes.value.trim() : ""
+            };
+
+
+            goToAgentPage(
+                currentStoreData
+            );
+
+
+            if (data.evolution_error) {
+
+                showAgentAlert(
+                    "تم إنشاء الحساب بنجاح، لكن تعذر تجهيز واتساب الآن. يمكنك المحاولة من زر تشغيل المساعد.",
+                    true
+                );
+
             } else {
-                document.getElementById('loginFormContainer').classList.add('hidden');
-                document.getElementById('registerFormContainer').classList.remove('hidden');
+
+                showAgentAlert(
+                    "تم إنشاء الحساب بنجاح. أكمل إعداد المساعد ثم اضغط تشغيل.",
+                    false
+                );
+
             }
+
+
+        } catch (error) {
+
+            console.error(
+                "REGISTER ERROR:",
+                error
+            );
+
+            showAlert(
+                error.message ||
+                "حدث خطأ أثناء إنشاء الحساب.",
+                true
+            );
+
+        } finally {
+
+            if (btn) {
+                btn.disabled = false;
+            }
+
+            if (spinner) {
+                spinner.classList.add("hidden");
+            }
+
+            if (btnText) {
+                btnText.textContent = "تسجيل الحساب";
+            }
+
         }
 
-        function showAlert(message, isError = false) {
-            const alertBox = document.getElementById('alertBox');
-            alertBox.classList.remove('hidden', 'bg-red-50', 'text-red-700', 'border-red-200', 'bg-emerald-50', 'text-emerald-700', 'border-emerald-200');
-            
-            if (isError) {
-                alertBox.classList.add('bg-red-50', 'text-red-700', 'border-red-200');
+    }
+
+
+    /* ========================================================
+       LOGIN
+    ======================================================== */
+
+    async function handleLogin(event) {
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        hideAlert();
+
+        const form = event.target;
+
+        const btn = $("loginBtn");
+        const spinner = $("loginSpinner");
+        const btnText = $("loginBtnText");
+
+
+        if (btn) {
+            btn.disabled = true;
+        }
+
+        if (spinner) {
+            spinner.classList.remove("hidden");
+        }
+
+        if (btnText) {
+            btnText.textContent = "جاري الدخول...";
+        }
+
+
+        try {
+
+            const formData = new FormData(form);
+
+            const usernameField =
+                formData.get("username");
+
+            if (usernameField) {
+
+                formData.set(
+                    "username",
+                    String(usernameField)
+                        .trim()
+                        .toLowerCase()
+                );
+
+            }
+
+
+            const response = await fetch(
+                "/api/login",
+                {
+                    method: "POST",
+                    credentials: "same-origin",
+                    body: formData
+                }
+            );
+
+
+            const data =
+                await readResponse(response);
+
+
+            currentStoreId =
+                data.store &&
+                data.store.id
+                    ? data.store.id
+                    : null;
+
+
+            currentStoreData = {
+                id: currentStoreId,
+                store_name:
+                    data.store &&
+                    data.store.store_name
+                        ? data.store.store_name
+                        : "متجري",
+
+                username:
+                    data.username || "",
+
+                store_url:
+                    data.store &&
+                    data.store.store_url
+                        ? data.store.store_url
+                        : "",
+
+                whatsapp_number:
+                    data.store &&
+                    data.store.whatsapp_number
+                        ? data.store.whatsapp_number
+                        : "",
+
+                agent_notes:
+                    data.store &&
+                    data.store.agent_notes
+                        ? data.store.agent_notes
+                        : ""
+            };
+
+
+            goToAgentPage(
+                currentStoreData
+            );
+
+
+        } catch (error) {
+
+            console.error(
+                "LOGIN ERROR:",
+                error
+            );
+
+            showAlert(
+                error.message ||
+                "بيانات الدخول غير صحيحة.",
+                true
+            );
+
+        } finally {
+
+            if (btn) {
+                btn.disabled = false;
+            }
+
+            if (spinner) {
+                spinner.classList.add("hidden");
+            }
+
+            if (btnText) {
+                btnText.textContent = "دخول";
+            }
+
+        }
+
+    }
+
+
+    /* ========================================================
+       AGENT PAGE
+    ======================================================== */
+
+    function goToAgentPage(store) {
+
+        if (!store) {
+            return;
+        }
+
+
+        const authSection = $("authSection");
+        const agentSection = $("agentSection");
+
+
+        if (authSection) {
+            authSection.classList.add("hidden");
+        }
+
+        if (agentSection) {
+            agentSection.classList.remove("hidden");
+        }
+
+
+        $("displayStoreName").innerText =
+            store.store_name || "متجري";
+
+        $("displayEmail").innerText =
+            store.username || "";
+
+
+        $("whatsapp_number").value =
+            store.whatsapp_number || "";
+
+        $("agent_notes").value =
+            store.agent_notes ||
+            "كن ودوداً ومفيداً مع العملاء. لا تخترع أسعاراً أو منتجات غير موجودة في الكتالوج.";
+
+
+        $("qrSection").classList.add("hidden");
+
+
+        if (store.whatsapp_number) {
+
+            $("whatsappStatusBox").classList.remove("hidden");
+
+            checkWhatsAppStatus();
+
+        } else {
+
+            $("whatsappStatusBox").classList.add("hidden");
+
+        }
+
+
+        window.scrollTo({
+            top: 0,
+            behavior: "smooth"
+        });
+
+    }
+
+
+    /* ========================================================
+       UPDATE AGENT
+    ======================================================== */
+
+    async function handleAgentSetup(event) {
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const btn = $("startAgentBtn");
+        const spinner = $("agentSpinner");
+        const btnText = $("startAgentText");
+
+
+        const whatsappInput =
+            $("whatsapp_number");
+
+        const notesInput =
+            $("agent_notes");
+
+        const pdfInput =
+            $("pdf_file");
+
+
+        const phone =
+            normalizePhone(
+                whatsappInput.value
+            );
+
+
+        const notes =
+            notesInput.value.trim();
+
+
+        if (!phone) {
+
+            showAgentAlert(
+                "يرجى إدخال رقم واتساب.",
+                true
+            );
+
+            whatsappInput.focus();
+            return;
+        }
+
+
+        if (!/^\d+$/.test(phone)) {
+
+            showAgentAlert(
+                "رقم الواتساب يجب أن يحتوي على أرقام فقط.",
+                true
+            );
+
+            whatsappInput.focus();
+            return;
+        }
+
+
+        if (!notes) {
+
+            showAgentAlert(
+                "يرجى كتابة تعليمات المساعد.",
+                true
+            );
+
+            notesInput.focus();
+            return;
+        }
+
+
+        if (!currentStoreId) {
+
+            showAgentAlert(
+                "انتهت جلسة الحساب. يرجى تسجيل الدخول مرة أخرى.",
+                true
+            );
+
+            return;
+        }
+
+
+        if (btn) {
+            btn.disabled = true;
+        }
+
+        if (spinner) {
+            spinner.classList.remove("hidden");
+        }
+
+        if (btnText) {
+            btnText.textContent = "جاري الحفظ وتجهيز واتساب...";
+        }
+
+
+        const formData = new FormData();
+
+        formData.append(
+            "store_id",
+            currentStoreId
+        );
+
+        formData.append(
+            "whatsapp_number",
+            phone
+        );
+
+        formData.append(
+            "agent_notes",
+            notes
+        );
+
+
+        if (
+            pdfInput &&
+            pdfInput.files &&
+            pdfInput.files.length > 0
+        ) {
+
+            formData.append(
+                "pdf_file",
+                pdfInput.files[0]
+            );
+
+        }
+
+
+        try {
+
+            const updateResponse =
+                await fetch(
+                    "/api/update-agent",
+                    {
+                        method: "POST",
+                        credentials: "same-origin",
+                        body: formData
+                    }
+                );
+
+
+            const updateData =
+                await readResponse(
+                    updateResponse
+                );
+
+
+            currentStoreData.whatsapp_number =
+                phone;
+
+            currentStoreData.agent_notes =
+                notes;
+
+
+            showAgentAlert(
+                "تم حفظ بيانات المساعد بنجاح.",
+                false
+            );
+
+
+            /* ---------------------------------------------
+               محاولة جلب QR
+            ---------------------------------------------- */
+
+            await loadWhatsAppQR();
+
+
+        } catch (error) {
+
+            console.error(
+                "AGENT ERROR:",
+                error
+            );
+
+            showAgentAlert(
+                error.message ||
+                "حدث خطأ أثناء حفظ إعدادات المساعد.",
+                true
+            );
+
+        } finally {
+
+            if (btn) {
+                btn.disabled = false;
+            }
+
+            if (spinner) {
+                spinner.classList.add("hidden");
+            }
+
+            if (btnText) {
+                btnText.textContent =
+                    "🚀 حفظ وتشغيل المساعد";
+            }
+
+        }
+
+    }
+
+
+    /* ========================================================
+       LOAD QR
+    ======================================================== */
+
+    async function loadWhatsAppQR() {
+
+        if (!currentStoreId) {
+
+            showAgentAlert(
+                "معرف المتجر غير موجود.",
+                true
+            );
+
+            return;
+        }
+
+
+        try {
+
+            const response =
+                await fetch(
+                    `/api/whatsapp/qr/${currentStoreId}`,
+                    {
+                        method: "GET",
+                        credentials: "same-origin",
+                        cache: "no-store"
+                    }
+                );
+
+
+            const data =
+                await readResponse(
+                    response
+                );
+
+
+            if (
+                data.qr_code
+            ) {
+
+                $("qrImage").src =
+                    data.qr_code;
+
+                $("qrSection")
+                    .classList
+                    .remove("hidden");
+
+
+                $("qrSection")
+                    .scrollIntoView({
+                        behavior: "smooth",
+                        block: "center"
+                    });
+
+
+                showAgentAlert(
+                    "تم تجهيز رمز QR. امسحه من تطبيق واتساب.",
+                    false
+                );
+
+
             } else {
-                alertBox.classList.add('bg-emerald-50', 'text-emerald-700', 'border-emerald-200');
+
+                $("qrSection")
+                    .classList
+                    .add("hidden");
+
+
+                showAgentAlert(
+                    data.message ||
+                    "تم حفظ البيانات، لكن Evolution API لم يرجع QR حتى الآن.",
+                    true
+                );
+
             }
-            alertBox.innerText = message;
+
+
+        } catch (error) {
+
+            console.error(
+                "QR ERROR:",
+                error
+            );
+
+            showAgentAlert(
+                error.message ||
+                "تعذر الحصول على رمز QR.",
+                true
+            );
+
         }
 
-        function hideAlert() {
-            document.getElementById('alertBox').classList.add('hidden');
-        }
+    }
 
-        // 1. معالجة نموذج تسجيل الحساب مع فحص تأكيد كلمة السر
-        document.getElementById('registerForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            hideAlert();
 
-            const storeName = document.getElementById('reg_store_name').value;
-            const email = document.getElementById('reg_email').value;
-            const password = document.getElementById('reg_password').value;
-            const confirmPassword = document.getElementById('reg_confirm_password').value;
+    /* ========================================================
+       WHATSAPP STATUS
+    ======================================================== */
 
-            // التحقق من تطابق كلمة السر
-            if (password !== confirmPassword) {
-                showAlert('كلمة السر وتأكيد كلمة السر غير متطابقين!', true);
+    window.checkWhatsAppStatus =
+        async function () {
+
+            if (!currentStoreId) {
                 return;
             }
 
-            const spinner = document.getElementById('registerSpinner');
-            const btn = document.getElementById('registerBtn');
-            btn.disabled = true;
-            spinner.classList.remove('hidden');
 
-            const formData = new FormData();
-            formData.append('store_name', storeName);
-            formData.append('username', email); // اعتماد الإيميل كاسم مستخدم
-            formData.append('email', email);
-            formData.append('password', password);
+            const box =
+                $("whatsappStatusBox");
+
+            const text =
+                $("whatsappStatusText");
+
+
+            if (box) {
+                box.classList.remove("hidden");
+            }
+
+            if (text) {
+                text.textContent =
+                    "جاري الفحص...";
+            }
+
 
             try {
-                const response = await fetch('/api/register-store', {
-                    method: 'POST',
-                    body: formData
-                });
 
-                const data = await response.json();
+                const response =
+                    await fetch(
+                        `/api/whatsapp/status/${currentStoreId}`,
+                        {
+                            credentials: "same-origin",
+                            cache: "no-store"
+                        }
+                    );
 
-                if (!response.ok) {
-                    throw new Error(data.detail || 'حدث خطأ أثناء تسجيل الحساب.');
+
+                const data =
+                    await readResponse(
+                        response
+                    );
+
+
+                const state =
+                    data.connection_state ||
+                    "غير متصل";
+
+
+                if (text) {
+
+                    text.textContent =
+                        `الحالة: ${state}`;
+
                 }
 
-                currentStoreId = data.store_id || data.id;
 
-                // الانتقال الفوري لصفحة الأيجنت بعد التسجيل
-                goToAgentPage(storeName, email);
+            } catch (error) {
 
-            } catch (err) {
-                showAlert(err.message, true);
-            } finally {
-                btn.disabled = false;
-                spinner.classList.add('hidden');
+                if (text) {
+
+                    text.textContent =
+                        error.message ||
+                        "تعذر فحص حالة واتساب.";
+
+                }
+
             }
-        });
 
-        // 2. معالجة تسجيل الدخول
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            hideAlert();
+        };
 
-            const spinner = document.getElementById('loginSpinner');
-            const btn = document.getElementById('loginBtn');
-            btn.disabled = true;
-            spinner.classList.remove('hidden');
 
-            const formData = new FormData(e.target);
+    /* ========================================================
+       LOGOUT
+    ======================================================== */
+
+    window.logout =
+        async function () {
 
             try {
-                const response = await fetch('/api/login', {
-                    method: 'POST',
-                    body: formData
-                });
 
-                const data = await response.json();
+                await fetch(
+                    "/api/logout",
+                    {
+                        method: "POST",
+                        credentials: "same-origin"
+                    }
+                );
 
-                if (!response.ok) {
-                    throw new Error(data.detail || 'بيانات الدخول غير صحيحة.');
-                }
+            } catch (error) {
 
-                currentStoreId = data.store.id;
-                goToAgentPage(data.store.store_name, data.username);
+                console.error(
+                    "Logout error:",
+                    error
+                );
 
-            } catch (err) {
-                showAlert(err.message, true);
-            } finally {
-                btn.disabled = false;
-                spinner.classList.add('hidden');
             }
-        });
 
-        // الانتقال لصفحة الأيجنت
-        function goToAgentPage(storeName, email) {
-            document.getElementById('authSection').classList.add('hidden');
-            document.getElementById('agentSection').classList.remove('hidden');
 
-            document.getElementById('displayStoreName').innerText = storeName || 'متجري';
-            document.getElementById('displayEmail').innerText = email || '';
-        }
-
-        // 3. معالجة زر "بدء المساعد" وتوليد الكيو ار بعد الضغط
-        document.getElementById('agentSetupForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const btn = document.getElementById('startAgentBtn');
-            const spinner = document.getElementById('agentSpinner');
-            btn.disabled = true;
-            spinner.classList.remove('hidden');
-
-            const formData = new FormData(e.target);
-            formData.append('store_id', currentStoreId);
-
-            try {
-                // إرسال تعليمات الأيجنت والرقم والملف للخلفية
-                const updateRes = await fetch('/api/update-agent', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                // طلب توليد كيو ار الواتساب
-                const qrRes = await fetch(`/api/whatsapp/qr/${currentStoreId}`);
-                const qrData = await qrRes.json();
-
-                if (qrRes.ok && qrData.qr_code) {
-                    document.getElementById('qrImage').src = qrData.qr_code;
-                    // إظهار قسم الكيو ار الآن فقط
-                    document.getElementById('qrSection').classList.remove('hidden');
-                    // التمرير السلس نحو الكيو ار
-                    document.getElementById('qrSection').scrollIntoView({ behavior: 'smooth' });
-                } else {
-                    alert(qrData.detail || qrData.message || 'تم بدء المساعد، وجاري تجهيز رمز QR...');
-                }
-
-            } catch (err) {
-                alert('حدث خطأ أثناء تشغيل المساعد الذكي.');
-            } finally {
-                btn.disabled = false;
-                spinner.classList.add('hidden');
-            }
-        });
-
-        // تسجيل الخروج
-        async function logout() {
-            await fetch('/api/logout', { method: 'POST' });
             currentStoreId = null;
-            document.getElementById('agentSection').classList.add('hidden');
-            document.getElementById('qrSection').classList.add('hidden');
-            document.getElementById('authSection').classList.remove('hidden');
-            toggleAuthMode('register');
+            currentStoreData = null;
+
+
+            $("agentSection")
+                .classList
+                .add("hidden");
+
+            $("qrSection")
+                .classList
+                .add("hidden");
+
+            $("authSection")
+                .classList
+                .remove("hidden");
+
+
+            $("registerForm").reset();
+            $("loginForm").reset();
+
+
+            toggleAuthMode(
+                "register"
+            );
+
+
+            window.scrollTo({
+                top: 0,
+                behavior: "smooth"
+            });
+
+        };
+
+
+    /* ========================================================
+       SESSION CHECK
+    ======================================================== */
+
+    async function checkSession() {
+
+        try {
+
+            const response =
+                await fetch(
+                    "/api/me",
+                    {
+                        credentials: "same-origin",
+                        cache: "no-store"
+                    }
+                );
+
+
+            if (!response.ok) {
+                return;
+            }
+
+
+            const data =
+                await response.json();
+
+
+            if (
+                data &&
+                data.store &&
+                data.store.id
+            ) {
+
+                currentStoreId =
+                    data.store.id;
+
+
+                currentStoreData = {
+
+                    id:
+                        data.store.id,
+
+                    store_name:
+                        data.store.store_name,
+
+                    username:
+                        data.username,
+
+                    store_url:
+                        data.store.store_url || "",
+
+                    whatsapp_number:
+                        data.store.whatsapp_number || "",
+
+                    agent_notes:
+                        data.store.agent_notes || ""
+
+                };
+
+
+                goToAgentPage(
+                    currentStoreData
+                );
+
+            }
+
+        } catch (error) {
+
+            console.log(
+                "No active session."
+            );
+
         }
 
-        // الفحص التلقائي للجلسة الحالية عند تحميل الصفحة
-        async function checkSession() {
-            try {
-                const response = await fetch('/api/me');
-                if (response.ok) {
-                    const data = await response.json();
-                    currentStoreId = data.store.id;
-                    goToAgentPage(data.store.store_name, data.username);
-                }
-            } catch (e) {}
-        }
+    }
 
-        checkSession();
-    </script>
+
+    /* ========================================================
+       INITIALIZE
+    ======================================================== */
+
+    document.addEventListener(
+        "DOMContentLoaded",
+        function () {
+
+            console.log(
+                "AI Store Assistant frontend loaded."
+            );
+
+
+            const registerForm =
+                $("registerForm");
+
+            const loginForm =
+                $("loginForm");
+
+            const agentSetupForm =
+                $("agentSetupForm");
+
+
+            if (registerForm) {
+
+                registerForm.addEventListener(
+                    "submit",
+                    handleRegister
+                );
+
+            } else {
+
+                console.error(
+                    "registerForm not found."
+                );
+
+            }
+
+
+            if (loginForm) {
+
+                loginForm.addEventListener(
+                    "submit",
+                    handleLogin
+                );
+
+            }
+
+
+            if (agentSetupForm) {
+
+                agentSetupForm.addEventListener(
+                    "submit",
+                    handleAgentSetup
+                );
+
+            }
+
+
+            checkSession();
+
+        }
+    );
+
+})();
+</script>
+
 </body>
 </html>
