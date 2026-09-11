@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>منصة المساعد الذكي للمتاجر</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -42,7 +43,11 @@
                 class="hidden mb-6 p-4 rounded-xl text-sm font-semibold border"
             ></div>
 
-            <!-- REGISTER -->
+
+            <!-- =================================================
+                 REGISTER
+            ================================================== -->
+
             <div id="registerFormContainer">
 
                 <div class="text-center lg:text-right mb-6">
@@ -60,12 +65,14 @@
                     <p class="text-slate-500 text-sm mt-1">
                         أنشئ حساب متجرك للبدء في استخدام المساعد الذكي.
                     </p>
+
                 </div>
+
 
                 <form id="registerForm" class="space-y-4">
 
-                    <!-- اسم المتجر -->
                     <div>
+
                         <label class="block text-xs font-semibold text-slate-700 mb-1">
                             اسم المتجر
                             <span class="text-red-500">*</span>
@@ -80,10 +87,12 @@
                             placeholder="مثال: متجر الأناقة"
                             class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm"
                         >
+
                     </div>
 
-                    <!-- اسم المستخدم -->
+
                     <div>
+
                         <label class="block text-xs font-semibold text-slate-700 mb-1">
                             اسم المستخدم
                             <span class="text-red-500">*</span>
@@ -99,10 +108,12 @@
                             placeholder="مثال: store_admin"
                             class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm"
                         >
+
                     </div>
 
-                    <!-- الايميل -->
+
                     <div>
+
                         <label class="block text-xs font-semibold text-slate-700 mb-1">
                             الإيميل
                             <span class="text-red-500">*</span>
@@ -117,12 +128,14 @@
                             placeholder="store@example.com"
                             class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm"
                         >
+
                     </div>
 
-                    <!-- كلمات المرور -->
+
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
 
                         <div>
+
                             <label class="block text-xs font-semibold text-slate-700 mb-1">
                                 كلمة المرور
                                 <span class="text-red-500">*</span>
@@ -138,9 +151,12 @@
                                 placeholder="••••••••"
                                 class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm"
                             >
+
                         </div>
 
+
                         <div>
+
                             <label class="block text-xs font-semibold text-slate-700 mb-1">
                                 تأكيد كلمة المرور
                                 <span class="text-red-500">*</span>
@@ -156,24 +172,31 @@
                                 placeholder="••••••••"
                                 class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm"
                             >
+
                         </div>
 
                     </div>
+
 
                     <button
                         type="submit"
                         id="registerBtn"
                         class="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/30 transition text-sm flex justify-center items-center gap-2 mt-2"
                     >
-                        <span>تسجيل الحساب</span>
+
+                        <span id="registerText">
+                            تسجيل الحساب
+                        </span>
 
                         <span
                             id="registerSpinner"
                             class="hidden animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"
                         ></span>
+
                     </button>
 
                 </form>
+
 
                 <div class="mt-4 text-center border-t pt-4">
 
@@ -186,10 +209,117 @@
                     </button>
 
                 </div>
+
             </div>
 
 
-            <!-- LOGIN -->
+            <!-- =================================================
+                 VERIFY EMAIL
+            ================================================== -->
+
+            <div id="verifyFormContainer" class="hidden">
+
+                <div class="text-center lg:text-right mb-6">
+
+                    <div
+                        class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-xl mb-3 mx-auto lg:mx-0 shadow-sm border border-emerald-100"
+                    >
+                        ✉️
+                    </div>
+
+                    <h2 class="text-2xl font-extrabold text-slate-900">
+                        تأكيد البريد الإلكتروني
+                    </h2>
+
+                    <p class="text-slate-500 text-sm mt-2 leading-relaxed">
+                        أرسلنا رمز تحقق مكونًا من 6 أرقام إلى:
+                    </p>
+
+                    <p
+                        id="verifyEmailText"
+                        class="text-indigo-600 font-bold text-sm mt-1 break-all"
+                    ></p>
+
+                </div>
+
+
+                <form id="verifyForm" class="space-y-4">
+
+                    <div>
+
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">
+                            رمز التحقق
+                        </label>
+
+                        <input
+                            type="text"
+                            id="verification_code"
+                            name="code"
+                            required
+                            maxlength="6"
+                            minlength="6"
+                            inputmode="numeric"
+                            autocomplete="one-time-code"
+                            placeholder="123456"
+                            class="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-600 outline-none text-center text-2xl font-black tracking-[0.5em]"
+                        >
+
+                    </div>
+
+
+                    <button
+                        type="submit"
+                        id="verifyBtn"
+                        class="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/30 transition text-sm flex justify-center items-center gap-2"
+                    >
+
+                        <span>
+                            تأكيد البريد الإلكتروني
+                        </span>
+
+                        <span
+                            id="verifySpinner"
+                            class="hidden animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"
+                        ></span>
+
+                    </button>
+
+                </form>
+
+
+                <div class="mt-5 space-y-3 text-center">
+
+                    <button
+                        type="button"
+                        id="resendBtn"
+                        onclick="resendVerificationCode()"
+                        class="text-xs text-indigo-600 hover:text-indigo-800 font-bold hover:underline"
+                    >
+                        🔄 إعادة إرسال رمز التحقق
+                    </button>
+
+
+                    <div>
+
+                        <button
+                            type="button"
+                            onclick="backToRegister()"
+                            class="text-xs text-slate-500 hover:text-slate-700 font-semibold"
+                        >
+                            تغيير البريد الإلكتروني
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =================================================
+                 LOGIN
+            ================================================== -->
+
             <div id="loginFormContainer" class="hidden">
 
                 <div class="text-center lg:text-right mb-6">
@@ -207,11 +337,14 @@
                     <p class="text-slate-500 text-sm mt-1">
                         أدخل اسم المستخدم أو الإيميل وكلمة المرور.
                     </p>
+
                 </div>
+
 
                 <form id="loginForm" class="space-y-4">
 
                     <div>
+
                         <label class="block text-xs font-semibold text-slate-700 mb-1">
                             اسم المستخدم أو الإيميل
                         </label>
@@ -224,9 +357,12 @@
                             placeholder="اسم المستخدم أو store@example.com"
                             class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm"
                         >
+
                     </div>
 
+
                     <div>
+
                         <label class="block text-xs font-semibold text-slate-700 mb-1">
                             كلمة المرور
                         </label>
@@ -239,22 +375,29 @@
                             placeholder="••••••••"
                             class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm"
                         >
+
                     </div>
+
 
                     <button
                         type="submit"
                         id="loginBtn"
                         class="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/30 transition text-sm flex justify-center items-center gap-2"
                     >
-                        <span>دخول</span>
+
+                        <span>
+                            دخول
+                        </span>
 
                         <span
                             id="loginSpinner"
                             class="hidden animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"
                         ></span>
+
                     </button>
 
                 </form>
+
 
                 <div class="mt-4 text-center border-t pt-4">
 
@@ -267,12 +410,16 @@
                     </button>
 
                 </div>
+
             </div>
 
         </div>
 
 
-        <!-- INFO SIDE -->
+        <!-- =========================================================
+             INFO SIDE
+        ========================================================== -->
+
         <div
             class="bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 p-8 lg:p-12 text-white flex flex-col justify-between order-1 lg:order-2 relative overflow-hidden"
         >
@@ -288,6 +435,7 @@
 
             </div>
 
+
             <div class="my-12 relative z-10 text-center lg:text-right">
 
                 <h1 class="text-3xl lg:text-4xl font-extrabold leading-tight mb-4">
@@ -296,10 +444,11 @@
                 </h1>
 
                 <p class="text-indigo-100 text-sm lg:text-base leading-relaxed max-w-md">
-                    أنشئ حسابك، أضف رابط متجرك ورقم الواتساب وتعليمات المساعد، ثم قم بربط واتساب بواسطة رمز QR.
+                    أنشئ حسابك، أكد بريدك الإلكتروني، أضف رابط متجرك ورقم الواتساب وتعليمات المساعد، ثم قم بربط واتساب بواسطة رمز QR.
                 </p>
 
             </div>
+
 
             <div class="grid grid-cols-3 gap-3 relative z-10">
 
@@ -340,7 +489,6 @@
         class="hidden w-full max-w-4xl bg-white rounded-3xl shadow-2xl p-6 md:p-10 space-y-8 border border-slate-200 my-auto"
     >
 
-        <!-- HEADER -->
         <div class="flex justify-between items-center border-b pb-6 gap-4">
 
             <div class="flex items-center gap-4">
@@ -352,6 +500,7 @@
                 </div>
 
                 <div>
+
                     <h2
                         id="displayStoreName"
                         class="text-2xl font-black text-slate-900"
@@ -370,9 +519,11 @@
                         id="displayUsername"
                         class="text-xs text-indigo-600 font-bold mt-1"
                     ></p>
+
                 </div>
 
             </div>
+
 
             <button
                 type="button"
@@ -385,40 +536,26 @@
         </div>
 
 
-        <!-- STEPS -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
 
             <div class="p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
-                <div class="text-indigo-600 font-black text-sm">
-                    1
-                </div>
-                <div class="font-bold text-sm mt-1">
-                    بيانات المتجر
-                </div>
+                <div class="text-indigo-600 font-black text-sm">1</div>
+                <div class="font-bold text-sm mt-1">بيانات المتجر</div>
             </div>
 
             <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                <div class="text-slate-500 font-black text-sm">
-                    2
-                </div>
-                <div class="font-bold text-sm mt-1">
-                    إعداد المساعد
-                </div>
+                <div class="text-slate-500 font-black text-sm">2</div>
+                <div class="font-bold text-sm mt-1">إعداد المساعد</div>
             </div>
 
             <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                <div class="text-slate-500 font-black text-sm">
-                    3
-                </div>
-                <div class="font-bold text-sm mt-1">
-                    ربط واتساب
-                </div>
+                <div class="text-slate-500 font-black text-sm">3</div>
+                <div class="font-bold text-sm mt-1">ربط واتساب</div>
             </div>
 
         </div>
 
 
-        <!-- AGENT FORM -->
         <form id="agentSetupForm" class="space-y-6">
 
             <div>
@@ -436,7 +573,6 @@
             </div>
 
 
-            <!-- STORE URL -->
             <div>
 
                 <label class="block text-xs font-bold text-slate-700 mb-1.5">
@@ -453,14 +589,9 @@
                     class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 outline-none text-sm"
                 >
 
-                <p class="text-[11px] text-slate-400 mt-1.5">
-                    مثال: https://my-store.com
-                </p>
-
             </div>
 
 
-            <!-- WHATSAPP -->
             <div>
 
                 <label class="block text-xs font-bold text-slate-700 mb-1.5">
@@ -479,13 +610,11 @@
 
                 <p class="text-[11px] text-slate-400 mt-1.5">
                     اكتب الرقم مع مفتاح الدولة وبدون علامة + أو مسافات.
-                    مثال اليمن: 967770000000
                 </p>
 
             </div>
 
 
-            <!-- AI NOTES -->
             <div>
 
                 <label class="block text-xs font-bold text-slate-700 mb-1.5">
@@ -511,14 +640,11 @@
             </div>
 
 
-            <!-- PDF -->
             <div>
 
                 <label class="block text-xs font-bold text-slate-700 mb-1.5">
                     كتالوج المنتجات PDF
-                    <span class="text-slate-400 font-normal">
-                        (اختياري)
-                    </span>
+                    <span class="text-slate-400 font-normal">(اختياري)</span>
                 </label>
 
                 <input
@@ -539,7 +665,6 @@
             </div>
 
 
-            <!-- BUTTON -->
             <button
                 type="submit"
                 id="startAgentBtn"
@@ -560,14 +685,12 @@
         </form>
 
 
-        <!-- STATUS -->
         <div
             id="agentStatus"
             class="hidden p-4 rounded-2xl border text-sm font-semibold"
         ></div>
 
 
-        <!-- QR SECTION -->
         <div
             id="qrSection"
             class="hidden bg-gradient-to-br from-slate-900 to-indigo-950 p-6 md:p-8 rounded-3xl text-white shadow-xl space-y-6"
@@ -593,6 +716,7 @@
 
             </div>
 
+
             <div class="flex flex-col items-center justify-center py-2">
 
                 <div
@@ -610,11 +734,12 @@
 
             </div>
 
+
             <div class="text-center">
 
                 <button
                     type="button"
-                    onclick="refreshQRCode()"
+                    onclick="refreshQRCode(event)"
                     class="px-5 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-xs font-bold transition"
                 >
                     🔄 تحديث رمز QR
@@ -629,294 +754,325 @@
 
 <script>
 
-    let currentStoreId = null;
+let currentStoreId = null;
+let pendingVerificationEmail = null;
 
 
-    /* =========================================================
-       API HELPERS
-    ========================================================== */
+/* =========================================================
+   API
+========================================================= */
 
-    async function parseResponse(response) {
+async function parseResponse(response) {
 
-        const text = await response.text();
+    const text = await response.text();
 
-        if (!text) {
-            return {};
-        }
-
-        try {
-            return JSON.parse(text);
-        } catch (error) {
-            return {
-                detail: text || 'استجابة غير صالحة من الخادم.'
-            };
-        }
+    if (!text) {
+        return {};
     }
 
-
-    async function apiFetch(url, options = {}) {
-
-        options.credentials = 'same-origin';
-
-        const response = await fetch(url, options);
-
-        const data = await parseResponse(response);
-
+    try {
+        return JSON.parse(text);
+    } catch (error) {
         return {
-            response,
-            data
+            detail: text || 'استجابة غير صالحة من الخادم.'
         };
     }
+}
 
 
-    /* =========================================================
-       ALERT
-    ========================================================== */
+async function apiFetch(url, options = {}) {
 
-    function showAlert(message, isError = false) {
+    options.credentials = 'same-origin';
 
-        const alertBox = document.getElementById('alertBox');
+    const response = await fetch(url, options);
 
-        alertBox.classList.remove(
-            'hidden',
+    const data = await parseResponse(response);
+
+    return {
+        response,
+        data
+    };
+}
+
+
+/* =========================================================
+   ALERT
+========================================================= */
+
+function showAlert(message, isError = false) {
+
+    const alertBox =
+        document.getElementById('alertBox');
+
+    alertBox.className =
+        'mb-6 p-4 rounded-xl text-sm font-semibold border';
+
+    if (isError) {
+
+        alertBox.classList.add(
             'bg-red-50',
             'text-red-700',
-            'border-red-200',
+            'border-red-200'
+        );
+
+    } else {
+
+        alertBox.classList.add(
             'bg-emerald-50',
             'text-emerald-700',
             'border-emerald-200'
         );
 
-        if (isError) {
-
-            alertBox.classList.add(
-                'bg-red-50',
-                'text-red-700',
-                'border-red-200'
-            );
-
-        } else {
-
-            alertBox.classList.add(
-                'bg-emerald-50',
-                'text-emerald-700',
-                'border-emerald-200'
-            );
-
-        }
-
-        alertBox.innerText = message;
-
-        window.scrollTo({
-            top: 0,
-            behavior: 'smooth'
-        });
     }
 
+    alertBox.innerText = message;
 
-    function hideAlert() {
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
+}
+
+
+function hideAlert() {
+
+    document
+        .getElementById('alertBox')
+        .classList.add('hidden');
+
+}
+
+
+/* =========================================================
+   AUTH MODE
+========================================================= */
+
+function toggleAuthMode(mode) {
+
+    hideAlert();
+
+    document
+        .getElementById('registerFormContainer')
+        .classList.add('hidden');
+
+    document
+        .getElementById('verifyFormContainer')
+        .classList.add('hidden');
+
+    document
+        .getElementById('loginFormContainer')
+        .classList.add('hidden');
+
+
+    if (mode === 'login') {
 
         document
-            .getElementById('alertBox')
-            .classList.add('hidden');
+            .getElementById('loginFormContainer')
+            .classList.remove('hidden');
+
+    } else if (mode === 'verify') {
+
+        document
+            .getElementById('verifyFormContainer')
+            .classList.remove('hidden');
+
+    } else {
+
+        document
+            .getElementById('registerFormContainer')
+            .classList.remove('hidden');
 
     }
 
+}
 
-    /* =========================================================
-       AUTH MODE
-    ========================================================== */
 
-    function toggleAuthMode(mode) {
+function backToRegister() {
+
+    pendingVerificationEmail = null;
+
+    document
+        .getElementById('verifyForm')
+        .reset();
+
+    toggleAuthMode('register');
+
+}
+
+
+/* =========================================================
+   GO TO AGENT
+========================================================= */
+
+function goToAgentPage(store) {
+
+    document
+        .getElementById('authSection')
+        .classList.add('hidden');
+
+    document
+        .getElementById('agentSection')
+        .classList.remove('hidden');
+
+    currentStoreId = store.id;
+
+    document.getElementById('displayStoreName').innerText =
+        store.store_name || 'متجري';
+
+    document.getElementById('displayEmail').innerText =
+        store.email || '';
+
+    document.getElementById('displayUsername').innerText =
+        store.username
+            ? 'اسم المستخدم: ' + store.username
+            : '';
+
+    document.getElementById('store_url').value =
+        store.store_url || '';
+
+    document.getElementById('whatsapp_number').value =
+        store.whatsapp_number || '';
+
+    document.getElementById('agent_notes').value =
+        store.agent_notes || '';
+
+    document.getElementById('catalogStatus').innerText =
+        store.has_catalog
+            ? '✅ يوجد كتالوج محفوظ لهذا المتجر.'
+            : 'يمكنك رفع ملف PDF يحتوي على المنتجات والأسعار.';
+
+}
+
+
+/* =========================================================
+   REGISTER
+========================================================= */
+
+document
+    .getElementById('registerForm')
+    .addEventListener('submit', async function(e) {
+
+        e.preventDefault();
 
         hideAlert();
 
-        if (mode === 'login') {
+        const storeName =
+            document.getElementById('reg_store_name').value.trim();
 
-            document
-                .getElementById('registerFormContainer')
-                .classList.add('hidden');
+        const username =
+            document.getElementById('reg_username').value.trim();
 
-            document
-                .getElementById('loginFormContainer')
-                .classList.remove('hidden');
+        const email =
+            document.getElementById('reg_email').value.trim();
 
-        } else {
+        const password =
+            document.getElementById('reg_password').value;
 
-            document
-                .getElementById('loginFormContainer')
-                .classList.add('hidden');
+        const confirmPassword =
+            document.getElementById('reg_confirm_password').value;
 
-            document
-                .getElementById('registerFormContainer')
-                .classList.remove('hidden');
 
+        if (!storeName) {
+
+            showAlert(
+                'أدخل اسم المتجر.',
+                true
+            );
+
+            return;
         }
 
-    }
 
+        if (!username || username.length < 3) {
 
-    /* =========================================================
-       GO TO AGENT
-    ========================================================== */
-
-    function goToAgentPage(store) {
-
-        document
-            .getElementById('authSection')
-            .classList.add('hidden');
-
-        document
-            .getElementById('agentSection')
-            .classList.remove('hidden');
-
-        currentStoreId = store.id;
-
-        document.getElementById('displayStoreName').innerText =
-            store.store_name || 'متجري';
-
-        document.getElementById('displayEmail').innerText =
-            store.email || '';
-
-        document.getElementById('displayUsername').innerText =
-            store.username
-                ? 'اسم المستخدم: ' + store.username
-                : '';
-
-        document.getElementById('store_url').value =
-            store.store_url || '';
-
-        document.getElementById('whatsapp_number').value =
-            store.whatsapp_number || '';
-
-        document.getElementById('agent_notes').value =
-            store.agent_notes || '';
-
-        document.getElementById('catalogStatus').innerText =
-            store.has_catalog
-                ? '✅ يوجد كتالوج محفوظ لهذا المتجر.'
-                : 'يمكنك رفع ملف PDF يحتوي على المنتجات والأسعار.';
-
-    }
-
-
-    /* =========================================================
-       REGISTER
-    ========================================================== */
-
-    document
-        .getElementById('registerForm')
-        .addEventListener('submit', async function (e) {
-
-            e.preventDefault();
-
-            hideAlert();
-
-            const storeName =
-                document.getElementById('reg_store_name').value.trim();
-
-            const username =
-                document.getElementById('reg_username').value.trim();
-
-            const email =
-                document.getElementById('reg_email').value.trim();
-
-            const password =
-                document.getElementById('reg_password').value;
-
-            const confirmPassword =
-                document.getElementById('reg_confirm_password').value;
-
-
-            if (!storeName) {
-
-                showAlert('أدخل اسم المتجر.', true);
-                return;
-
-            }
-
-
-            if (!username || username.length < 3) {
-
-                showAlert(
-                    'اسم المستخدم يجب أن يكون 3 أحرف على الأقل.',
-                    true
-                );
-
-                return;
-
-            }
-
-
-            if (!email) {
-
-                showAlert('أدخل الإيميل.', true);
-                return;
-
-            }
-
-
-            if (password.length < 6) {
-
-                showAlert(
-                    'كلمة المرور يجب أن تكون 6 أحرف على الأقل.',
-                    true
-                );
-
-                return;
-
-            }
-
-
-            if (password !== confirmPassword) {
-
-                showAlert(
-                    'كلمة المرور وتأكيد كلمة المرور غير متطابقين.',
-                    true
-                );
-
-                return;
-
-            }
-
-
-            const btn =
-                document.getElementById('registerBtn');
-
-            const spinner =
-                document.getElementById('registerSpinner');
-
-
-            btn.disabled = true;
-            spinner.classList.remove('hidden');
-
-
-            const formData = new FormData();
-
-            formData.append(
-                'store_name',
-                storeName
+            showAlert(
+                'اسم المستخدم يجب أن يكون 3 أحرف على الأقل.',
+                true
             );
 
-            formData.append(
-                'username',
-                username
+            return;
+        }
+
+
+        if (!email) {
+
+            showAlert(
+                'أدخل الإيميل.',
+                true
             );
 
-            formData.append(
-                'email',
-                email
+            return;
+        }
+
+
+        if (password.length < 6) {
+
+            showAlert(
+                'كلمة المرور يجب أن تكون 6 أحرف على الأقل.',
+                true
             );
 
-            formData.append(
-                'password',
-                password
+            return;
+        }
+
+
+        if (password !== confirmPassword) {
+
+            showAlert(
+                'كلمة المرور وتأكيد كلمة المرور غير متطابقين.',
+                true
             );
 
+            return;
+        }
 
-            try {
 
-                const result = await apiFetch(
+        const btn =
+            document.getElementById('registerBtn');
+
+        const spinner =
+            document.getElementById('registerSpinner');
+
+        const text =
+            document.getElementById('registerText');
+
+
+        btn.disabled = true;
+
+        spinner.classList.remove('hidden');
+
+        text.innerText =
+            '⏳ جاري إنشاء الحساب...';
+
+
+        const formData =
+            new FormData();
+
+        formData.append(
+            'store_name',
+            storeName
+        );
+
+        formData.append(
+            'username',
+            username
+        );
+
+        formData.append(
+            'email',
+            email
+        );
+
+        formData.append(
+            'password',
+            password
+        );
+
+
+        try {
+
+            const result =
+                await apiFetch(
                     '/api/register-store',
                     {
                         method: 'POST',
@@ -925,88 +1081,331 @@
                 );
 
 
-                if (!result.response.ok) {
+            if (!result.response.ok) {
 
-                    throw new Error(
-                        result.data.detail ||
-                        result.data.message ||
-                        'حدث خطأ أثناء إنشاء الحساب.'
-                    );
-
-                }
-
-
-                currentStoreId =
-                    result.data.store_id ||
-                    result.data.id;
-
-
-                showAlert(
-                    'تم إنشاء الحساب بنجاح. أكمل بيانات المتجر والمساعد.',
-                    false
+                throw new Error(
+                    result.data.detail ||
+                    result.data.message ||
+                    'حدث خطأ أثناء إنشاء الحساب.'
                 );
-
-
-                const store =
-                    result.data.store || {
-                        id: currentStoreId,
-                        store_name: storeName,
-                        username: username,
-                        email: email
-                    };
-
-
-                goToAgentPage(store);
-
-
-            } catch (error) {
-
-                showAlert(
-                    error.message ||
-                    'تعذر إنشاء الحساب.',
-                    true
-                );
-
-            } finally {
-
-                btn.disabled = false;
-                spinner.classList.add('hidden');
 
             }
 
-        });
+
+            /*
+             * مهم جداً:
+             * لا ندخل إلى لوحة المساعد هنا.
+             * ننتقل إلى شاشة التحقق.
+             */
+
+            pendingVerificationEmail =
+                result.data.email ||
+                email;
 
 
-    /* =========================================================
-       LOGIN
-    ========================================================== */
-
-    document
-        .getElementById('loginForm')
-        .addEventListener('submit', async function (e) {
-
-            e.preventDefault();
-
-            hideAlert();
-
-            const btn =
-                document.getElementById('loginBtn');
-
-            const spinner =
-                document.getElementById('loginSpinner');
+            document.getElementById(
+                'verifyEmailText'
+            ).innerText =
+                pendingVerificationEmail;
 
 
-            btn.disabled = true;
-            spinner.classList.remove('hidden');
+            document.getElementById(
+                'verification_code'
+            ).value = '';
 
 
-            const formData =
-                new FormData(e.target);
+            toggleAuthMode('verify');
 
 
-            try {
+            showAlert(
+                result.data.message ||
+                'تم إنشاء الحساب. تحقق من بريدك الإلكتروني وأدخل رمز التحقق.',
+                false
+            );
 
-                const result = await apiFetch(
+
+        } catch (error) {
+
+            showAlert(
+                error.message ||
+                'تعذر إنشاء الحساب.',
+                true
+            );
+
+        } finally {
+
+            btn.disabled = false;
+
+            spinner.classList.add('hidden');
+
+            text.innerText =
+                'تسجيل الحساب';
+
+        }
+
+    });
+
+
+/* =========================================================
+   VERIFY EMAIL
+========================================================= */
+
+document
+    .getElementById('verifyForm')
+    .addEventListener('submit', async function(e) {
+
+        e.preventDefault();
+
+        hideAlert();
+
+        const code =
+            document
+                .getElementById('verification_code')
+                .value
+                .trim();
+
+
+        if (!pendingVerificationEmail) {
+
+            showAlert(
+                'لم يتم تحديد البريد الإلكتروني.',
+                true
+            );
+
+            return;
+        }
+
+
+        if (!/^\d{6}$/.test(code)) {
+
+            showAlert(
+                'رمز التحقق يجب أن يتكون من 6 أرقام.',
+                true
+            );
+
+            return;
+        }
+
+
+        const btn =
+            document.getElementById('verifyBtn');
+
+        const spinner =
+            document.getElementById('verifySpinner');
+
+
+        btn.disabled = true;
+
+        spinner.classList.remove('hidden');
+
+
+        const formData =
+            new FormData();
+
+        formData.append(
+            'email',
+            pendingVerificationEmail
+        );
+
+        formData.append(
+            'code',
+            code
+        );
+
+
+        try {
+
+            const result =
+                await apiFetch(
+                    '/api/verify-email',
+                    {
+                        method: 'POST',
+                        body: formData
+                    }
+                );
+
+
+            if (!result.response.ok) {
+
+                throw new Error(
+                    result.data.detail ||
+                    result.data.message ||
+                    'رمز التحقق غير صحيح.'
+                );
+
+            }
+
+
+            showAlert(
+                result.data.message ||
+                'تم تأكيد البريد الإلكتروني بنجاح.',
+                false
+            );
+
+
+            const store =
+                result.data.store || {};
+
+
+            store.id =
+                result.data.store_id ||
+                store.id;
+
+            store.username =
+                result.data.username ||
+                store.username ||
+                '';
+
+            store.email =
+                result.data.email ||
+                store.email ||
+                pendingVerificationEmail;
+
+
+            setTimeout(function() {
+
+                goToAgentPage(store);
+
+            }, 500);
+
+
+        } catch (error) {
+
+            showAlert(
+                error.message ||
+                'تعذر تأكيد البريد الإلكتروني.',
+                true
+            );
+
+        } finally {
+
+            btn.disabled = false;
+
+            spinner.classList.add('hidden');
+
+        }
+
+    });
+
+
+/* =========================================================
+   RESEND VERIFICATION
+========================================================= */
+
+async function resendVerificationCode() {
+
+    if (!pendingVerificationEmail) {
+
+        showAlert(
+            'لم يتم تحديد البريد الإلكتروني.',
+            true
+        );
+
+        return;
+    }
+
+
+    const button =
+        document.getElementById('resendBtn');
+
+
+    button.disabled = true;
+
+    button.innerText =
+        '⏳ جاري إرسال الرمز...';
+
+
+    try {
+
+        const formData =
+            new FormData();
+
+        formData.append(
+            'email',
+            pendingVerificationEmail
+        );
+
+
+        const result =
+            await apiFetch(
+                '/api/resend-verification',
+                {
+                    method: 'POST',
+                    body: formData
+                }
+            );
+
+
+        if (!result.response.ok) {
+
+            throw new Error(
+                result.data.detail ||
+                result.data.message ||
+                'تعذر إرسال رمز التحقق.'
+            );
+
+        }
+
+
+        showAlert(
+            result.data.message ||
+            'تم إرسال رمز تحقق جديد إلى بريدك.',
+            false
+        );
+
+
+    } catch (error) {
+
+        showAlert(
+            error.message ||
+            'تعذر إرسال رمز التحقق.',
+            true
+        );
+
+    } finally {
+
+        button.disabled = false;
+
+        button.innerText =
+            '🔄 إعادة إرسال رمز التحقق';
+
+    }
+
+}
+
+
+/* =========================================================
+   LOGIN
+========================================================= */
+
+document
+    .getElementById('loginForm')
+    .addEventListener('submit', async function(e) {
+
+        e.preventDefault();
+
+        hideAlert();
+
+        const btn =
+            document.getElementById('loginBtn');
+
+        const spinner =
+            document.getElementById('loginSpinner');
+
+
+        btn.disabled = true;
+
+        spinner.classList.remove('hidden');
+
+
+        const formData =
+            new FormData(e.target);
+
+
+        try {
+
+            const result =
+                await apiFetch(
                     '/api/login',
                     {
                         method: 'POST',
@@ -1015,505 +1414,567 @@
                 );
 
 
-                if (!result.response.ok) {
+            if (!result.response.ok) {
 
-                    throw new Error(
-                        result.data.detail ||
-                        'بيانات الدخول غير صحيحة.'
-                    );
+                /*
+                 * إذا كان الحساب غير موثق،
+                 * نفتح شاشة التحقق تلقائياً.
+                 */
+
+                if (
+                    result.response.status === 403 &&
+                    (
+                        result.data.requires_email_verification ||
+                        result.data.email_verification_required
+                    )
+                ) {
+
+                    pendingVerificationEmail =
+                        result.data.email ||
+                        formData.get('email') ||
+                        '';
+
+
+                    if (pendingVerificationEmail) {
+
+                        document.getElementById(
+                            'verifyEmailText'
+                        ).innerText =
+                            pendingVerificationEmail;
+
+                        toggleAuthMode('verify');
+
+                        showAlert(
+                            result.data.detail ||
+                            'يجب تأكيد البريد الإلكتروني أولاً.',
+                            true
+                        );
+
+                        return;
+
+                    }
 
                 }
 
 
-                const store =
-                    result.data.store || {};
-
-
-                store.username =
-                    result.data.username ||
-                    store.username ||
-                    formData.get('username');
-
-
-                store.email =
-                    result.data.email ||
-                    store.email ||
-                    '';
-
-
-                goToAgentPage(store);
-
-
-            } catch (error) {
-
-                showAlert(
-                    error.message ||
-                    'تعذر تسجيل الدخول.',
-                    true
-                );
-
-            } finally {
-
-                btn.disabled = false;
-                spinner.classList.add('hidden');
-
-            }
-
-        });
-
-
-    /* =========================================================
-       SAVE AGENT + START
-    ========================================================== */
-
-    document
-        .getElementById('agentSetupForm')
-        .addEventListener('submit', async function (e) {
-
-            e.preventDefault();
-
-            if (!currentStoreId) {
-
-                showAgentStatus(
-                    'انتهت جلسة الدخول. يرجى تسجيل الدخول مرة أخرى.',
-                    true
-                );
-
-                return;
-
-            }
-
-
-            const storeUrl =
-                document.getElementById('store_url').value.trim();
-
-            const whatsapp =
-                document.getElementById('whatsapp_number').value.trim();
-
-            const notes =
-                document.getElementById('agent_notes').value.trim();
-
-            const pdfFile =
-                document.getElementById('pdf_file').files[0];
-
-
-            if (!storeUrl) {
-
-                showAgentStatus(
-                    'أدخل رابط المتجر.',
-                    true
-                );
-
-                return;
-
-            }
-
-
-            if (!whatsapp) {
-
-                showAgentStatus(
-                    'أدخل رقم المتجر / واتساب مع مفتاح الدولة.',
-                    true
-                );
-
-                return;
-
-            }
-
-
-            if (!notes) {
-
-                showAgentStatus(
-                    'أدخل تعليمات المساعد الذكي.',
-                    true
-                );
-
-                return;
-
-            }
-
-
-            const btn =
-                document.getElementById('startAgentBtn');
-
-            const spinner =
-                document.getElementById('agentSpinner');
-
-            const buttonText =
-                document.getElementById('startAgentText');
-
-
-            btn.disabled = true;
-            spinner.classList.remove('hidden');
-
-            buttonText.innerText =
-                '⏳ جاري حفظ البيانات...';
-
-
-            const formData =
-                new FormData();
-
-
-            formData.append(
-                'store_id',
-                currentStoreId
-            );
-
-            formData.append(
-                'store_url',
-                storeUrl
-            );
-
-            formData.append(
-                'whatsapp_number',
-                whatsapp
-            );
-
-            formData.append(
-                'agent_notes',
-                notes
-            );
-
-
-            if (pdfFile) {
-
-                formData.append(
-                    'pdf_file',
-                    pdfFile
+                throw new Error(
+                    result.data.detail ||
+                    'بيانات الدخول غير صحيحة.'
                 );
 
             }
 
 
-            try {
-
-                /* -----------------------------------------
-                   STEP 1: UPDATE STORE
-                ----------------------------------------- */
-
-                const updateResult =
-                    await apiFetch(
-                        '/api/update-agent',
-                        {
-                            method: 'POST',
-                            body: formData
-                        }
-                    );
+            const store =
+                result.data.store || {};
 
 
-                if (!updateResult.response.ok) {
+            store.id =
+                result.data.store_id ||
+                store.id;
 
-                    throw new Error(
-                        updateResult.data.detail ||
-                        updateResult.data.message ||
-                        'تعذر حفظ بيانات المتجر.'
-                    );
+            store.username =
+                result.data.username ||
+                store.username ||
+                formData.get('username');
 
-                }
-
-
-                showAgentStatus(
-                    '✅ تم حفظ بيانات المتجر والمساعد بنجاح.',
-                    false
-                );
+            store.email =
+                result.data.email ||
+                store.email ||
+                '';
 
 
-                /* -----------------------------------------
-                   STEP 2: GET QR
-                ----------------------------------------- */
+            goToAgentPage(store);
 
-                buttonText.innerText =
-                    '📱 جاري تجهيز واتساب...';
-
-
-                await loadQRCode();
-
-
-            } catch (error) {
-
-                showAgentStatus(
-                    error.message ||
-                    'حدث خطأ أثناء إعداد المساعد.',
-                    true
-                );
-
-            } finally {
-
-                btn.disabled = false;
-                spinner.classList.add('hidden');
-
-                buttonText.innerText =
-                    '💾 حفظ البيانات وتشغيل المساعد';
-
-            }
-
-        });
-
-
-    /* =========================================================
-       LOAD QR
-    ========================================================== */
-
-    async function loadQRCode() {
-
-        if (!currentStoreId) {
-            return;
-        }
-
-
-        const qrSection =
-            document.getElementById('qrSection');
-
-        const qrImage =
-            document.getElementById('qrImage');
-
-
-        qrImage.removeAttribute('src');
-
-
-        const result =
-            await apiFetch(
-                `/api/whatsapp/qr/${currentStoreId}`
-            );
-
-
-        if (
-            result.response.ok &&
-            result.data.qr_code
-        ) {
-
-            qrImage.src =
-                result.data.qr_code;
-
-            qrSection.classList.remove('hidden');
-
-            qrSection.scrollIntoView({
-                behavior: 'smooth',
-                block: 'center'
-            });
-
-
-            showAgentStatus(
-                '✅ تم حفظ الإعدادات وتجهيز رمز QR لربط واتساب.',
-                false
-            );
-
-            return;
-
-        }
-
-
-        const diagnostic = result.data.evolution_response
-            ? `\n\nتفاصيل Evolution API: ${JSON.stringify(result.data.evolution_response)}`
-            : '';
-
-        throw new Error(
-            result.data.detail ||
-            result.data.message ||
-            'تم حفظ البيانات، ولكن لم يتم تجهيز QR. تأكد من إعداد Evolution API.'
-            + diagnostic
-        );
-
-    }
-
-
-    /* =========================================================
-       REFRESH QR
-    ========================================================== */
-
-    async function refreshQRCode() {
-
-        const button =
-            event?.target;
-
-        if (button) {
-            button.disabled = true;
-        }
-
-
-        try {
-
-            await loadQRCode();
 
         } catch (error) {
 
-            showAgentStatus(
+            showAlert(
                 error.message ||
-                'تعذر تحديث رمز QR.',
+                'تعذر تسجيل الدخول.',
                 true
             );
 
         } finally {
 
-            if (button) {
-                button.disabled = false;
+            btn.disabled = false;
+
+            spinner.classList.add('hidden');
+
+        }
+
+    });
+
+
+/* =========================================================
+   SAVE AGENT
+========================================================= */
+
+document
+    .getElementById('agentSetupForm')
+    .addEventListener('submit', async function(e) {
+
+        e.preventDefault();
+
+        if (!currentStoreId) {
+
+            showAgentStatus(
+                'انتهت جلسة الدخول. يرجى تسجيل الدخول مرة أخرى.',
+                true
+            );
+
+            return;
+        }
+
+
+        const storeUrl =
+            document
+                .getElementById('store_url')
+                .value
+                .trim();
+
+        const whatsapp =
+            document
+                .getElementById('whatsapp_number')
+                .value
+                .trim();
+
+        const notes =
+            document
+                .getElementById('agent_notes')
+                .value
+                .trim();
+
+        const pdfFile =
+            document
+                .getElementById('pdf_file')
+                .files[0];
+
+
+        if (!storeUrl) {
+
+            showAgentStatus(
+                'أدخل رابط المتجر.',
+                true
+            );
+
+            return;
+        }
+
+
+        if (!whatsapp) {
+
+            showAgentStatus(
+                'أدخل رقم المتجر / واتساب مع مفتاح الدولة.',
+                true
+            );
+
+            return;
+        }
+
+
+        if (!notes) {
+
+            showAgentStatus(
+                'أدخل تعليمات المساعد الذكي.',
+                true
+            );
+
+            return;
+        }
+
+
+        const btn =
+            document.getElementById('startAgentBtn');
+
+        const spinner =
+            document.getElementById('agentSpinner');
+
+        const buttonText =
+            document.getElementById('startAgentText');
+
+
+        btn.disabled = true;
+
+        spinner.classList.remove('hidden');
+
+        buttonText.innerText =
+            '⏳ جاري حفظ البيانات...';
+
+
+        const formData =
+            new FormData();
+
+
+        formData.append(
+            'store_id',
+            currentStoreId
+        );
+
+        formData.append(
+            'store_url',
+            storeUrl
+        );
+
+        formData.append(
+            'whatsapp_number',
+            whatsapp
+        );
+
+        formData.append(
+            'agent_notes',
+            notes
+        );
+
+
+        if (pdfFile) {
+
+            formData.append(
+                'pdf_file',
+                pdfFile
+            );
+
+        }
+
+
+        try {
+
+            const updateResult =
+                await apiFetch(
+                    '/api/update-agent',
+                    {
+                        method: 'POST',
+                        body: formData
+                    }
+                );
+
+
+            if (!updateResult.response.ok) {
+
+                throw new Error(
+                    updateResult.data.detail ||
+                    updateResult.data.message ||
+                    'تعذر حفظ بيانات المتجر.'
+                );
+
             }
 
+
+            showAgentStatus(
+                '✅ تم حفظ بيانات المتجر والمساعد بنجاح.',
+                false
+            );
+
+
+            buttonText.innerText =
+                '📱 جاري تجهيز واتساب...';
+
+
+            await loadQRCode();
+
+
+        } catch (error) {
+
+            showAgentStatus(
+                error.message ||
+                'حدث خطأ أثناء إعداد المساعد.',
+                true
+            );
+
+        } finally {
+
+            btn.disabled = false;
+
+            spinner.classList.add('hidden');
+
+            buttonText.innerText =
+                '💾 حفظ البيانات وتشغيل المساعد';
+
+        }
+
+    });
+
+
+/* =========================================================
+   QR
+========================================================= */
+
+async function loadQRCode() {
+
+    if (!currentStoreId) {
+        return;
+    }
+
+
+    const qrSection =
+        document.getElementById('qrSection');
+
+    const qrImage =
+        document.getElementById('qrImage');
+
+
+    qrImage.removeAttribute('src');
+
+
+    const result =
+        await apiFetch(
+            `/api/whatsapp/qr/${currentStoreId}`
+        );
+
+
+    if (
+        result.response.ok &&
+        result.data.qr_code
+    ) {
+
+        qrImage.src =
+            result.data.qr_code;
+
+        qrSection.classList.remove('hidden');
+
+        qrSection.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+        });
+
+
+        showAgentStatus(
+            '✅ تم حفظ الإعدادات وتجهيز رمز QR لربط واتساب.',
+            false
+        );
+
+        return;
+    }
+
+
+    const diagnostic =
+        result.data.evolution_response
+            ? `\n\nتفاصيل Evolution API: ${JSON.stringify(result.data.evolution_response)}`
+            : '';
+
+
+    throw new Error(
+        result.data.detail ||
+        result.data.message ||
+        (
+            'تم حفظ البيانات، ولكن لم يتم تجهيز QR. تأكد من إعداد Evolution API.'
+            + diagnostic
+        )
+    );
+
+}
+
+
+/* =========================================================
+   REFRESH QR
+========================================================= */
+
+async function refreshQRCode(event) {
+
+    const button =
+        event?.target;
+
+
+    if (button) {
+        button.disabled = true;
+    }
+
+
+    try {
+
+        await loadQRCode();
+
+    } catch (error) {
+
+        showAgentStatus(
+            error.message ||
+            'تعذر تحديث رمز QR.',
+            true
+        );
+
+    } finally {
+
+        if (button) {
+            button.disabled = false;
         }
 
     }
 
-
-    /* =========================================================
-       AGENT STATUS
-    ========================================================== */
-
-    function showAgentStatus(message, isError = false) {
-
-        const box =
-            document.getElementById('agentStatus');
+}
 
 
-        box.classList.remove(
-            'hidden',
+/* =========================================================
+   AGENT STATUS
+========================================================= */
+
+function showAgentStatus(message, isError = false) {
+
+    const box =
+        document.getElementById('agentStatus');
+
+
+    box.className =
+        'p-4 rounded-2xl border text-sm font-semibold';
+
+
+    if (isError) {
+
+        box.classList.add(
             'bg-red-50',
             'text-red-700',
-            'border-red-200',
+            'border-red-200'
+        );
+
+    } else {
+
+        box.classList.add(
             'bg-emerald-50',
             'text-emerald-700',
             'border-emerald-200'
         );
 
-
-        if (isError) {
-
-            box.classList.add(
-                'bg-red-50',
-                'text-red-700',
-                'border-red-200'
-            );
-
-        } else {
-
-            box.classList.add(
-                'bg-emerald-50',
-                'text-emerald-700',
-                'border-emerald-200'
-            );
-
-        }
+    }
 
 
-        box.innerText = message;
+    box.innerText = message;
+
+}
+
+
+/* =========================================================
+   LOGOUT
+========================================================= */
+
+async function logout() {
+
+    try {
+
+        await apiFetch(
+            '/api/logout',
+            {
+                method: 'POST'
+            }
+        );
+
+    } catch (error) {
+
+        console.error(error);
 
     }
 
 
-    /* =========================================================
-       LOGOUT
-    ========================================================== */
+    currentStoreId = null;
 
-    async function logout() {
+    pendingVerificationEmail = null;
 
-        try {
 
-            await apiFetch(
-                '/api/logout',
-                {
-                    method: 'POST'
-                }
-            );
+    document
+        .getElementById('agentSection')
+        .classList.add('hidden');
 
-        } catch (error) {
-            console.error(error);
+
+    document
+        .getElementById('qrSection')
+        .classList.add('hidden');
+
+
+    document
+        .getElementById('authSection')
+        .classList.remove('hidden');
+
+
+    document
+        .getElementById('registerForm')
+        .reset();
+
+
+    document
+        .getElementById('loginForm')
+        .reset();
+
+
+    document
+        .getElementById('verifyForm')
+        .reset();
+
+
+    document
+        .getElementById('agentSetupForm')
+        .reset();
+
+
+    toggleAuthMode('register');
+
+}
+
+
+/* =========================================================
+   SESSION
+========================================================= */
+
+async function checkSession() {
+
+    try {
+
+        const result =
+            await apiFetch('/api/me');
+
+
+        if (
+            result.response.ok &&
+            result.data.store
+        ) {
+
+            const store =
+                result.data.store;
+
+
+            store.id =
+                result.data.store_id ||
+                store.id;
+
+
+            store.username =
+                result.data.username ||
+                store.username ||
+                '';
+
+
+            store.email =
+                result.data.email ||
+                store.email ||
+                '';
+
+
+            goToAgentPage(store);
+
         }
 
+    } catch (error) {
 
-        currentStoreId = null;
+        console.log(
+            'No active session'
+        );
 
+    }
 
-        document
-            .getElementById('agentSection')
-            .classList.add('hidden');
-
-
-        document
-            .getElementById('qrSection')
-            .classList.add('hidden');
+}
 
 
-        document
-            .getElementById('authSection')
-            .classList.remove('hidden');
+/* =========================================================
+   START
+========================================================= */
 
-
-        document
-            .getElementById('registerForm')
-            .reset();
-
-
-        document
-            .getElementById('loginForm')
-            .reset();
-
-
-        document
-            .getElementById('agentSetupForm')
-            .reset();
-
+document.addEventListener(
+    'DOMContentLoaded',
+    function() {
 
         toggleAuthMode('register');
 
-    }
-
-
-    /* =========================================================
-       SESSION
-    ========================================================== */
-
-    async function checkSession() {
-
-        try {
-
-            const result =
-                await apiFetch('/api/me');
-
-
-            if (result.response.ok && result.data.store) {
-
-                const store =
-                    result.data.store;
-
-
-                store.username =
-                    result.data.username ||
-                    store.username ||
-                    '';
-
-
-                store.email =
-                    result.data.email ||
-                    store.email ||
-                    '';
-
-
-                goToAgentPage(store);
-
-            }
-
-        } catch (error) {
-
-            console.log(
-                'No active session'
-            );
-
-        }
+        checkSession();
 
     }
-
-
-    /* =========================================================
-       START
-    ========================================================== */
-
-    document.addEventListener(
-        'DOMContentLoaded',
-        function () {
-
-            checkSession();
-
-        }
-    );
+);
 
 </script>
 
