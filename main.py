@@ -164,7 +164,7 @@ Base = declarative_base()
 # APP
 # =========================================================
 
-app = FastAPI(title="Smart AI Store Assistant", version="4.0.0")
+app = FastAPI(title="Smart AI Store Assistant", version="4.1.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -397,7 +397,11 @@ def set_session_cookie(response: JSONResponse, token: str):
         value=token,
         max_age=SESSION_DAYS * 24 * 60 * 60,
         httponly=True,
-        secure=True,
+        secure=(
+            os.getenv("COOKIE_SECURE", "").strip().lower() in {"1", "true", "yes"}
+            or bool(FRONTEND_URL)
+            or os.getenv("RENDER_EXTERNAL_URL", "").startswith("https://")
+        ),
         samesite="none" if FRONTEND_URL else "lax",
         path="/",
     )
@@ -638,51 +642,87 @@ def extract_pdf_text(content: bytes) -> str:
 # =========================================================
 
 def normalize_qr(value: Any) -> Optional[str]:
-    if not value:
+    """Normalize Evolution API QR representations to an image data URL.
+
+    Evolution API versions can return QR data as:
+    - a data:image/... URL
+    - a raw base64 string
+    - an object containing base64/base64Image/qrcode/qrCode/code/qr
+    """
+    if value is None:
         return None
+
     if isinstance(value, dict):
-        value = first_value(
-            value.get("base64"), value.get("base64Image"), value.get("qrcode"),
-            value.get("qrCode"), value.get("code"), value.get("qr"),
-        )
+        # Prefer actual image/base64 fields over the WhatsApp pairing "code".
+        for key in ("base64", "base64Image", "qrcode", "qrCode", "qr", "code"):
+            if key in value:
+                qr = normalize_qr(value.get(key))
+                if qr:
+                    return qr
+        return None
+
     if not isinstance(value, str):
         return None
+
     value = value.strip()
     if not value:
         return None
-    if value.startswith("data:image"):
+
+    # Some versions return a quoted JSON string.
+    if value.startswith('"') and value.endswith('"'):
+        try:
+            decoded = json.loads(value)
+            if decoded != value:
+                return normalize_qr(decoded)
+        except Exception:
+            pass
+
+    if value.startswith("data:image/"):
         return value
-    if value.startswith("http://") or value.startswith("https://"):
+
+    # A URL may point directly to a generated QR image.
+    if value.startswith(("http://", "https://")):
         return value
-    return "data:image/png;base64," + value
+
+    # Pairing codes such as "2@..." are NOT image QR codes.
+    if value.startswith("2@"):
+        return None
+
+    # Accept only plausible base64 image payloads.
+    compact = re.sub(r"\s+", "", value)
+    if len(compact) < 40:
+        return None
+    if not re.fullmatch(r"[A-Za-z0-9+/=_-]+", compact):
+        return None
+
+    return "data:image/png;base64," + compact
+
+
+def _walk_qr_values(value: Any, depth: int = 0):
+    """Yield possible QR values from arbitrarily nested Evolution responses."""
+    if depth > 6 or value is None:
+        return
+
+    if isinstance(value, dict):
+        preferred = (
+            "base64", "base64Image", "qrcode", "qrCode", "qr",
+            "code", "image", "imageUrl", "qr_code",
+        )
+        for key in preferred:
+            if key in value:
+                yield value[key]
+        for key, child in value.items():
+            if key not in preferred:
+                yield from _walk_qr_values(child, depth + 1)
+
+    elif isinstance(value, list):
+        for child in value:
+            yield from _walk_qr_values(child, depth + 1)
 
 
 def extract_qr_code(data: Any) -> Optional[str]:
-    if not isinstance(data, dict):
-        return None
-
-    candidates = [
-        data.get("qrcode"), data.get("qrCode"), data.get("base64"),
-        data.get("base64Image"), data.get("code"), data.get("qr"),
-    ]
-
-    nested_data = data.get("data")
-    if isinstance(nested_data, dict):
-        candidates.extend([
-            nested_data.get("qrcode"), nested_data.get("qrCode"),
-            nested_data.get("base64"), nested_data.get("base64Image"),
-            nested_data.get("code"), nested_data.get("qr"),
-        ])
-
-    instance = data.get("instance")
-    if isinstance(instance, dict):
-        candidates.extend([
-            instance.get("qrcode"), instance.get("qrCode"),
-            instance.get("base64"), instance.get("base64Image"),
-            instance.get("code"), instance.get("qr"),
-        ])
-
-    for candidate in candidates:
+    """Extract a real QR image from all common Evolution API v2 response shapes."""
+    for candidate in _walk_qr_values(data):
         qr = normalize_qr(candidate)
         if qr:
             return qr
@@ -726,27 +766,45 @@ def evolution_headers():
 
 async def evolution_create_instance(client: httpx.AsyncClient, instance_name: str):
     url = f"{EVOLUTION_API_URL}/instance/create"
-    payload = {"instanceName": instance_name, "qrcode": True, "integration": "WHATSAPP-BAILEYS"}
+    payload = {
+        "instanceName": instance_name,
+        "qrcode": True,
+        "integration": "WHATSAPP-BAILEYS",
+    }
 
     try:
         response = await client.post(url, headers=evolution_headers(), json=payload)
         data = safe_json(response)
-        print("EVOLUTION CREATE:", response.status_code, data)
-        return {"status_code": response.status_code, "data": data, "qr": extract_qr_code(data)}
+        result = {
+            "status_code": response.status_code,
+            "data": data,
+            "qr": extract_qr_code(data),
+            "state": extract_connection_state(data),
+        }
+        print("EVOLUTION CREATE:", result)
+        return result
     except Exception as exc:
         print("EVOLUTION CREATE EXCEPTION:", repr(exc))
-        return {"status_code": 0, "data": {"error": str(exc)}, "qr": None}
+        return {"status_code": 0, "data": {"error": str(exc)}, "qr": None, "state": None}
 
 
 async def evolution_connect(client: httpx.AsyncClient, instance_name: str):
+    """Request a fresh QR from the v2 /instance/connect/{instance} endpoint."""
     url = f"{EVOLUTION_API_URL}/instance/connect/{instance_name}"
     try:
         response = await client.get(url, headers=evolution_headers())
         data = safe_json(response)
-        return {"status_code": response.status_code, "data": data, "qr": extract_qr_code(data)}
+        result = {
+            "status_code": response.status_code,
+            "data": data,
+            "qr": extract_qr_code(data),
+            "state": extract_connection_state(data),
+        }
+        print("EVOLUTION CONNECT:", response.status_code, "state=", result["state"], "qr=", bool(result["qr"]))
+        return result
     except Exception as exc:
         print("EVOLUTION CONNECT ERROR:", repr(exc))
-        return {"status_code": 0, "data": {"error": str(exc)}, "qr": None}
+        return {"status_code": 0, "data": {"error": str(exc)}, "qr": None, "state": None}
 
 
 async def evolution_status(client: httpx.AsyncClient, instance_name: str):
@@ -754,27 +812,40 @@ async def evolution_status(client: httpx.AsyncClient, instance_name: str):
     try:
         response = await client.get(url, headers=evolution_headers())
         data = safe_json(response)
-        return {"status_code": response.status_code, "data": data, "state": extract_connection_state(data)}
+        return {
+            "status_code": response.status_code,
+            "data": data,
+            "state": extract_connection_state(data),
+            "qr": extract_qr_code(data),
+        }
     except Exception as exc:
-        return {"status_code": 0, "data": {"error": str(exc)}, "state": None}
+        return {"status_code": 0, "data": {"error": str(exc)}, "state": None, "qr": None}
 
 
 async def ensure_instance(client: httpx.AsyncClient, store: StoreModel):
+    """Ensure the per-store Evolution instance exists and is ready for QR generation."""
     instance_name = make_instance_name(store.id)
+
     status = await evolution_status(client, instance_name)
-    state = (status.get("state") or "").lower()
+    state = (status.get("state") or "").strip().lower()
 
     if state in {"open", "connected", "online"}:
-        return {"instance_name": instance_name, "created": False, "create": None, "status": status}
+        return {
+            "instance_name": instance_name,
+            "created": False,
+            "create": None,
+            "status": status,
+        }
 
     create_result = await evolution_create_instance(client, instance_name)
 
-    if create_result["status_code"] == 409:
+    # 409 means the instance already exists. Refresh its state before connecting.
+    if create_result.get("status_code") == 409:
         status = await evolution_status(client, instance_name)
 
     return {
         "instance_name": instance_name,
-        "created": create_result["status_code"] in (200, 201),
+        "created": create_result.get("status_code") in (200, 201),
         "create": create_result,
         "status": status,
     }
@@ -792,7 +863,11 @@ async def configure_webhook(client: httpx.AsyncClient, instance_name: str, store
             "webhookByEvents": False,
             "webhookBase64": False,
             "byEvents": False,
-            "events": ["MESSAGES_UPSERT", "CONNECTION_UPDATE", "QRCODE_UPDATED"],
+            "events": [
+                "MESSAGES_UPSERT",
+                "CONNECTION_UPDATE",
+                "QRCODE_UPDATED",
+            ],
         }
     }
 
@@ -807,14 +882,19 @@ async def configure_webhook(client: httpx.AsyncClient, instance_name: str, store
 async def get_qr_with_retry(
     client: httpx.AsyncClient,
     instance_name: str,
-    attempts: int = 10,
+    attempts: int = 12,
     delay_seconds: float = 1.5,
     initial_result: Optional[dict] = None,
 ):
+    """Create/connect until a QR image is actually returned or the instance opens."""
     last_result = initial_result
 
-    if initial_result and initial_result.get("qr"):
-        return initial_result
+    if initial_result:
+        if initial_result.get("qr"):
+            return initial_result
+        initial_state = (initial_result.get("state") or "").lower()
+        if initial_state in {"open", "connected", "online"}:
+            return initial_result
 
     for attempt in range(1, attempts + 1):
         result = await evolution_connect(client, instance_name)
@@ -824,14 +904,19 @@ async def get_qr_with_retry(
             print(f"QR RECEIVED ON ATTEMPT {attempt}")
             return result
 
-        state = extract_connection_state(result.get("data"))
-        if state and state.lower() in {"open", "connected", "online"}:
+        state = (result.get("state") or extract_connection_state(result.get("data")) or "").lower()
+        if state in {"open", "connected", "online"}:
             return result
 
         if attempt < attempts:
             await asyncio.sleep(delay_seconds)
 
-    return last_result or {"status_code": 0, "data": {"error": "Evolution API لم ترجع نتيجة"}, "qr": None}
+    return last_result or {
+        "status_code": 0,
+        "data": {"error": "Evolution API لم ترجع نتيجة"},
+        "qr": None,
+        "state": None,
+    }
 
 
 async def evolution_send_text(client: httpx.AsyncClient, instance_name: str, number: str, message: str):
@@ -865,7 +950,7 @@ async def health():
     return {
         "status": "ok",
         "service": "Smart AI Store Assistant",
-        "version": "4.0.0",
+        "version": "4.1.0",
         "database_configured": bool(DATABASE_URL),
         "evolution_api_configured": bool(EVOLUTION_API_URL),
         "evolution_key_configured": bool(EVOLUTION_GLOBAL_KEY),
