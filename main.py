@@ -131,10 +131,12 @@ if not EVOLUTION_GLOBAL_KEY:
     )
 
 
+# Render automatically exposes the public URL through RENDER_EXTERNAL_URL.
+# WEBHOOK_BASE_URL remains an explicit override for non-Render deployments.
 WEBHOOK_BASE_URL = (
     os.getenv(
         "WEBHOOK_BASE_URL",
-        "",
+        os.getenv("RENDER_EXTERNAL_URL", ""),
     )
     .strip()
     .rstrip("/")
@@ -1047,10 +1049,7 @@ async def evolution_create_instance(
     instance_name: str,
 ):
 
-    url = (
-        f"{EVOLUTION_API_URL}"
-        "/instance/create"
-    )
+    url = f"{EVOLUTION_API_URL}/instance/create"
 
     payload = {
         "instanceName": instance_name,
@@ -1059,20 +1058,14 @@ async def evolution_create_instance(
     }
 
     try:
-
         response = await client.post(
             url,
             headers=evolution_headers(),
             json=payload,
         )
-
         data = safe_json(response)
 
-        print(
-            "EVOLUTION CREATE:",
-            response.status_code,
-            data,
-        )
+        print("EVOLUTION CREATE:", response.status_code, data)
 
         return {
             "status_code": response.status_code,
@@ -1081,17 +1074,10 @@ async def evolution_create_instance(
         }
 
     except Exception as exc:
-
-        print(
-            "EVOLUTION CREATE EXCEPTION:",
-            repr(exc),
-        )
-
+        print("EVOLUTION CREATE EXCEPTION:", repr(exc))
         return {
             "status_code": 0,
-            "data": {
-                "error": str(exc)
-            },
+            "data": {"error": str(exc)},
             "qr": None,
         }
 
@@ -1248,60 +1234,34 @@ async def ensure_instance(
     store: StoreModel,
 ):
 
-    instance_name = make_instance_name(
-        store.id
+    instance_name = make_instance_name(store.id)
+
+    status = await evolution_status(client, instance_name)
+    state = (status.get("state") or "").lower()
+
+    if state in {"open", "connected", "online"}:
+        return {
+            "instance_name": instance_name,
+            "created": False,
+            "create": None,
+            "status": status,
+        }
+
+    create_result = await evolution_create_instance(
+        client, instance_name
     )
 
-    status = await evolution_status(
-        client,
-        instance_name,
-    )
+    if create_result["status_code"] not in (200, 201, 409):
+        print("INSTANCE CREATE FAILED:", create_result)
 
-    # Already connected.
-    if status.get("state"):
-        state = (
-            status["state"]
-            or ""
-        ).lower()
-
-        if state in {
-            "open",
-            "connected",
-            "online",
-        }:
-
-            return {
-                "instance_name": instance_name,
-                "created": False,
-                "status": status,
-            }
-
-    # Try creating.
-    create_result = (
-        await evolution_create_instance(
-            client,
-            instance_name,
-        )
-    )
-
-    # 200/201 = created.
-    # 409 = already exists.
-    if create_result["status_code"] not in (
-        200,
-        201,
-        409,
-    ):
-
-        print(
-            "INSTANCE CREATE FAILED:",
-            create_result,
-        )
+    # A 409 normally means the instance already exists. Refresh its state so
+    # diagnostics contain the current state rather than the pre-create 404.
+    if create_result["status_code"] == 409:
+        status = await evolution_status(client, instance_name)
 
     return {
         "instance_name": instance_name,
-        "created": create_result[
-            "status_code"
-        ] in (200, 201),
+        "created": create_result["status_code"] in (200, 201),
         "create": create_result,
         "status": status,
     }
@@ -1399,66 +1359,41 @@ async def configure_webhook(
 async def get_qr_with_retry(
     client: httpx.AsyncClient,
     instance_name: str,
-    attempts: int = 8,
+    attempts: int = 10,
     delay_seconds: float = 1.5,
+    initial_result: Optional[dict] = None,
 ):
+    """Return a QR code, a connected state, or the last Evolution response.
 
-    last_result = None
+    Some Evolution API versions return the QR from /instance/create while
+    others return it only from /instance/connect. We support both flows.
+    """
 
-    for attempt in range(
-        1,
-        attempts + 1,
-    ):
+    last_result = initial_result
 
-        result = await evolution_connect(
-            client,
-            instance_name,
-        )
+    if initial_result and initial_result.get("qr"):
+        return initial_result
 
+    for attempt in range(1, attempts + 1):
+        result = await evolution_connect(client, instance_name)
         last_result = result
 
         if result.get("qr"):
-
-            print(
-                f"QR RECEIVED ON ATTEMPT {attempt}"
-            )
-
+            print(f"QR RECEIVED ON ATTEMPT {attempt}")
             return result
 
-        state = extract_connection_state(
-            result.get("data")
-        )
-
-        if state:
-
-            state_lower = state.lower()
-
-            if state_lower in {
-                "open",
-                "connected",
-                "online",
-            }:
-
-                return result
+        state = extract_connection_state(result.get("data"))
+        if state and state.lower() in {"open", "connected", "online"}:
+            return result
 
         if attempt < attempts:
+            await asyncio.sleep(delay_seconds)
 
-            await asyncio.sleep(
-                delay_seconds
-            )
-
-    return (
-        last_result
-        or {
-            "status_code": 0,
-            "data": {
-                "error": (
-                    "Evolution API لم ترجع نتيجة"
-                )
-            },
-            "qr": None,
-        }
-    )
+    return last_result or {
+        "status_code": 0,
+        "data": {"error": "Evolution API لم ترجع نتيجة"},
+        "qr": None,
+    }
 
 
 # =========================================================
@@ -2197,8 +2132,9 @@ async def whatsapp_qr(
             await get_qr_with_retry(
                 client,
                 instance_name,
-                attempts=8,
+                attempts=10,
                 delay_seconds=1.5,
+                initial_result=ensure_result.get("create"),
             )
         )
 
@@ -2232,7 +2168,7 @@ async def whatsapp_qr(
             "status": "error",
             "success": False,
             "message": (
-                "Evolution API لم تُرجع QR Code."
+                "Evolution API لم تُرجع QR Code. راجع evolution_http_status و evolution_response."
             ),
             "instance_name": instance_name,
             "evolution_http_status": qr_result.get(
