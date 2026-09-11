@@ -1,26 +1,38 @@
 services:
   - type: web
-    name: ai-store-assistant
+    name: smart-ai-agent-pro
     runtime: python
     plan: free
     region: frankfurt
+
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
-    healthCheckPath: /health
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.9
 
-      # Set these values in Render Environment for this service.
+    envVars:
+      - key: DATABASE_CONNECTION_URI
+        fromDatabase:
+          name: smart-ai-agent-db
+          property: connectionString
+
       - key: EVOLUTION_API_URL
-        sync: false
+        value: https://رابط-evolution-api.onrender.com
+
       - key: EVOLUTION_GLOBAL_KEY
         sync: false
-      - key: WEBHOOK_BASE_URL
-        sync: false
+
       - key: ANTHROPIC_API_KEY
         sync: false
+
       - key: ANTHROPIC_MODEL
-        sync: false
-      - key: DATABASE_CONNECTION_URI
-        sync: false
+        value: claude-sonnet-4-5
+
+      - key: WEBHOOK_BASE_URL
+        value: https://رابط-fastapi.onrender.com
+
+
+databases:
+  - name: smart-ai-agent-db
+    plan: free
+    region: frankfurt
+    databaseName: smart_ai_agent
+    user: smart_ai_agent_user
