@@ -176,11 +176,11 @@ try:
     SMTP_PORT = int(
         os.getenv(
             "SMTP_PORT",
-            "587",
+            "465",
         )
     )
 except ValueError:
-    SMTP_PORT = 587
+    SMTP_PORT = 465
 
 SMTP_USERNAME = (
     os.getenv(
