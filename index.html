@@ -1,17 +1,165 @@
 <!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>مساعد المتجر الذكي — Smart AI Store Assistant</title>
-    <meta name="description" content="منصة مساعد المبيعات الذكي بالذكاء الاصطناعي للواتساب والمواقع" />
-    <meta property="og:image" content="https://bolt.new/static/og_default.png" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="https://bolt.new/static/og_default.png" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Smart AI Store — WhatsApp</title>
+<style>
+:root{color-scheme:dark;font-family:Tahoma,Arial,sans-serif;background:#07111f;color:#eef6ff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#10233d,#07111f 55%);min-height:100vh}
+main{width:min(980px,94%);margin:32px auto}.card{background:#0e1b2d;border:1px solid #1f3550;border-radius:18px;padding:22px;box-shadow:0 18px 50px #0005;margin-bottom:18px}
+h1,h2{margin-top:0}.muted{color:#9db0c6}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
+input,textarea{width:100%;padding:12px;border:1px solid #2b4664;border-radius:10px;background:#081321;color:#fff;margin:6px 0 12px}
+button{border:0;border-radius:10px;padding:12px 16px;background:#2563eb;color:white;font-weight:700;cursor:pointer}
+button.secondary{background:#24384f}button.danger{background:#a92c3a}button:disabled{opacity:.5;cursor:not-allowed}
+.hidden{display:none}.msg{padding:12px;border-radius:10px;background:#13263b;margin:12px 0;white-space:pre-wrap}.ok{border:1px solid #1e8f62}.err{border:1px solid #b33b4a}
+.qr{width:min(360px,100%);aspect-ratio:1;background:white;border-radius:14px;padding:12px;object-fit:contain;display:block;margin:15px auto}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.status{font-weight:700}
+small{color:#91a5bb}
+</style>
+</head>
+<body>
+<main>
+<section id="auth" class="card">
+<h1>مساعد المتجر الذكي</h1>
+<p class="muted">تسجيل الدخول ثم إنشاء وربط جلسة واتساب عبر Evolution API.</p>
+<div class="grid">
+<div>
+<h2>تسجيل الدخول</h2>
+<input id="loginUser" placeholder="اسم المستخدم أو البريد">
+<input id="loginPass" type="password" placeholder="كلمة المرور">
+<button onclick="login()">دخول</button>
+</div>
+<div>
+<h2>إنشاء حساب</h2>
+<input id="regStore" placeholder="اسم المتجر">
+<input id="regUser" placeholder="اسم المستخدم">
+<input id="regEmail" type="email" placeholder="البريد الإلكتروني">
+<input id="regPass" type="password" placeholder="كلمة المرور (6 أحرف على الأقل)">
+<button onclick="register()">إنشاء الحساب</button>
+</div>
+</div>
+<div id="verifyBox" class="hidden">
+<h2>تأكيد البريد</h2>
+<input id="verifyEmail" type="email" placeholder="البريد الإلكتروني">
+<input id="verifyCode" inputmode="numeric" placeholder="رمز التحقق">
+<div class="row"><button onclick="verify()">تأكيد</button><button class="secondary" onclick="resend()">إعادة إرسال</button></div>
+</div>
+<div id="authMsg" class="msg hidden"></div>
+</section>
+
+<section id="app" class="hidden">
+<div class="card">
+<div class="row" style="justify-content:space-between">
+<div><h1 id="storeName">لوحة المتجر</h1><span id="userInfo" class="muted"></span></div>
+<button class="danger" onclick="logout()">تسجيل الخروج</button>
+</div>
+</div>
+
+<div class="grid">
+<section class="card">
+<h2>إعداد واتساب</h2>
+<label>رقم واتساب بالمفتاح الدولي</label>
+<input id="phone" placeholder="9677xxxxxxxx">
+<label>رابط المتجر (اختياري)</label>
+<input id="storeUrl" placeholder="https://example.com">
+<label>ملاحظات المساعد</label>
+<textarea id="notes" rows="4" placeholder="تعليمات المساعد..."></textarea>
+<div class="row"><button onclick="saveSettings()">حفظ وتشغيل Evolution</button><button class="secondary" onclick="loadStatus()">فحص الحالة</button></div>
+<div id="status" class="msg">الحالة: —</div>
+</section>
+
+<section class="card">
+<h2>توليد QR</h2>
+<p class="muted">اضغط الزر. النظام ينشئ instance لكل متجر ثم يطلب QR من Evolution API.</p>
+<button id="qrBtn" onclick="generateQR()">توليد QR Code</button>
+<div id="qrMsg" class="msg">لم يتم التوليد بعد.</div>
+<img id="qr" class="qr hidden" alt="WhatsApp QR Code">
+<small id="instance"></small>
+</section>
+</div>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let me=null, pendingEmail='';
+async function api(path,opt={}){
+  const r=await fetch(path,{credentials:'include',...opt});
+  let d={}; try{d=await r.json()}catch{}
+  if(!r.ok) throw new Error(d.detail||d.message||'حدث خطأ');
+  return d;
+}
+function show(el,text,ok=false){el.textContent=text;el.className='msg '+(ok?'ok':'err');el.classList.remove('hidden')}
+async function register(){
+ try{
+  const f=new FormData();
+  f.append('store_name',$('regStore').value);f.append('username',$('regUser').value);
+  f.append('email',$('regEmail').value);f.append('password',$('regPass').value);
+  const d=await api('/api/register-store',{method:'POST',body:f});
+  pendingEmail=d.email||$('regEmail').value; $('verifyEmail').value=pendingEmail;
+  $('verifyBox').classList.remove('hidden');show($('authMsg'),d.message||'تم إنشاء الحساب. تحقق من البريد.',true);
+ }catch(e){show($('authMsg'),e.message)}
+}
+async function verify(){
+ try{
+  const f=new FormData();f.append('email',$('verifyEmail').value);f.append('code',$('verifyCode').value);
+  const d=await api('/api/verify-email',{method:'POST',body:f});
+  show($('authMsg'),d.message||'تم التأكيد. يمكنك تسجيل الدخول.',true);
+ }catch(e){show($('authMsg'),e.message)}
+}
+async function resend(){
+ try{
+  const f=new FormData();f.append('email',$('verifyEmail').value);
+  const d=await api('/api/resend-verification',{method:'POST',body:f});
+  show($('authMsg'),d.message||'تمت إعادة الإرسال.',true);
+ }catch(e){show($('authMsg'),e.message)}
+}
+async function login(){
+ try{
+  const f=new FormData();f.append('username',$('loginUser').value);f.append('password',$('loginPass').value);
+  const d=await api('/api/login',{method:'POST',body:f});
+  if(d.verification_required){$('verifyEmail').value=d.email||'';$('verifyBox').classList.remove('hidden');throw new Error(d.message)}
+  await loadMe();show($('authMsg'),'تم تسجيل الدخول',true);
+ }catch(e){show($('authMsg'),e.message)}
+}
+async function loadMe(){
+ me=await api('/api/me');
+ $('auth').classList.add('hidden');$('app').classList.remove('hidden');
+ $('storeName').textContent=me.store.store_name||'لوحة المتجر';
+ $('userInfo').textContent=(me.user.username||'')+' — '+(me.user.email||'');
+ $('phone').value=me.store.whatsapp_number||'';$('storeUrl').value=me.store.store_url||'';$('notes').value=me.store.agent_notes||'';
+ await loadStatus();
+}
+async function saveSettings(){
+ try{
+  const f=new FormData();f.append('store_id',me.store.id);f.append('store_url',$('storeUrl').value);
+  f.append('whatsapp_number',$('phone').value);f.append('agent_notes',$('notes').value);
+  const d=await api('/api/update-agent',{method:'POST',body:f});
+  me.store=d.store;show($('status'),'تم الحفظ. '+(d.evolution?'Evolution جاهز.':'تم الحفظ.'),true);
+ }catch(e){show($('status'),e.message)}
+}
+async function loadStatus(){
+ try{
+  const d=await api('/api/whatsapp/status/'+me.store.id);
+  show($('status'),'الحالة: '+(d.connection_state||'غير معروفة')+' — HTTP '+d.http_status,d.success);
+ }catch(e){show($('status'),e.message)}
+}
+async function generateQR(){
+ const b=$('qrBtn');b.disabled=true;$('qr').classList.add('hidden');
+ show($('qrMsg'),'جاري إنشاء/الاتصال بالـ instance وطلب QR...');
+ try{
+  const d=await api('/api/whatsapp/qr/'+me.store.id);
+  if(d.qr_code){$('qr').src=d.qr_code;$('qr').classList.remove('hidden');show($('qrMsg'),'تم توليد QR Code. افتح واتساب > الأجهزة المرتبطة > ربط جهاز.',true)}
+  else show($('qrMsg'),'لم يرجع QR.');
+  $('instance').textContent='Instance: '+(d.instance_name||'');
+ }catch(e){show($('qrMsg'),e.message)}
+ finally{b.disabled=false}
+}
+async function logout(){
+ try{await api('/api/logout',{method:'POST'})}catch{}
+ location.reload();
+}
+(async()=>{try{await loadMe()}catch{}})();
+</script>
+</body>
 </html>
