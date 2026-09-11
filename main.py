@@ -710,22 +710,36 @@ async def register_store(
     pdf_file: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
 ):
-    catalog_content = ""
-
-    if pdf_file and pdf_file.filename:
-        if pdf_file.filename.lower().endswith(".pdf"):
-            catalog_content = extract_pdf_text(pdf_file.file)
-
+    # 1. التحقق الأساسي من المدخلات
     username = username.strip().lower()
     if len(username) < 3:
         raise HTTPException(status_code=400, detail="اسم المستخدم يجب أن يكون 3 أحرف على الأقل.")
     if len(password) < 6:
         raise HTTPException(status_code=400, detail="كلمة المرور يجب أن تكون 6 أحرف على الأقل.")
 
+    # 2. التحقق من وجود اسم المستخدم مسبقاً
     existing_user = db.query(UserModel).filter(UserModel.username == username).first()
     if existing_user:
         raise HTTPException(status_code=409, detail="اسم المستخدم مستخدم بالفعل.")
 
+    # 3. التحقق المسبق من رقم الواتساب ووجود إعدادات Evolution API قبل إجراء أي حفظ
+    clean_phone = ""
+    if whatsapp_number:
+        clean_phone = normalize_phone(whatsapp_number)
+        if not clean_phone.isdigit():
+            raise HTTPException(
+                status_code=400,
+                detail="رقم الواتساب يجب أن يحتوي على أرقام فقط مع المفتاح الدولي.",
+            )
+        require_evolution_config()
+
+    # 4. استخراج النص من الكتالوج المرفق
+    catalog_content = ""
+    if pdf_file and pdf_file.filename:
+        if pdf_file.filename.lower().endswith(".pdf"):
+            catalog_content = extract_pdf_text(pdf_file.file)
+
+    # 5. حفظ المتجر والمستخدم في قاعدة البيانات فقط بعد نجاح جميع الفحوصات
     new_store = StoreModel(
         store_name=store_name,
         store_url=store_url,
@@ -747,6 +761,7 @@ async def register_store(
     db.commit()
     db.refresh(new_user)
 
+    # 6. طلب توليد QR Code وتهيئة الـ Webhook
     qr_code_data = None
     evolution_error = None
     evolution_create_response = None
@@ -754,23 +769,6 @@ async def register_store(
     instance_name = None
 
     if whatsapp_number:
-        require_evolution_config()
-
-        clean_phone = normalize_phone(whatsapp_number)
-
-        if not clean_phone.isdigit():
-            return {
-                "status": "success",
-                "message": "تم تسجيل المتجر، لكن رقم الواتساب غير صالح.",
-                "store_id": new_store.id,
-                "qr_code": None,
-                "evolution_error": "رقم الواتساب يجب أن يحتوي على أرقام فقط مع المفتاح الدولي.",
-                "widget_code": (
-                    f'<script src="{WEBHOOK_BASE_URL}/widget.js" '
-                    f'data-store-id="{new_store.id}"></script>'
-                ),
-            }
-
         instance_name = make_instance_name(clean_phone)
 
         headers = {
