@@ -620,26 +620,6 @@
                     🔄 تحديث رمز QR
                 </button>
 
-                <button
-                    type="button"
-                    onclick="checkWhatsAppStatus()"
-                    class="mr-2 px-5 py-2.5 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/30 rounded-xl text-xs font-bold transition"
-                >
-                    📡 فحص الاتصال
-                </button>
-
-                <button
-                    type="button"
-                    onclick="logoutWhatsApp()"
-                    class="mr-2 px-5 py-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-400/20 rounded-xl text-xs font-bold transition"
-                >
-                    🔌 فصل واتساب
-                </button>
-
-                <div id="whatsappStatus" class="mt-4 text-xs text-slate-300">
-                    جاري التحقق من حالة الاتصال...
-                </div>
-
             </div>
 
         </div>
@@ -1275,93 +1255,60 @@
     ========================================================== */
 
     async function loadQRCode() {
-        if (!currentStoreId) return;
 
-        const qrSection = document.getElementById('qrSection');
-        const qrImage = document.getElementById('qrImage');
-        const statusBox = document.getElementById('whatsappStatus');
-
-        qrImage.removeAttribute('src');
-        statusBox.innerText = '⏳ جاري الاتصال بـ Evolution API وتجهيز الرقم...';
-
-        const result = await apiFetch(`/api/whatsapp/qr/${currentStoreId}`);
-
-        if (!result.response.ok) {
-            const detail = result.data.evolution_response
-                ? `${result.data.message || 'فشل تجهيز QR'} — HTTP ${result.data.evolution_http_status || '?'}`
-                : (result.data.detail || result.data.message || 'تعذر تجهيز QR.');
-            throw new Error(detail);
-        }
-
-        qrSection.classList.remove('hidden');
-
-        if (result.data.qr_code) {
-            qrImage.src = result.data.qr_code;
-            statusBox.innerText = '🟢 QR جاهز — امسحه من واتساب > الأجهزة المرتبطة.';
-            showAgentStatus('✅ تم تجهيز رمز QR بنجاح. امسحه من هاتفك لربط واتساب.', false);
-        } else if (result.data.connection_state) {
-            statusBox.innerText = `🟢 حالة واتساب: ${result.data.connection_state}`;
-            showAgentStatus('✅ واتساب متصل بالفعل ولا يحتاج إلى QR.', false);
-        } else {
-            statusBox.innerText = '⚠️ تم الاتصال بالخادم ولكن لم يصل QR بعد.';
-            throw new Error('Evolution API استجاب بدون QR أو حالة اتصال. استخدم فحص الاتصال أو تحديث QR.');
-        }
-
-        qrSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        startWhatsAppPolling();
-    }
-
-    async function checkWhatsAppStatus() {
-        if (!currentStoreId) return;
-
-        const statusBox = document.getElementById('whatsappStatus');
-        statusBox.innerText = '⏳ جاري فحص الاتصال...';
-
-        const result = await apiFetch(`/api/whatsapp/status/${currentStoreId}`);
-
-        if (!result.response.ok) {
-            statusBox.innerText = result.data.detail || 'تعذر فحص الحالة.';
+        if (!currentStoreId) {
             return;
         }
 
-        const state = result.data.connection_state || 'unknown';
 
-        if (['open', 'connected', 'online'].includes(String(state).toLowerCase())) {
-            statusBox.innerText = `🟢 واتساب متصل — ${state}`;
-            showAgentStatus('✅ واتساب متصل ويعمل.', false);
-        } else {
-            statusBox.innerText = `🟡 حالة واتساب: ${state}`;
-        }
-    }
+        const qrSection =
+            document.getElementById('qrSection');
 
-    let whatsappPollTimer = null;
+        const qrImage =
+            document.getElementById('qrImage');
 
-    function startWhatsAppPolling() {
-        if (whatsappPollTimer) clearInterval(whatsappPollTimer);
-        whatsappPollTimer = setInterval(checkWhatsAppStatus, 5000);
-    }
 
-    async function logoutWhatsApp() {
-        if (!currentStoreId) return;
-        if (!confirm('هل تريد فصل جلسة واتساب لهذا المتجر؟')) return;
+        qrImage.removeAttribute('src');
 
-        const result = await apiFetch(`/api/whatsapp/logout/${currentStoreId}`, {
-            method: 'POST'
-        });
 
-        if (!result.response.ok) {
-            showAgentStatus(
-                result.data.detail || result.data.message || 'تعذر فصل واتساب.',
-                true
+        const result =
+            await apiFetch(
+                `/api/whatsapp/qr/${currentStoreId}`
             );
+
+
+        if (
+            result.response.ok &&
+            result.data.qr_code
+        ) {
+
+            qrImage.src =
+                result.data.qr_code;
+
+            qrSection.classList.remove('hidden');
+
+            qrSection.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+
+
+            showAgentStatus(
+                '✅ تم حفظ الإعدادات وتجهيز رمز QR لربط واتساب.',
+                false
+            );
+
             return;
+
         }
 
-        const qrImage = document.getElementById('qrImage');
-        qrImage.removeAttribute('src');
-        document.getElementById('whatsappStatus').innerText =
-            '🔌 تم فصل الجلسة. يمكنك تحديث QR لإعادة الربط.';
-        showAgentStatus('تم فصل واتساب بنجاح.', false);
+
+        throw new Error(
+            result.data.detail ||
+            result.data.message ||
+            'تم حفظ البيانات، ولكن لم يتم تجهيز QR. تأكد من إعداد Evolution API.'
+        );
+
     }
 
 
@@ -1370,16 +1317,35 @@
     ========================================================== */
 
     async function refreshQRCode() {
-        const button = document.querySelector('#qrSection button[onclick="refreshQRCode()"]');
-        if (button) button.disabled = true;
+
+        const button =
+            event?.target;
+
+        if (button) {
+            button.disabled = true;
+        }
+
 
         try {
+
             await loadQRCode();
+
         } catch (error) {
-            showAgentStatus(error.message || 'تعذر تحديث رمز QR.', true);
+
+            showAgentStatus(
+                error.message ||
+                'تعذر تحديث رمز QR.',
+                true
+            );
+
         } finally {
-            if (button) button.disabled = false;
+
+            if (button) {
+                button.disabled = false;
+            }
+
         }
+
     }
 
 

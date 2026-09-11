@@ -338,13 +338,9 @@
             );
 
         try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 45000);
-
             const response = await fetch(
                 `${baseUrl}/api/chat`,
                 {
-                    signal: controller.signal,
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"
@@ -389,9 +385,7 @@
             typingIndicator.remove();
 
             appendMessage(
-                error.name === "AbortError"
-                    ? "استغرق الطلب وقتاً طويلاً. حاول مرة أخرى."
-                    : "تعذر الاتصال بالخادم. يرجى المحاولة مرة أخرى.",
+                "تعذر الاتصال بالخادم. يرجى المحاولة مرة أخرى.",
                 "bot"
             );
         } finally {
