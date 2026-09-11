@@ -160,10 +160,21 @@ app = FastAPI(
     version="2.1.0",
 )
 
+FRONTEND_URL = os.getenv(
+    "FRONTEND_URL",
+    "",
+).strip().rstrip("/")
+
+CORS_ORIGINS = (
+    [FRONTEND_URL]
+    if FRONTEND_URL
+    else ["*"]
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=bool(FRONTEND_URL),
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -452,7 +463,7 @@ def set_session_cookie(response: JSONResponse, token: str):
         max_age=SESSION_DAYS * 24 * 60 * 60,
         httponly=True,
         secure=True,
-        samesite="lax",
+        samesite="none" if FRONTEND_URL else "lax",
         path="/",
     )
 
@@ -1158,6 +1169,7 @@ async def health():
         "supabase_url_configured": bool(SUPABASE_URL),
         "supabase_key_configured": bool(SUPABASE_ANON_KEY),
         "webhook_configured": bool(WEBHOOK_BASE_URL),
+        "frontend_configured": bool(FRONTEND_URL),
         "model": ANTHROPIC_MODEL,
     }
 
@@ -1558,14 +1570,21 @@ async def login(
     password: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    username = username.strip()
+
+    username_input = (username or "").strip()
+
+    if not username_input:
+        raise HTTPException(
+            status_code=401,
+            detail="بيانات الدخول غير صحيحة.",
+        )
 
     user = (
         db.query(UserModel)
         .filter(
             or_(
-                UserModel.username == username,
-                UserModel.email == username.lower(),
+                UserModel.username == username_input,
+                UserModel.email == username_input.lower(),
             )
         )
         .first()
@@ -1574,57 +1593,29 @@ async def login(
     if not user:
         raise HTTPException(
             status_code=401,
-            detail="اسم المستخدم أو كلمة المرور غير صحيحة",
+            detail="بيانات الدخول غير صحيحة.",
         )
 
     if not verify_password(
-        password,
+        password or "",
         user.password_hash,
     ):
         raise HTTPException(
             status_code=401,
-            detail="اسم المستخدم أو كلمة المرور غير صحيحة",
+            detail="بيانات الدخول غير صحيحة.",
         )
 
-    # -----------------------------------------------------
-    # EMAIL VERIFICATION REQUIRED
-    # -----------------------------------------------------
     if not bool(user.email_verified):
-        message = (
-            "البريد الإلكتروني غير مؤكد. "
-            "تحقق من بريدك الإلكتروني وأدخل رمز التحقق."
-        )
-
-        try:
-            await supabase_send_email_otp(user.email)
-            message = (
-                "البريد الإلكتروني غير مؤكد. "
-                "تم إرسال رمز تحقق جديد إلى بريدك."
-            )
-        except Exception as exc:
-            print("LOGIN OTP RESEND ERROR:", repr(exc))
-
-            data = getattr(exc, "supabase_data", None)
-
-            if is_supabase_rate_limit_error(data):
-                message = (
-                    "البريد الإلكتروني غير مؤكد. "
-                    "استخدم رمز التحقق الذي وصلك، "
-                    "أو اضغط إعادة الإرسال بعد قليل."
-                )
-            else:
-                message = (
-                    "البريد الإلكتروني غير مؤكد. "
-                    "استخدم رمز التحقق الذي وصلك."
-                )
-
         return JSONResponse(
             status_code=403,
             content={
                 "status": "verification_required",
                 "success": False,
                 "verification_required": True,
-                "message": message,
+                "message": (
+                    "البريد الإلكتروني غير مؤكد. "
+                    "أدخل رمز التحقق أولاً."
+                ),
                 "email": user.email,
                 "store_id": user.store_id,
                 "user": {
@@ -1642,7 +1633,7 @@ async def login(
         content={
             "status": "success",
             "success": True,
-            "message": "تم تسجيل الدخول",
+            "message": "تم تسجيل الدخول بنجاح",
             "store_id": user.store_id,
             "user": {
                 "id": user.id,
