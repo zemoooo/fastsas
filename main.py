@@ -178,7 +178,7 @@ Base = declarative_base()
 
 app = FastAPI(
     title="Smart AI Store Assistant",
-    version="2.0.0",
+    version="5.1.0",
 )
 
 
@@ -836,123 +836,173 @@ def store_to_dict(
 # QR HELPERS
 # =========================================================
 
-def normalize_qr(value: Any) -> Optional[str]:
-    """Normalize an actual QR image value.
+def normalize_qr(
+    value: Any,
+) -> Optional[str]:
 
-    IMPORTANT: Evolution API also returns a `code` field such as `2@...`.
-    That is a WhatsApp pairing/code value, NOT a base64 image. Never turn it
-    into a data:image URI or the frontend will receive a fake QR image.
-    """
-    if value is None:
+    if not value:
         return None
 
     if isinstance(value, dict):
-        for key in ("base64", "base64Image", "qrcode", "qrCode", "qr", "qr_code", "image"):
-            if key in value:
-                qr = normalize_qr(value.get(key))
-                if qr:
-                    return qr
-        return None
+
+        value = first_value(
+            value.get("base64"),
+            value.get("base64Image"),
+            value.get("qrcode"),
+            value.get("qrCode"),
+            value.get("code"),
+            value.get("qr"),
+        )
 
     if not isinstance(value, str):
         return None
 
     value = value.strip()
+
     if not value:
         return None
 
-    if value.startswith("data:image/"):
+    if value.startswith(
+        "data:image"
+    ):
+
         return value
 
-    if value.startswith("https://") or value.startswith("http://"):
+    if value.startswith(
+        "http://"
+    ) or value.startswith(
+        "https://"
+    ):
+
         return value
 
-    # Do not mistake WhatsApp pairing codes (e.g. 2@...) for base64.
-    if value.startswith("2@") or ("@" in value and len(value) < 500):
+    return (
+        "data:image/png;base64,"
+        + value
+    )
+
+
+def extract_qr_code(
+    data: Any,
+) -> Optional[str]:
+
+    if not isinstance(data, dict):
         return None
 
-    # A real base64 image should be sufficiently long and contain only base64 chars.
-    compact = re.sub(r"\s+", "", value)
-    if len(compact) < 100:
-        return None
-    if not re.fullmatch(r"[A-Za-z0-9+/=_-]+", compact):
-        return None
+    candidates = []
 
-    return "data:image/png;base64," + compact
+    candidates.extend(
+        [
+            data.get("qrcode"),
+            data.get("qrCode"),
+            data.get("base64"),
+            data.get("base64Image"),
+            data.get("code"),
+            data.get("qr"),
+        ]
+    )
 
+    nested_data = data.get("data")
 
-def _walk_qr_candidates(value: Any, depth: int = 0):
-    """Recursively inspect Evolution responses for QR IMAGE fields only."""
-    if depth > 8 or value is None:
-        return
+    if isinstance(
+        nested_data,
+        dict,
+    ):
 
-    if isinstance(value, dict):
-        qr_keys = ("base64", "base64Image", "qrcode", "qrCode", "qr", "qr_code", "image")
-        for key in qr_keys:
-            if key in value:
-                yield value.get(key)
-        for key, child in value.items():
-            if key not in qr_keys and isinstance(child, (dict, list)):
-                yield from _walk_qr_candidates(child, depth + 1)
-    elif isinstance(value, list):
-        for child in value:
-            yield from _walk_qr_candidates(child, depth + 1)
+        candidates.extend(
+            [
+                nested_data.get("qrcode"),
+                nested_data.get("qrCode"),
+                nested_data.get("base64"),
+                nested_data.get("base64Image"),
+                nested_data.get("code"),
+                nested_data.get("qr"),
+            ]
+        )
 
+    instance = data.get(
+        "instance"
+    )
 
-def extract_qr_code(data: Any) -> Optional[str]:
-    for candidate in _walk_qr_candidates(data):
+    if isinstance(
+        instance,
+        dict,
+    ):
+
+        candidates.extend(
+            [
+                instance.get("qrcode"),
+                instance.get("qrCode"),
+                instance.get("base64"),
+                instance.get("base64Image"),
+                instance.get("code"),
+                instance.get("qr"),
+            ]
+        )
+
+    for candidate in candidates:
+
         qr = normalize_qr(candidate)
+
         if qr:
             return qr
+
     return None
 
 
-def extract_pairing_code(data: Any) -> Optional[str]:
-    """Return Evolution's textual WhatsApp pairing code, if supplied."""
-    def walk(value: Any, depth: int = 0):
-        if depth > 8 or value is None:
-            return None
-        if isinstance(value, dict):
-            for key in ("code", "pairingCode", "pairing_code"):
-                candidate = value.get(key)
-                if isinstance(candidate, str) and candidate.strip():
-                    return candidate.strip()
-            for child in value.values():
-                result = walk(child, depth + 1)
-                if result:
-                    return result
-        elif isinstance(value, list):
-            for child in value:
-                result = walk(child, depth + 1)
-                if result:
-                    return result
-        return None
-    return walk(data)
+def extract_connection_state(
+    data: Any,
+) -> Optional[str]:
 
-
-def extract_connection_state(data: Any) -> Optional[str]:
-    if not isinstance(data, (dict, list)):
+    if not isinstance(data, dict):
         return None
 
-    found = []
+    values = [
+        data.get("state"),
+        data.get("status"),
+        data.get("connectionStatus"),
+    ]
 
-    def walk(value: Any, depth: int = 0):
-        if depth > 8:
-            return
-        if isinstance(value, dict):
-            for key in ("state", "status", "connectionStatus", "connectionState"):
-                candidate = value.get(key)
-                if candidate is not None:
-                    found.append(str(candidate))
-            for child in value.values():
-                if isinstance(child, (dict, list)):
-                    walk(child, depth + 1)
-        elif isinstance(value, list):
-            for child in value:
-                walk(child, depth + 1)
+    nested = data.get("instance")
 
-    walk(data)
-    return found[0] if found else None
+    if isinstance(
+        nested,
+        dict,
+    ):
+
+        values.extend(
+            [
+                nested.get("state"),
+                nested.get("status"),
+                nested.get(
+                    "connectionStatus"
+                ),
+            ]
+        )
+
+    nested_data = data.get("data")
+
+    if isinstance(
+        nested_data,
+        dict,
+    ):
+
+        values.extend(
+            [
+                nested_data.get("state"),
+                nested_data.get("status"),
+                nested_data.get(
+                    "connectionStatus"
+                ),
+            ]
+        )
+
+    for value in values:
+
+        if value:
+            return str(value)
+
+    return None
 
 
 # =========================================================
@@ -1028,8 +1078,6 @@ async def evolution_create_instance(
             "status_code": response.status_code,
             "data": data,
             "qr": extract_qr_code(data),
-            "state": extract_connection_state(data),
-            "pairing_code": extract_pairing_code(data),
         }
 
     except Exception as exc:
@@ -1045,8 +1093,6 @@ async def evolution_create_instance(
                 "error": str(exc)
             },
             "qr": None,
-            "state": None,
-            "pairing_code": None,
         }
 
 
@@ -1084,8 +1130,6 @@ async def evolution_connect(
             "status_code": response.status_code,
             "data": data,
             "qr": extract_qr_code(data),
-            "state": extract_connection_state(data),
-            "pairing_code": extract_pairing_code(data),
         }
 
     except Exception as exc:
@@ -1101,8 +1145,6 @@ async def evolution_connect(
                 "error": str(exc)
             },
             "qr": None,
-            "state": None,
-            "pairing_code": None,
         }
 
 
@@ -1357,47 +1399,76 @@ async def configure_webhook(
 async def get_qr_with_retry(
     client: httpx.AsyncClient,
     instance_name: str,
-    attempts: int = 12,
+    attempts: int = 8,
     delay_seconds: float = 1.5,
 ):
-    """Keep asking Evolution for a real QR until connected or QR arrives."""
+
     last_result = None
 
-    for attempt in range(1, attempts + 1):
-        result = await evolution_connect(client, instance_name)
+    for attempt in range(
+        1,
+        attempts + 1,
+    ):
+
+        result = await evolution_connect(
+            client,
+            instance_name,
+        )
+
         last_result = result
 
-        qr = result.get("qr") or extract_qr_code(result.get("data"))
-        state = (result.get("state") or extract_connection_state(result.get("data")) or "").lower()
+        if result.get("qr"):
 
-        if qr:
-            result["qr"] = qr
-            result["state"] = state or None
-            result["pairing_code"] = result.get("pairing_code") or extract_pairing_code(result.get("data"))
-            print(f"EVOLUTION QR READY attempt={attempt} instance={instance_name}")
+            print(
+                f"QR RECEIVED ON ATTEMPT {attempt}"
+            )
+
             return result
 
-        if state in {"open", "connected", "online"}:
-            print(f"EVOLUTION CONNECTED attempt={attempt} instance={instance_name}")
-            return result
+        state = extract_connection_state(
+            result.get("data")
+        )
 
-        print(f"EVOLUTION QR WAIT attempt={attempt}/{attempts} state={state or 'unknown'} instance={instance_name}")
+        if state:
+
+            state_lower = state.lower()
+
+            if state_lower in {
+                "open",
+                "connected",
+                "online",
+            }:
+
+                return result
 
         if attempt < attempts:
-            await asyncio.sleep(delay_seconds)
 
-    return last_result or {
-        "status_code": 0,
-        "data": {"error": "Evolution API لم ترجع نتيجة"},
-        "qr": None,
-        "state": None,
-        "pairing_code": None,
-    }
+            await asyncio.sleep(
+                delay_seconds
+            )
+
+    return (
+        last_result
+        or {
+            "status_code": 0,
+            "data": {
+                "error": (
+                    "Evolution API لم ترجع نتيجة"
+                )
+            },
+            "qr": None,
+        }
+    )
 
 
 # =========================================================
 # BASIC ROUTES
 # =========================================================
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+INDEX_FILE = os.path.join(BASE_DIR, "index.html")
+WIDGET_FILE = os.path.join(BASE_DIR, "widget.js")
+
 
 @app.get(
     "/",
@@ -1405,12 +1476,10 @@ async def get_qr_with_retry(
 )
 async def read_index():
 
-    index_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "index.html")
-
-    if os.path.exists(index_path):
+    if os.path.isfile(INDEX_FILE):
 
         with open(
-            index_path,
+            INDEX_FILE,
             "r",
             encoding="utf-8",
         ) as file:
@@ -1437,23 +1506,6 @@ async def head_index():
     return Response(
         status_code=200
     )
-
-
-@app.get("/favicon.ico")
-async def favicon():
-    favicon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "favicon.ico")
-    if os.path.exists(favicon_path):
-        return FileResponse(favicon_path)
-    return Response(status_code=204)
-
-
-@app.get("/api/version")
-async def api_version():
-    return {
-        "service": "Smart AI Store Assistant",
-        "version": "5.0.0-ultimate",
-        "build": "evolution-qr-hardening",
-    }
 
 
 @app.get("/health")
@@ -1512,12 +1564,10 @@ async def health_db(
 )
 async def get_widget():
 
-    if os.path.exists(
-        "widget.js"
-    ):
+    if os.path.isfile(WIDGET_FILE):
 
         return FileResponse(
-            "widget.js",
+            WIDGET_FILE,
             media_type=(
                 "application/javascript"
             ),
@@ -2161,39 +2211,53 @@ async def whatsapp_qr(
             "qr_code": qr_result["qr"],
             "instance_name": instance_name,
             "connection_state": (
-                qr_result.get("state")
-                or extract_connection_state(qr_result.get("data"))
+                extract_connection_state(
+                    qr_result.get("data")
+                )
             ),
-            "pairing_code": qr_result.get("pairing_code") or extract_pairing_code(qr_result.get("data")),
             "webhook": webhook_result,
         }
 
     # =====================================================
-    # DO NOT HIDE EVOLUTION ERROR.
-    # Return diagnostic information.
+    # IMPORTANT: Evolution may return NO QR because the
+    # WhatsApp instance is already connected. This is a
+    # successful state, NOT a 502 error.
     # =====================================================
 
-    evolution_data = qr_result.get(
-        "data"
+    evolution_data = qr_result.get("data")
+    connection_state = extract_connection_state(
+        evolution_data
     )
+    normalized_state = (connection_state or "").strip().lower()
 
+    if normalized_state in {"open", "connected", "online"}:
+        return {
+            "status": "success",
+            "success": True,
+            "connected": True,
+            "message": "واتساب متصل بالفعل ولا يحتاج إلى QR Code.",
+            "instance_name": instance_name,
+            "qr_code": None,
+            "connection_state": connection_state,
+            "evolution_http_status": qr_result.get("status_code"),
+            "webhook": webhook_result,
+        }
+
+    # No QR and not connected: return a useful diagnostic.
     return JSONResponse(
         status_code=502,
         content={
             "status": "error",
             "success": False,
+            "connected": False,
             "message": (
-                "Evolution API لم تُرجع QR Code."
+                "Evolution API لم تُرجع QR Code ولم تصبح الجلسة متصلة."
             ),
             "instance_name": instance_name,
             "evolution_http_status": qr_result.get(
                 "status_code"
             ),
-            "connection_state": (
-                qr_result.get("state")
-                or extract_connection_state(evolution_data)
-            ),
-            "pairing_code": qr_result.get("pairing_code") or extract_pairing_code(evolution_data),
+            "connection_state": connection_state,
             "evolution_response": evolution_data,
             "ensure_result": ensure_result,
             "webhook_result": webhook_result,
@@ -2735,16 +2799,27 @@ async def whatsapp_webhook(
 
         payload = await request.json()
 
-        # NEVER print the full Evolution payload: it may contain API keys,
-        # phone numbers, message contents, and other private data.
-        event_name = str(payload.get("event") or payload.get("type") or "unknown")
-        data_preview = payload.get("data") if isinstance(payload.get("data"), dict) else {}
-        if event_name.lower() == "connection.update":
-            state = data_preview.get("state") or data_preview.get("status") or "unknown"
-            print(f"WHATSAPP CONNECTION UPDATE store={store_id} state={state}")
-            return {"status": "connection_update", "state": str(state)}
+        event_name = payload.get("event") or payload.get("eventType") or "unknown"
+        webhook_data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
+        webhook_state = webhook_data.get("state") if isinstance(webhook_data, dict) else None
+        print(
+            "WHATSAPP WEBHOOK:",
+            store_id,
+            "event=", event_name,
+            "state=", webhook_state,
+        )
 
-        print(f"WHATSAPP WEBHOOK store={store_id} event={event_name}")
+        # Connection/QRCODE events are acknowledgements only.
+        # Do not send them to the AI message parser.
+        if str(event_name).upper() in {
+            "CONNECTION_UPDATE",
+            "QRCODE_UPDATED",
+        }:
+            return {
+                "status": "ok",
+                "event": event_name,
+                "connection_state": webhook_state,
+            }
 
         sender, incoming_text = (
             extract_whatsapp_message(
@@ -2907,10 +2982,8 @@ async def startup_event():
     )
 
     print(
-        "SMART AI STORE ASSISTANT v5.0.0-ULTIMATE STARTING"
+        "SMART AI STORE ASSISTANT STARTING"
     )
-
-    print("APP FILE:", os.path.abspath(__file__))
 
     print(
         "DATABASE:",
